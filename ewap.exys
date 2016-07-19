@@ -1,0 +1,100 @@
+; Tree structure would look like
+;
+; 
+
+(define bids (list Book.bids.level0.price
+                Book.bids.level1.price
+                Book.bids.level2.price
+                Book.bids.level3.price))
+
+(define asks (list Book.asks.level0.price
+                Book.asks.level1.price
+                Book.asks.level2.price
+                Book.asks.level3.price))
+
+(define bidsum 0)
+(map (lambda(price) 
+            (set! bidsum ((sum bidsum (exp (* (sum price refprice) lmbd))))) bids)
+
+const(0)
+  |
+bidsum
+  |
+  -----------------
+                  |
+                  
+                  
+
+(output bidsum Double.val)
+
+; 
+; 
+; Node0 = const0
+; Node1 = price0
+; Node2 = price1
+; Node3 = res
+; Node4 = output1
+
+(input double 
+    Books.bids.level0.price
+    Books.asks.level1.price)
+
+(define res (+ 0 Books.bids.level0.price Books.asks.level1.price))
+(set! res (+ res 1))
+(set! res (? (> res 100) (res) (0))
+(observe res Double.val)
+
+res = OP_VAR , children=+
++ = OP_ADD , children=p0,p1, parent=res
++2 = OP_ADD, children=res,1 parent=res2
+res2 = OP_VAR, children=+2
+
+p0 = OP_INPUT, parent=+
+p1 = OP_INPUT, parent=+
+res2
+
+(define res (someinput))
+(define incrRes (lambda (x) (set! res (+ x 1))))
+(set! res (+ res 1))
+(incrRes 1)
+(incrRes 100)
+
+0
+0
+1
+2
+
+res
+res_lambda <- input_x + 1
+res_2 <- res + 1
+
+someinput
+  |
+ res
+  |          CONST(1)   INPUT_x
+  |            |          |
+  |                 SUM
+  |                  |
+  |              res_lambda
+  |    CONST(1)
+  |      |
+    SUM
+     |
+    RES_2
+
+  
+
+
+output1 = OP_OBSERVER, children=res
+
+
+        OP_CONST,
+        OP_VAR,
+        OP_ADD,      // +
+        OP_MIN,      // -
+        OP_DIV,      // /
+        OP_MUL,      // *
+        OP_EXP,      // exp
+        OP_LN,       // ln
+        OP_OBSERVER
+; 
