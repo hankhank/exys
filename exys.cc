@@ -36,6 +36,19 @@ std::list<std::string> Tokenize(const std::string & str)
     return tokens;
 }
 
+Cell Atom(const std::string& token)
+{
+    if
+    (
+        (token.size() && std::isdigit(token[0])) || 
+        (token.size() > 1 && token[0] == '-' && std::isdigit(token[1]))
+    )
+    {
+        return Cell::Number(token);
+    }
+    return Cell::Symbol(token);
+}
+
 // return the Lisp expression in the given tokens
 Cell ReadFromTokens(std::list<std::string>& tokens)
 {
@@ -53,7 +66,7 @@ Cell ReadFromTokens(std::list<std::string>& tokens)
     }
     else
     {
-        return Cell::Symbol(token);
+        return Atom(token);
     }
 }
 
@@ -78,145 +91,120 @@ Node::Ptr Graph::LookupSymbol(const std::string token)
     return *niter;
 }
 
-void Graph::SetMostRecentVarNode(const std::string varToken, Node::Ptr varNode)
-{
-}
-
 Node::Ptr Graph::Build(const Cell &cell, Node::Ptr childNode)
 {
+    Node::Ptr ret = nullptr;
     if(cell.type == Cell::Type::SYMBOL)
     {
-        return LookupSymbol(cell.token);
+        ret = LookupSymbol(cell.token);
     }
     if(cell.type == Cell::Type::NUMBER)
     {
-        auto constNode = std::make_shared<ConstNode>();
-        return constNode;
+        ret = std::make_shared<ConstNode>();
     }
     else if(cell.type == Cell::Type::LIST)
     {
-        if (cell.list.empty())
+        if (!cell.list.empty())
         {
-            return nullptr;
-        }
-
-        auto& firstElem = cell.list.front();
-        if(firstElem.token == "?")
-        {
-            // Add check for list length
-            auto& condExp = cell.list[1];
-            auto& posExp  = cell.list[2];
-            auto& negExp  = cell.list[3];
-            
-            auto ifNode = BuildIfNode(varNode);
-            auto condNode = Build(condExp, ifNode);
-            auto posNode = Build(posExp, ifNode);
-            auto negNode = Build(negExp, ifNode);
-            ifNode->setConditionalNode(condNode);
-            return ifNode;
-        }
-        else if(firstElem.token == "define")
-        {
-            // Add check for list length
-            auto& varToken = cell.list[1].token;
-            auto& exp = cell.list[2];
-
-            // check whether its been defined in this scope
-                
-            // Create Node
-            auto varNode = std::make_shared<Node>();
-            varNode->kind = Node::Kind::VAR;
-            varNode->type = Node::Type::UNKNOWN;
-            varNode->token = varToken;
-            varNode->recomputeId = mStabilisationId;
-            varNode->changeId = mStabilisationId;
-            varNode->height = 0;
-            varNode->value.i = 0;
-
-            mVarNodes[varToken] = varNode;
-            
-            // Build parents and adopt their type
-            auto parent = Build(exp, varNode);
-            varNode->type = parent->type;
-            
-            return nullptr;
-        }
-        else if(firstElem.token == "set!")
-        {
-            // Add check for list length
-            // Add check that token already exists
-            
-            auto& varToken = cell.list[1].token;
-            auto& exp = cell.list[2];
-
-            // Create Node
-            auto varNode = std::make_shared<Node>();
-            varNode->kind = Node::Kind::VAR;
-            varNode->type = Node::Type::UNKNOWN;
-            varNode->token = varToken;
-            varNode->recomputeId = mStabilisationId;
-            varNode->changeId = mStabilisationId;
-            varNode->height = 0;
-            varNode->value.i = 0;
-            
-            // Build parents and adopt their type
-            auto parent = Build(exp, varNode);
-            varNode->type = parent->type;
-
-            SetMostRecentVarNode(varToken, varNode);
-
-            return nullptr;
-        }
-        else if(firstElem.token == "lambda")
-        {
-            // Think I need to capture tree here
-            // and build graph whenever invoked
-            // I think this will be the same for
-            // all procs
-            // For map
-        }
-        else if(firstElem.token == "input")
-        {
-            // Add check for list length
-            // Add check whether token in list send warn
-            auto& inputTypeToken = cell.list[1].token;
-
-            // Check valid type
-            auto inputType = InputType2Enum(inputType);
-    
-            // Add input node
-            for(auto& inputToken : cell.at(2))
+            auto& firstElem = cell.list.front();
+            if(firstElem.token == "?")
             {
-                auto& inputToken = cell.list[2].token;
-
-                // check input hasn't already been declared
+                // Add check for list length
+                auto& condExp = cell.list[1];
+                auto& posExp  = cell.list[2];
+                auto& negExp  = cell.list[3];
                 
-                auto inputNode = std::make_shared<Node>();
-                inputNode->kind = Node::Kind::INPUT;
-                inputNode->type = inputType;
-                inputNode->token = inputToken;
-                inputNode->recomputeId = mStabilisationId;
-                inputNode->changeId = mStabilisationId;
-                inputNode->height = 0;
-                inputNode->value.i = 0;
+                auto ifNode = std::make_shared<TenaryNode>();
+                auto condNode = Build(condExp, ifNode);
+                auto posNode = Build(posExp, ifNode);
+                auto negNode = Build(negExp, ifNode);
 
-                mVarNodes[varToken] = varNode;
+                // Check neg and pos legs have same type
+                ifNode->SetLegs(condNode, posNode, negNode);
+
+                return ifNode;
+            }
+            else if(firstElem.token == "define")
+            {
+                // Add check for list length
+                auto& varToken = cell.list[1].token;
+                auto& exp = cell.list[2];
+
+                // check whether its been defined in this scope
+
+                // Build parents and adopt their type
+                auto parent = Build(exp, nullptr);
+                mVarNodes[varToken] = parent;
+            }
+            else if(firstElem.token == "set!")
+            {
+                // Add check for list length
+                // Add check that token already exists
+                auto& varToken = cell.list[1].token;
+                auto& exp = cell.list[2];
+
+                // Build parents and adopt their type
+                auto parent = Build(exp, nullptr);
+                mVarNodes[varToken] = parent;
+            }
+            else if(firstElem.token == "lambda")
+            {
+                // Think I need to capture tree here
+                // and build graph whenever invoked
+                // I think this will be the same for
+                // all procs
+                // For map
+            }
+            else if(firstElem.token == "input")
+            {
+                // Add check for list length
+                // Add check whether token in list send warn
+                auto& inputTypeToken = cell.list[1].token;
+
+                // Check valid type
+                auto inputType = InputType2Enum(inputType);
+        
+                // Add input node
+                for(auto& inputToken : cell.at(2))
+                {
+                    auto& inputToken = cell.list[2].token;
+
+                    // check input hasn't already been declared
+                    
+                    auto inputNode = std::make_shared<InputNode>();
+                    inputNode->kind = Node::Kind::INPUT;
+                    inputNode->type = inputType;
+                    inputNode->token = inputToken;
+
+                    mVarNodes[varToken] = inputNode;
+                    mInputsNodes[varToken] = inputNode;
+                }
+            }
+            else if(firstElem.token == "observe")
+            {
+                // Add check for list length
+                // Add check that token already exists
+                // Add check that we aren't already ouputing to this observer
+                auto& varToken = cell.list[1].token;
+                auto& ouputToken = cell.list[2].token;
+
+                // Register Observer
+                auto varNode = LookupSymbol(varToken);
+                observers[outputToken] = varNode;
+            }
+            else // procedure call
+            {
+                // Add check for list length
+                auto proc = LookupProcedure(firstElem.token);
+                std::vector<Cell> args(cell.list.begin()+1, cell.list.end()); 
+                ret = proc(args, childNode);
             }
         }
-        else if(firstElem.token == "observe")
-        {
-            // Add check for list length
-            // Add check that token already exists
-            auto& varToken = cell.list[1].token;
-            auto& ouputToken = cell.list[2].token;
-            auto varNode = LookupSymbol(cell.token);
+    }
 
-            // Register Observer
-            observers.push_back(varNode);
-        }
-        else // procedure call
-        {
-        }
+    if(ret && childNode)
+    {
+        ret->mChildren.push_back(childNode);
     }
 }
 

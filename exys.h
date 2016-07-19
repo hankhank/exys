@@ -24,6 +24,7 @@ struct Cell
     std::vector<Cell> list;
     
     static Cell Symbol(const std::string& tok) { return {SYMBOL, tok, {}};}
+    static Cell Number(const std::string& tok) { return {NUMBER, tok, {}};}
     static Cell List() { return {LIST, "", {}};}
 };
 
@@ -47,7 +48,6 @@ class Node
     {
         UNKNOWN=0,
         CONST,
-        VAR,
         TENARY,
         INPUT,
         OBSERVER,
@@ -66,16 +66,10 @@ class Node
 
 public:
     virtual ~Node() {}
-    virtual void Recompute() {};
-    virtual void Stabilise()
+    virtual void Stabilise(uint64_t stabilisationId) 
     {
-        for(auto parent : mParents)
-        {
-            if(parent->mChangeId > mChangeId)
-            {
-                Recompute();
-            }
-        }
+        mRecomputeId = stabilisationId;
+        mChangeId = stabilisationId;
     }
 
     Kind mKind=UNKNOWN;
@@ -104,12 +98,68 @@ class ConstNode : public Node
     , mKind(CONST) {}
 };
 
+class InputNode : public Node
+{
+    InputNode() 
+    : Node()
+    , mKind(INPUT) {}
+};
+
 class TenaryNode : public Node
 {
 public:
     TenaryNode() 
     : Node()
     , mKind(TERNARY) {}
+
+    void SetLegs(Node::Ptr condNode, Node::Ptr posNode, Node::ptr negNode)
+    {
+        mCondNode = condNode;
+        mPosNode  = posNode;
+        mNegNode  = negNode;
+        mType = mNegNode->mType;
+        mParents.push_back(condNode);
+        mParents.push_back(posNode);
+        mParents.push_back(negNode);
+    }
+    
+    bool Bool()
+    {
+        switch(mCondNode->mType)
+        {
+            default: assert(false);
+            case BOOL:   return mCondNode->mValue.b;
+            case INT:    return mCondNode->mValue.i;
+            case UINT:   return mCondNode->mValue.u;
+            case DOUBLE: return mCondNode->mValue.d;
+        }
+    }
+
+    virtual void Stabilise(uint64_t stabilisationId)
+    {
+        Node::Ptr leg = nullptr;
+        if(Bool())
+        {
+            leg = mPosNode;
+        }
+        else
+        {
+            leg = mNegNode;
+        }
+
+        if(leg->mChangeId > mChangeId || leg != mCurLeg)
+        {
+            mValue = leg->mValue;
+            mChangeId = stabilisationId;
+            mCurLeg = leg;
+        }
+        mRecomputeId = stabilisationId;
+    }
+    
+    Node::Ptr mCondNode;
+    Node::Ptr mPosNode;
+    Node::Ptr mNegNode;
+    Node::Ptr mCurLeg;
 };
 
 class Graph
@@ -117,21 +167,20 @@ class Graph
 public:
     Graph() {}
     
-    void RegisterNode(Node::Ptr node);
-    Node::Ptr LookupNode(const std::string token);
-    void SetMostRecentVarNode(const std::string varToken, Node::Ptr varNode);
-
 private:
-    std::set<Node::Ptr> observers;
+    Node::Ptr LookupNode(const std::string token);
+
+    std::unorderd_map<const std::string, Node::Ptr> observers;
     std::map<uint64_t, Node::Ptr> recomputeHeap; // height -> Nodes
     std::unorderd_map<const std::string, Node::Ptr> mVarNodes;
+    std::unorderd_map<const std::string, Node::Ptr> mInputsNodes;
 
     uint64_t mNextInputId=0;
 
     uint64_t stabilisationId=0;
     Graph* parent=nullptr;
 
-    void Build(Cell proc);
+    void Build(Cell proc, Node::Ptr childNode=nullptr);
 };
 
 };
