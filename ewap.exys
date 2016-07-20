@@ -12,7 +12,14 @@
                 Book.asks.level2.price
                 Book.asks.level3.price))
 
+(input double bids)
+(input double asks)
+
+(define refprice 0)
 (define bidsum 0)
+(map (lambda(price) 
+            (set! bidsum ((sum bidsum (exp (* (sum price refprice) lmbd))))) bids)
+
 (map (lambda(price) 
             (set! bidsum ((sum bidsum (exp (* (sum price refprice) lmbd))))) bids)
 

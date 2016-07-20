@@ -81,17 +81,55 @@ std::vector<Cell> Parse(const std::string& val)
     return procedures;
 }
 
-Node::Ptr Graph::LookupSymbol(const std::string token)
+template<typename T>
+Node::Ptr Graph::BuildNode(const std::vector<Cell>& args)
 {
-    auto niter = std::find(mVarNodes.begin(), mVarNodes.end(), token);
+    auto mn = std::make_shared<T>();
+    for(auto& arg : args)
+    {
+        auto leg = Build(arg);
+        mn->mParents.push_back(leg);
+    }
+}
+
+#define ADD_PROC(__ID, __BUILDER) \
+    mProcs[std::string(__ID)] = [this](std::vector<Cell> args)->Node::Ptr \
+                        {return this->__BUILDER(args);}
+
+Graph::Graph()
+{
+    ADD_PROC("+", BuildNode<SumNode>);
+    ADD_PROC("-", BuildNode<SubNode>);
+    ADD_PROC("/", BuildNode<DivNode>);
+    ADD_PROC("*", BuildNode<MulNode>);
+}
+
+Node::Ptr Graph::LookupSymbol(const std::string& token)
+{
+    auto niter = mVarNodes.find(token);
     if (niter == mVarNodes.end())
     {
         // raise
     }
-    return *niter;
+    return niter->second;
 }
 
-Node::Ptr Graph::Build(const Cell &cell, Node::Ptr childNode)
+Graph::GraphFactory Graph::LookupProcedure(const std::string& token)
+{
+    auto niter = mProcs.find(token);
+    if (niter == mProcs.end())
+    {
+        // raise
+    }
+    return niter->second;
+}
+
+Node::Type Graph::InputType2Enum(const std::string& token)
+{
+    return Node::Type::TYPE_DOUBLE;
+}
+
+Node::Ptr Graph::Build(const Cell &cell)
 {
     Node::Ptr ret = nullptr;
     if(cell.type == Cell::Type::SYMBOL)
@@ -115,9 +153,9 @@ Node::Ptr Graph::Build(const Cell &cell, Node::Ptr childNode)
                 auto& negExp  = cell.list[3];
                 
                 auto ifNode = std::make_shared<TenaryNode>();
-                auto condNode = Build(condExp, ifNode);
-                auto posNode = Build(posExp, ifNode);
-                auto negNode = Build(negExp, ifNode);
+                auto condNode = Build(condExp);
+                auto posNode = Build(posExp);
+                auto negNode = Build(negExp);
 
                 // Check neg and pos legs have same type
                 ifNode->SetLegs(condNode, posNode, negNode);
@@ -133,7 +171,7 @@ Node::Ptr Graph::Build(const Cell &cell, Node::Ptr childNode)
                 // check whether its been defined in this scope
 
                 // Build parents and adopt their type
-                auto parent = Build(exp, nullptr);
+                auto parent = Build(exp);
                 mVarNodes[varToken] = parent;
             }
             else if(firstElem.token == "set!")
@@ -144,7 +182,7 @@ Node::Ptr Graph::Build(const Cell &cell, Node::Ptr childNode)
                 auto& exp = cell.list[2];
 
                 // Build parents and adopt their type
-                auto parent = Build(exp, nullptr);
+                auto parent = Build(exp);
                 mVarNodes[varToken] = parent;
             }
             else if(firstElem.token == "lambda")
@@ -154,30 +192,36 @@ Node::Ptr Graph::Build(const Cell &cell, Node::Ptr childNode)
                 // I think this will be the same for
                 // all procs
                 // For map
+ 
+                // Add check for list length
+                // Add check whether token in list send warn
+                auto& lambdaToken = cell.list[1].token;
+                //mProcs[lambdaToken] = []
             }
             else if(firstElem.token == "input")
             {
                 // Add check for list length
                 // Add check whether token in list send warn
+                //
                 auto& inputTypeToken = cell.list[1].token;
 
                 // Check valid type
-                auto inputType = InputType2Enum(inputType);
+                auto inputType = InputType2Enum(inputTypeToken);
         
                 // Add input node
-                for(auto& inputToken : cell.at(2))
+                for(auto iter = cell.list.begin()+2;
+                    iter != cell.list.end(); iter++)
                 {
-                    auto& inputToken = cell.list[2].token;
+                    auto& inputToken = iter->token;
 
                     // check input hasn't already been declared
                     
                     auto inputNode = std::make_shared<InputNode>();
-                    inputNode->kind = Node::Kind::INPUT;
-                    inputNode->type = inputType;
-                    inputNode->token = inputToken;
+                    inputNode->mType = inputType;
+                    inputNode->mToken = inputToken;
 
-                    mVarNodes[varToken] = inputNode;
-                    mInputsNodes[varToken] = inputNode;
+                    mVarNodes[inputToken] = inputNode;
+                    mInputsNodes[inputToken] = inputNode;
                 }
             }
             else if(firstElem.token == "observe")
@@ -186,7 +230,7 @@ Node::Ptr Graph::Build(const Cell &cell, Node::Ptr childNode)
                 // Add check that token already exists
                 // Add check that we aren't already ouputing to this observer
                 auto& varToken = cell.list[1].token;
-                auto& ouputToken = cell.list[2].token;
+                auto& outputToken = cell.list[2].token;
 
                 // Register Observer
                 auto varNode = LookupSymbol(varToken);
@@ -197,42 +241,24 @@ Node::Ptr Graph::Build(const Cell &cell, Node::Ptr childNode)
                 // Add check for list length
                 auto proc = LookupProcedure(firstElem.token);
                 std::vector<Cell> args(cell.list.begin()+1, cell.list.end()); 
-                ret = proc(args, childNode);
+                ret = proc(args);
             }
         }
     }
-
-    if(ret && childNode)
-    {
-        ret->mChildren.push_back(childNode);
-    }
+    return ret;
 }
 
-Graph BuildGraph(const std::vector<Cell>& procs)
+std::unique_ptr<Graph> Graph::BuildGraph(const std::string& text)
 {
-    Graph graph;
-    for (auto& proc : procs)
+    auto cells = Parse(text);
+    auto graph = std::make_unique<Graph>();
+    for (auto& cell : cells)
     {
-        graph.Eval(proc);
+        graph->Build(cell);
     }
-    graph.Complete();
+    //graph.Complete();
+    return graph;
 }
 
 }
 
-int main()
-{
-    const auto& d = std::string("(input Books)\n(define res (+ 0 Books.bids.level0.price Books.asks.level1.price))\n(set! res (+ res 1))\n(output res Double.val)");
-    
-    auto procs = Exys::Parse(d);
-    auto graph = Exys::BuildGraph(procs);
-    return 0;
-}
-
-//void Vwap::Recv(GwdSignal& signal)
-//{
-//    switch (signal.connection.signalId)
-//    {
-//    };
-//}
-//
