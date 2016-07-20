@@ -22,11 +22,12 @@ struct Cell
 
     Type type;
     std::string token;
+    int64_t offset;
     std::vector<Cell> list;
     
-    static Cell Symbol(const std::string& tok) { return {SYMBOL, tok, {}};}
-    static Cell Number(const std::string& tok) { return {NUMBER, tok, {}};}
-    static Cell List() { return {LIST, "", {}};}
+    static Cell Symbol(const std::string& tok, int offset) { return {SYMBOL, tok, offset, {}};}
+    static Cell Number(const std::string& tok, int offset) { return {NUMBER, tok, offset, {}};}
+    static Cell List(int offset) { return {LIST, "", offset, {}};}
 };
 
 class Node
@@ -88,6 +89,7 @@ class ConstNode : public Node
 public:
     ConstNode() 
     : Node(KIND_CONST) {}
+    virtual ~ConstNode(){}
 };
 
 class InputNode : public Node
@@ -95,6 +97,8 @@ class InputNode : public Node
 public:
     InputNode() 
     : Node(KIND_INPUT) {}
+
+    virtual ~InputNode(){}
 };
 
 #define MATH_NODE(__NAME, __OP) \
@@ -104,6 +108,7 @@ public: \
     __NAME() \
     : Node(KIND_VAR) \
     {} \
+    virtual ~__NAME(){} \
     \
     virtual void Stabilise(uint64_t stabilisationId)\
     {\
@@ -204,8 +209,8 @@ public:
     static std::unique_ptr<Graph> BuildGraph(const std::string& text);
 
 private:
-    Node::Ptr LookupSymbol(const std::string& token);
-    GraphFactory LookupProcedure(const std::string& token);
+    Node::Ptr LookupSymbol(const Cell& cell);
+    GraphFactory LookupProcedure(const Cell& token);
 
     Node::Type InputType2Enum(const std::string& token);
 
@@ -222,6 +227,40 @@ private:
 
     uint64_t stabilisationId=0;
     Graph* parent=nullptr;
+};
+
+class GraphBuildException : public std::exception
+{
+public:
+    GraphBuildException(const std::string& error, Cell cell)
+    : mError(error)
+    , mCell(cell)
+    {
+    }
+
+    virtual const char* what() const noexcept(true)
+    {
+        return mError.c_str();
+    }
+
+    std::string GetErrorMessage(const std::string& text) const
+    {
+        auto start = text.rfind("\n", mCell.offset);
+        auto end = text.find("\n", mCell.offset);
+        std::string errmsg(mError);
+        errmsg += "\n";
+        errmsg += std::string(text, start, end-start);
+        errmsg += "\n";
+        for(int i = 1; i < mCell.offset-start; i++)
+        {
+            errmsg += " ";
+        }
+        errmsg += "^\n";
+        return errmsg;
+    }
+
+    std::string mError;
+    Cell mCell;
 };
 
 

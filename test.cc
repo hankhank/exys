@@ -4,8 +4,17 @@
 
 int main()
 {
-    const auto& d = std::string("(input double Books)\n(define res (+ 0 Books.bids.level0.price Books.asks.level1.price))\n(set! res (+ res 1))\n(output res Double.val)");
+    const auto& d = std::string("(define res 0)\n(set! res (+ res 1))");
     
-    auto graph = Exys::Graph::BuildGraph(d);
+    try
+    {
+        auto graph = Exys::Graph::BuildGraph(d);
+        std::cout << "built";
+    }
+    catch (const Exys::GraphBuildException& e)
+    {
+        std::cout << e.GetErrorMessage(d);
+    }
+
     return 0;
 }
