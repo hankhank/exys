@@ -1,19 +1,25 @@
 #include <iostream>
+#include <fstream>
+#include <sstream>
 
 #include "exys.h"
 
-int main()
+int main(int argc, char* argv[])
 {
-    const auto& d = std::string("(define res 0)\n(set! res (+ res 1))");
+    std::ifstream t(argv[1]);
+    std::stringstream buffer;
+    buffer << t.rdbuf();
     
     try
     {
-        auto graph = Exys::Graph::BuildGraph(d);
-        std::cout << "built";
+        auto graph = Exys::Graph::BuildGraph(buffer.str());
+        auto input = graph->LookupInputNode("res");
+        auto output = graph->LookupObserverNode("res");
+        std::cout << graph->GetDOTGraph();
     }
     catch (const Exys::GraphBuildException& e)
     {
-        std::cout << e.GetErrorMessage(d);
+        std::cout << e.GetErrorMessage(buffer.str());
     }
 
     return 0;

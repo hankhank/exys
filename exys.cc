@@ -2,6 +2,7 @@
 #include <exys.h>
 
 #include <cctype>
+#include <set>
 #include <cwctype>
 
 // debug headers
@@ -37,7 +38,10 @@ std::list<Token> Tokenize(const std::string & str)
             {
                 ++t;
             }
-            tokens.push_back({std::string(s, t), s-ref});
+            if(s != t)
+            {
+                tokens.push_back({std::string(s, t), s-ref});
+            }
             s = t;
         }
     }
@@ -92,9 +96,17 @@ std::vector<Cell> Parse(const std::string& val)
 }
 
 template<typename T>
-Node::Ptr Graph::BuildNode(const std::vector<Cell>& args)
+std::shared_ptr<T> Graph::BuildNode()
 {
-    auto mn = std::make_shared<T>();
+    auto ret = std::make_shared<T>();
+    mAllNodes.push_back(ret);
+    return ret;
+}
+
+template<typename T>
+Node::Ptr Graph::BuildForProc(const std::vector<Cell>& args)
+{
+    auto mn = BuildNode<T>();
     for(auto& arg : args)
     {
         auto leg = Build(arg);
@@ -109,10 +121,10 @@ Node::Ptr Graph::BuildNode(const std::vector<Cell>& args)
 
 Graph::Graph()
 {
-    ADD_PROC("+", BuildNode<SumNode>);
-    ADD_PROC("-", BuildNode<SubNode>);
-    ADD_PROC("/", BuildNode<DivNode>);
-    ADD_PROC("*", BuildNode<MulNode>);
+    ADD_PROC("+", BuildForProc<SumNode>);
+    ADD_PROC("-", BuildForProc<SubNode>);
+    ADD_PROC("/", BuildForProc<DivNode>);
+    ADD_PROC("*", BuildForProc<MulNode>);
 }
 
 Node::Ptr Graph::LookupSymbol(const Cell& cell)
@@ -148,11 +160,10 @@ void ValidateListLength(const Cell& cell, size_t min)
 {
     if(cell.list.size() < min)
     {
-        std::string error;
-        std::stringstream err(error);
+        std::stringstream err;
         err << "List length too small. Expected at least "
             << min << " Got " << cell.list.size();
-        throw GraphBuildException(error, cell);
+        throw GraphBuildException(err.str(), cell);
     }
 }
 
@@ -165,7 +176,9 @@ Node::Ptr Graph::Build(const Cell &cell)
     }
     if(cell.type == Cell::Type::NUMBER)
     {
-        ret = std::make_shared<ConstNode>();
+        auto cnode = BuildNode<ConstNode>();
+        cnode->ReadConstant(cell.token);
+        ret = cnode;
     }
     else if(cell.type == Cell::Type::LIST)
     {
@@ -180,7 +193,7 @@ Node::Ptr Graph::Build(const Cell &cell)
                 auto& posExp  = cell.list[2];
                 auto& negExp  = cell.list[3];
                 
-                auto ifNode = std::make_shared<TenaryNode>();
+                auto ifNode = BuildNode<TenaryNode>();
                 auto condNode = Build(condExp);
                 auto posNode = Build(posExp);
                 auto negNode = Build(negExp);
@@ -247,12 +260,12 @@ Node::Ptr Graph::Build(const Cell &cell)
 
                     // check input hasn't already been declared
                     
-                    auto inputNode = std::make_shared<InputNode>();
+                    auto inputNode = BuildNode<InputNode>();
                     inputNode->mType = inputType;
                     inputNode->mToken = inputToken;
 
                     mVarNodes[inputToken] = inputNode;
-                    mInputsNodes[inputToken] = inputNode;
+                    mInputs[inputToken] = inputNode;
                 }
             }
             else if(firstElem.token == "observe")
@@ -266,7 +279,7 @@ Node::Ptr Graph::Build(const Cell &cell)
 
                 // Register Observer
                 auto varNode = LookupSymbol(varToken);
-                observers[outputToken] = varNode;
+                mObservers[outputToken] = varNode;
             }
             else // procedure call
             {
@@ -280,6 +293,83 @@ Node::Ptr Graph::Build(const Cell &cell)
     return ret;
 }
 
+void Graph::CompleteBuild()
+{
+    // Set heights add children to necessary nodes
+    //for(auto ob : mObservers)
+    //{
+    //    uint64_t height = 0;
+    //    auto process = [this](Node::Ptr node, uint64_t& height)
+    //    {
+    //        node->mHeight = height++;
+    //        mNecessaryNodes.push_back(node);
+    //        for(auto parent : node->mParents)
+    //        {
+    //            process(parent, height);
+    //        }
+    //    }
+    //    process(ob);
+    //}
+}
+
+Node::Ptr Graph::LookupInputNode(const std::string& label)
+{
+    auto niter = mInputs.find(label);
+    return niter != mInputs.end() ? niter->second : nullptr;
+}
+
+Node::Ptr Graph::LookupObserverNode(const std::string& label)
+{
+    auto niter = mObservers.find(label);
+    return niter != mObservers.end() ? niter->second : nullptr;
+}
+
+std::string NodeToPtrString(Node::Ptr node)
+{
+    return std::to_string((long int)node.get());
+}
+
+std::string NodeToDotLabel(Node::Ptr node)
+{
+    return std::to_string((long int)node.get())
+        + "[label=\"" + node->Label() + "\"];";
+}
+
+std::string Graph::GetDOTGraph()
+{
+    std::set<Node::Ptr> nodes;
+    std::string ret = "digraph Exys {\n";
+    for(auto nodeptr : mAllNodes)
+    {
+        nodes.insert(nodeptr);
+
+        auto childLabel = NodeToPtrString(nodeptr);
+        for(auto parent : nodeptr->mParents)
+        {
+            nodes.insert(parent);
+            ret += NodeToPtrString(parent) + " -> " 
+                + childLabel + "\n";
+        }
+    }
+
+    int i = 0;
+    for(auto tokennode : mObservers)
+    {
+        ret += NodeToPtrString(tokennode.second) + " -> " 
+            + std::to_string(i) + "\n" 
+            + std::to_string(i) + " [label=" + tokennode.first 
+            + "]\n";
+    }
+
+    for(auto nodeptr : nodes)
+    {
+        ret += NodeToDotLabel(nodeptr) + "\n";
+    }
+
+    ret += "}";
+    return ret;
+}
+
 std::unique_ptr<Graph> Graph::BuildGraph(const std::string& text)
 {
     auto cells = Parse(text);
@@ -288,7 +378,7 @@ std::unique_ptr<Graph> Graph::BuildGraph(const std::string& text)
     {
         graph->Build(cell);
     }
-    //graph.Complete();
+    graph->CompleteBuild();
     return graph;
 }
 

@@ -66,15 +66,20 @@ public:
     {}
 
     virtual ~Node() {}
-    virtual void Stabilise(uint64_t stabilisationId) 
+    virtual void Stabilize(uint64_t stabilisationId) 
     {
         mRecomputeId = stabilisationId;
         mChangeId = stabilisationId;
     }
 
+    virtual std::string Label()
+    {
+        return std::to_string((long int)this);
+    }
+
     Kind mKind=KIND_UNKNOWN;
     Type mType=TYPE_UNKNOWN;
-    std::string mToken="";
+
     uint64_t mRecomputeId=0;
     uint64_t mChangeId=0;
     uint64_t mHeight=0;
@@ -89,7 +94,42 @@ class ConstNode : public Node
 public:
     ConstNode() 
     : Node(KIND_CONST) {}
+
     virtual ~ConstNode(){}
+
+    void ReadConstant(const std::string& token)
+    {
+        try
+        {
+            mValue.i = std::stoi(token);
+            mType = TYPE_INT;
+            return;
+        }
+        catch (std::invalid_argument)
+        {
+        }
+        try
+        {
+            mValue.d = std::stof(token);
+            mType = TYPE_DOUBLE;
+            return;
+        }
+        catch (std::invalid_argument)
+        {
+        }
+    }
+
+    virtual std::string Label() override
+    {
+        switch(mType)
+        {
+            default:
+            case TYPE_BOOL:   return std::to_string(mValue.b);
+            case TYPE_INT:    return std::to_string(mValue.i);
+            case TYPE_UINT:   return std::to_string(mValue.u);
+            case TYPE_DOUBLE: return std::to_string(mValue.d);
+        }
+    }
 };
 
 class InputNode : public Node
@@ -99,6 +139,13 @@ public:
     : Node(KIND_INPUT) {}
 
     virtual ~InputNode(){}
+
+    virtual std::string Label() override
+    {
+        return mToken;
+    }
+
+    std::string mToken;
 };
 
 #define MATH_NODE(__NAME, __OP) \
@@ -110,7 +157,7 @@ public: \
     {} \
     virtual ~__NAME(){} \
     \
-    virtual void Stabilise(uint64_t stabilisationId)\
+    virtual void Stabilize(uint64_t stabilisationId)\
     {\
         Var newVal; \
         bool update = false; \
@@ -131,6 +178,11 @@ public: \
             mChangeId = stabilisationId; \
         } \
         mRecomputeId = stabilisationId; \
+    } \
+\
+    virtual std::string Label() override \
+    { \
+        return std::string(# __OP); \
     } \
 };
 
@@ -169,7 +221,7 @@ public:
         }
     }
 
-    virtual void Stabilise(uint64_t stabilisationId)
+    virtual void Stabilize(uint64_t stabilisationId)
     {
         Node::Ptr leg = nullptr;
         if(Bool())
@@ -206,26 +258,37 @@ public:
     typedef std::function<Node::Ptr (const std::vector<Cell>&)>
         GraphFactory;
 
+    Node::Ptr LookupInputNode(const std::string& label);
+    Node::Ptr LookupObserverNode(const std::string& label);
+
+    void Stabilize();
+
+    std::string GetDOTGraph();
+
     static std::unique_ptr<Graph> BuildGraph(const std::string& text);
 
 private:
+    void CompleteBuild();
     Node::Ptr LookupSymbol(const Cell& cell);
     GraphFactory LookupProcedure(const Cell& token);
 
     Node::Type InputType2Enum(const std::string& token);
 
     template<typename T>
-    Node::Ptr BuildNode(const std::vector<Cell>& args);
+    Node::Ptr BuildForProc(const std::vector<Cell>& args);
 
-    std::unordered_map<std::string, Node::Ptr> observers;
+    template<typename T>
+    std::shared_ptr<T> BuildNode();
+    
+    std::vector<Node::Ptr> mAllNodes;
     std::map<uint64_t, Node::Ptr> recomputeHeap; // height -> Nodes
     std::unordered_map<std::string, Node::Ptr> mVarNodes;
-    std::unordered_map<std::string, Node::Ptr> mInputsNodes;
+    std::unordered_map<std::string, Node::Ptr> mObservers;
+    std::unordered_map<std::string, Node::Ptr> mInputs;
     std::unordered_map<std::string, GraphFactory> mProcs;
+    std::map<uint64_t, Node::Ptr> mNecessaryNodes;
 
-    uint64_t mNextInputId=0;
-
-    uint64_t stabilisationId=0;
+    uint64_t stabilisationId=1;
     Graph* parent=nullptr;
 };
 
@@ -248,7 +311,6 @@ public:
         auto start = text.rfind("\n", mCell.offset);
         auto end = text.find("\n", mCell.offset);
         std::string errmsg(mError);
-        errmsg += "\n";
         errmsg += std::string(text, start, end-start);
         errmsg += "\n";
         for(int i = 1; i < mCell.offset-start; i++)
