@@ -25,9 +25,11 @@ public:
     Node::Ptr Build(const Cell& proc);
     void CompleteBuild();
     void DefineNode(const std::string& token, const Cell& exp);
+    void DefineNode(const std::string& token, Node::Ptr node);
     
     Node::Ptr LookupInputNode(const std::string& label);
     Node::Ptr LookupObserverNode(const std::string& label);
+
 
     std::string GetDOTGraph();
 
@@ -44,6 +46,9 @@ private:
 
     template<typename T>
     Node::Ptr BuildForProc(const std::vector<Cell>& args);
+    //Node::Ptr ForEach(const std::vector<Cell>& args);
+
+    void RecursiveHeightSet(Node::Ptr node, uint64_t& height);
     
     std::vector<Node::Ptr> mAllNodes;
     std::unordered_map<std::string, Node::Ptr> mVarNodes;

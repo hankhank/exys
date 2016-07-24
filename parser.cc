@@ -1,6 +1,7 @@
 #include <list>
 #include <cctype>
 #include <cwctype>
+#include <algorithm>
 
 #include "parser.h"
 
@@ -21,6 +22,11 @@ std::list<TokenDetails> TokenDetailsize(const std::string & str)
     const char * ref = s;
     while (*s) 
     {
+        if (*s == ';')
+        {
+            while(*s && *s++ != '\n');
+            continue;
+        }
         while (iswspace(*s)) ++s;
         if (*s == '(' || *s == ')')
         {
@@ -35,7 +41,9 @@ std::list<TokenDetails> TokenDetailsize(const std::string & str)
             }
             if(s != t)
             {
-                tokens.push_back({std::string(s, t), s-ref});
+                auto tokstr = std::string(s,t);
+                tokstr.erase(std::remove(tokstr.begin(), tokstr.end(), '\n'), tokstr.end());
+                tokens.push_back({tokstr, s-ref});
             }
             s = t;
         }

@@ -7,6 +7,30 @@
 namespace Exys
 {
 
+void ValidateListLength(const Cell& cell, size_t min)
+{
+    if(cell.list.size() < min)
+    {
+        std::stringstream err;
+        err << "List length too small. Expected at least "
+            << min << " Got " << cell.list.size();
+        throw GraphBuildException(err.str(), cell);
+    }
+}
+
+void ValidateParamListLength(const std::vector<Cell> params1,
+    const std::vector<Cell> params2)
+{
+    if(params1.size() != params2.size())
+    {
+        Cell cell;
+        std::stringstream err;
+        err << "Incorrect number of params. Expected "
+            << params1.size() << " Got " << params2.size();
+        throw GraphBuildException(err.str(), cell);
+    }
+}
+
 template<typename T, typename... Args>
 std::shared_ptr<T> Graph::BuildNode(Args... as)
 {
@@ -36,6 +60,18 @@ Node::Ptr Graph::BuildForProc(const std::vector<Cell>& args)
         mVarNodes[std::string(__ID)] = pnode; \
     }
 
+//Node::Ptr Graph::ForEach(const std::vector<Cell>& args)
+//{
+//    ValidateListLength(args, 3);
+//    auto func = args[1];
+//    auto list = Build(args[2]);
+//    for(auto l : list.mParents)
+//    {
+//        auto lnode = Build(l);
+//        auto proc = LookupProcedure(func);
+//    }
+//}
+
 Graph::Graph(Graph* parent)
 : Node(KIND_GRAPH) 
 , mParent((Graph*)parent)
@@ -44,6 +80,8 @@ Graph::Graph(Graph* parent)
     ADD_PROC("-", BuildForProc<SubNode>);
     ADD_PROC("/", BuildForProc<DivNode>);
     ADD_PROC("*", BuildForProc<MulNode>);
+    ADD_PROC("list", BuildForProc<ListNode>);
+    //ADD_PROC("for-each", ForEach);
 }
 
 Node::Ptr Graph::LookupSymbol(const Cell& cell)
@@ -98,30 +136,6 @@ SubGraphFactory Graph::LookupProcedure(const Cell& cell)
 Node::Type Graph::InputType2Enum(const std::string& token)
 {
     return Node::Type::TYPE_DOUBLE;
-}
-
-void ValidateListLength(const Cell& cell, size_t min)
-{
-    if(cell.list.size() < min)
-    {
-        std::stringstream err;
-        err << "List length too small. Expected at least "
-            << min << " Got " << cell.list.size();
-        throw GraphBuildException(err.str(), cell);
-    }
-}
-
-void ValidateParamListLength(const std::vector<Cell> params1,
-    const std::vector<Cell> params2)
-{
-    if(params1.size() != params2.size())
-    {
-        Cell cell;
-        std::stringstream err;
-        err << "Incorrect number of params. Expected "
-            << params1.size() << " Got " << params2.size();
-        throw GraphBuildException(err.str(), cell);
-    }
 }
 
 void Graph::DefineNode(const std::string& token, const Cell& exp)
@@ -249,7 +263,7 @@ Node::Ptr Graph::Build(const Cell &cell)
 
                     // check input hasn't already been declared
                     
-                    auto inputNode = BuildNode<InputNode>();
+                    auto inputNode = BuildNode<InputNode>(this);
                     inputNode->mType = inputType;
                     inputNode->mToken = inputToken;
 
@@ -282,23 +296,25 @@ Node::Ptr Graph::Build(const Cell &cell)
     return ret;
 }
 
+void Graph::RecursiveHeightSet(Node::Ptr node, uint64_t& height)
+{
+    if (height < node->mHeight) node->mHeight = height;
+    node->mNecessary = true;
+    height++;
+    for(auto parent : node->mParents)
+    {
+        RecursiveHeightSet(parent, height);
+    }
+}
+
 void Graph::CompleteBuild()
 {
     // Set heights add children to necessary nodes
-    //for(auto ob : mObservers)
-    //{
-    //    uint64_t height = 0;
-    //    auto process = [this](Node::Ptr node, uint64_t& height)
-    //    {
-    //        node->mHeight = height++;
-    //        mNecessaryNodes.push_back(node);
-    //        for(auto parent : node->mParents)
-    //        {
-    //            process(parent, height);
-    //        }
-    //    }
-    //    process(ob);
-    //}
+    for(auto ob : mObservers)
+    {
+        uint64_t height = 0;
+        RecursiveHeightSet(ob.second, height);
+    }
 }
 
 Node::Ptr Graph::LookupInputNode(const std::string& label)

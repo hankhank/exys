@@ -5,6 +5,7 @@
 #include <stdexcept>
 #include <string>
 #include <memory>
+#include <limits>
 
 #include "parser.h"
 
@@ -20,6 +21,7 @@ public:
         KIND_CONST,
         KIND_VAR,
         KIND_TERNARY,
+        KIND_LIST,
         KIND_INPUT,
         KIND_OBSERVER,
         KIND_PROC,
@@ -64,7 +66,8 @@ public:
 
     uint64_t mRecomputeId=0;
     uint64_t mChangeId=0;
-    uint64_t mHeight=0;
+    uint64_t mHeight=std::numeric_limits<uint64_t>::max();
+    bool mNecessary=false;
 
     std::vector<Ptr> mParents;
     
@@ -81,6 +84,13 @@ public:
     : Node(KIND_PROC) {}
 
     SubGraphFactory mFactory;
+};
+
+class ListNode : public Node
+{
+public:
+    ListNode() 
+    : Node(KIND_LIST) {}
 };
 
 class ConstNode : public Node
@@ -126,11 +136,15 @@ public:
     }
 };
 
+class Graph;
+
 class InputNode : public Node
 {
 public:
-    InputNode() 
-    : Node(KIND_INPUT) {}
+    InputNode(Graph* graph) 
+    : Node(KIND_INPUT)
+    , mGraph(graph)
+    {}
 
     virtual ~InputNode(){}
 
@@ -139,7 +153,25 @@ public:
         return mToken;
     }
 
+    void Set(bool b) 
+    {
+        mValue.b = b;
+    }
+    void Set(int i)
+    {
+        mValue.i = i;
+    }
+    void Set(unsigned int u)
+    {
+        mValue.u = u;
+    }
+    void Set(double d)
+    {
+        mValue.d = d;
+    }
+
     std::string mToken;
+    Graph* mGraph;
 };
 
 class TenaryNode : public Node
