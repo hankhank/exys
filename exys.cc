@@ -1,9 +1,7 @@
 
 #include <exys.h>
 
-#include <cctype>
 #include <set>
-#include <cwctype>
 
 // debug headers
 #include <iostream>
@@ -12,88 +10,10 @@
 namespace Exys
 {
 
-struct Token
+template<typename T, typename... Args>
+std::shared_ptr<T> Graph::BuildNode(Args... as)
 {
-    std::string text;
-    int64_t offset;
-};
-
-// convert given string to list of tokens
-std::list<Token> Tokenize(const std::string & str)
-{
-    std::list<Token> tokens;
-    const char * s = str.c_str();
-    const char * ref = s;
-    while (*s) 
-    {
-        while (iswspace(*s)) ++s;
-        if (*s == '(' || *s == ')')
-        {
-            tokens.push_back({*s++ == '(' ? "(" : ")", s-ref});
-        }
-        else 
-        {
-            const char * t = s;
-            while (*t && *t != ' ' && *t != '(' && *t != ')')
-            {
-                ++t;
-            }
-            if(s != t)
-            {
-                tokens.push_back({std::string(s, t), s-ref});
-            }
-            s = t;
-        }
-    }
-    return tokens;
-}
-
-Cell Atom(Token token)
-{
-    auto text = token.text;
-    auto offset = token.offset;
-    if
-    (
-        (text.size() && std::isdigit(text[0])) || 
-        (text.size() > 1 && text[0] == '-' && std::isdigit(text[1]))
-    )
-    {
-        return Cell::Number(text, offset);
-    }
-    return Cell::Symbol(text, offset);
-}
-
-// return the Lisp expression in the given tokens
-Cell ReadFromTokens(std::list<Token>& tokens)
-{
-    auto token = tokens.front();
-    tokens.pop_front();
-    if (token.text == "(") 
-    {
-        auto l = Cell::List(token.offset);
-        while (tokens.front().text != ")")
-        {
-            l.list.push_back(ReadFromTokens(tokens));
-        }
-        tokens.pop_front();
-        return l;
-    }
-    else
-    {
-        return Atom(token);
-    }
-}
-
-Cell Parse(const std::string& val)
-{
-    auto tokens = Tokenize(val);
-    return ReadFromTokens(tokens);
-}
-
-template<typename T>
-std::shared_ptr<T> Graph::BuildNode()
-{
-    auto ret = std::make_shared<T>();
+    auto ret = std::make_shared<T>(as...);
     mAllNodes.push_back(ret);
     return ret;
 }
@@ -119,7 +39,9 @@ Node::Ptr Graph::BuildForProc(const std::vector<Cell>& args)
         mVarNodes[std::string(__ID)] = pnode; \
     }
 
-Graph::Graph()
+Graph::Graph(Graph* parent)
+: Node(KIND_GRAPH) 
+, mParent((Graph*)parent)
 {
     ADD_PROC("+", BuildForProc<SumNode>);
     ADD_PROC("-", BuildForProc<SubNode>);
@@ -158,7 +80,7 @@ void Graph::SetSymbol(const Cell& cell, Node::Ptr node)
     throw GraphBuildException(err.str(), cell);
 }
 
-Graph::GraphFactory Graph::LookupProcedure(const Cell& cell)
+SubGraphFactory Graph::LookupProcedure(const Cell& cell)
 {
     auto niter = mVarNodes.find(cell.token);
     if (niter == mVarNodes.end())
@@ -203,6 +125,12 @@ void ValidateParamListLength(const std::vector<Cell> params1,
             << params1.size() << " Got " << params2.size();
         throw GraphBuildException(err.str(), cell);
     }
+}
+
+void Graph::DefineNode(const std::string& token, const Cell& exp)
+{
+    auto parent = Build(exp);
+    mVarNodes[token] = parent;
 }
 
 Node::Ptr Graph::Build(const Cell &cell)
@@ -261,8 +189,7 @@ Node::Ptr Graph::Build(const Cell &cell)
                 // check whether its been defined in this scope
 
                 // Build parents and adopt their type
-                auto parent = Build(exp);
-                mVarNodes[varToken] = parent;
+                DefineNode(varToken, exp);
             }
             else if(firstElem.token == "set!")
             {
@@ -296,17 +223,12 @@ Node::Ptr Graph::Build(const Cell &cell)
                 {
                     ValidateParamListLength(params, args);
 
-                    auto newSubGraph = std::make_shared<Graph>();
-                    this->mSubGraphs.push_back(newSubGraph);
-                    newSubGraph->mParent = this;
-
+                    auto newSubGraph = BuildNode<Graph>(this);
                     for(size_t i = 0; i < params.size(); i++)
                     {
-                        newSubGraph->mVarNodes[params[i].token]
-                            = newSubGraph->Build(args[i]);
-                        //std::cout << (long int) newSubGraph->mVarNodes[params[i].token].get() << "\n";
+                        newSubGraph->DefineNode(params[i].token,
+                                args[i]);
                     }
-
                     return newSubGraph->Build(exp);
                 };
                 ret = pnode;
@@ -410,24 +332,35 @@ std::string Graph::GetDOTGraph()
     std::set<Node::Ptr> nodes;
 
     std::string ret = "{\n";
-    for(auto f : mSubGraphs)
-    {
-        ret += "subgraph " + std::to_string((long int) f.get()) + " ";
-        ret +=  f->GetDOTGraph();
-        ret += "\n";
-    }
-
     for(auto nodeptr : mAllNodes)
     {
         nodes.insert(nodeptr);
-
-        auto childLabel = NodeToPtrString(nodeptr);
-        for(auto parent : nodeptr->mParents)
+        switch(nodeptr->mKind)
         {
-            nodes.insert(parent);
-            ret += NodeToPtrString(parent) + " -> " 
-                + childLabel + "\n";
+            case KIND_PROC: break; // NOP
+            case KIND_GRAPH:
+            {
+                auto subgraph = static_cast<Graph*>(nodeptr.get());
+                ret += "subgraph " + std::to_string((long int) subgraph) + " ";
+                ret +=  subgraph->GetDOTGraph();
+                ret += "\n";
+            }
+            break;
+
+            default:
+            {
+                auto childLabel = NodeToPtrString(nodeptr);
+                for(auto parent : nodeptr->mParents)
+                {
+                    nodes.insert(parent);
+                    ret += NodeToPtrString(parent) + " -> " 
+                        + childLabel + "\n";
+                }
+            }
+            break;
         }
+
+        
     }
 
     int i = 0;
@@ -444,7 +377,12 @@ std::string Graph::GetDOTGraph()
     {
         //std::cout << nodeptr->mKind << "\n";
         //std::cout << (long int)nodeptr.get() << "\n";
-        ret += NodeToDotLabel(nodeptr) + "\n";
+        switch(nodeptr->mKind)
+        {
+            case KIND_PROC: break; // NOP
+            case KIND_GRAPH: break; // NOP
+            default: ret += NodeToDotLabel(nodeptr) + "\n"; break;
+        }
     }
 
     ret += "}";

@@ -8,5 +8,5 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 # Tell CMake to create the helloworld executable
 set (CMAKE_CXX_STANDARD 14)
-add_executable(exys test.cc exys.cc)
+add_executable(exys test.cc exys.cc node.cc parser.cc)
 
