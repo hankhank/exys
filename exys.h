@@ -25,9 +25,12 @@ struct Cell
     int64_t offset;
     std::vector<Cell> list;
     
-    static Cell Symbol(const std::string& tok, int offset) { return {SYMBOL, tok, offset, {}};}
-    static Cell Number(const std::string& tok, int offset) { return {NUMBER, tok, offset, {}};}
-    static Cell List(int offset) { return {LIST, "", offset, {}};}
+    static Cell Symbol(const std::string& tok, int offset) 
+    { return {SYMBOL, tok, offset, {}};}
+    static Cell Number(const std::string& tok, int offset) 
+    { return {NUMBER, tok, offset, {}};}
+    static Cell List(int offset) 
+    { return {LIST, "", offset, {}};}
 };
 
 class Node
@@ -44,6 +47,7 @@ public:
         KIND_PROC,
         KIND_GRAPH
     };
+
     enum Type
     {
         TYPE_UNKNOWN=0,
@@ -87,6 +91,96 @@ public:
     std::vector<Ptr> mParents;
     
     Var mValue;
+};
+
+class Graph
+{
+public:
+    Graph();
+    
+    Node::Ptr Build(const Cell& proc);
+    
+    typedef std::function<Node::Ptr (const std::vector<Cell>&)>
+        GraphFactory;
+
+    Node::Ptr LookupInputNode(const std::string& label);
+    Node::Ptr LookupObserverNode(const std::string& label);
+
+    void Stabilize();
+
+    std::string GetDOTGraph();
+
+    static std::unique_ptr<Graph> BuildGraph(const std::string& text);
+
+//private:
+    void CompleteBuild();
+    Node::Ptr LookupSymbol(const Cell& cell);
+    void SetSymbol(const Cell& cell, Node::Ptr node);
+    GraphFactory LookupProcedure(const Cell& token);
+
+    Node::Type InputType2Enum(const std::string& token);
+
+    template<typename T>
+    Node::Ptr BuildForProc(const std::vector<Cell>& args);
+
+    template<typename T>
+    std::shared_ptr<T> BuildNode();
+    
+    std::vector<Node::Ptr> mAllNodes;
+    std::map<uint64_t, Node::Ptr> recomputeHeap; // height -> Nodes
+    std::unordered_map<std::string, Node::Ptr> mVarNodes;
+    std::unordered_map<std::string, Node::Ptr> mObservers;
+    std::unordered_map<std::string, Node::Ptr> mInputs;
+    std::unordered_map<std::string, GraphFactory> mProcs;
+    std::map<uint64_t, Node::Ptr> mNecessaryNodes;
+
+    uint64_t stabilisationId=1;
+    Graph* mParent=nullptr;
+
+    std::vector<std::shared_ptr<Graph>> mSubGraphs;
+
+};
+
+class GraphBuildException : public std::exception
+{
+public:
+    GraphBuildException(const std::string& error, Cell cell)
+    : mError(error)
+    , mCell(cell)
+    {
+    }
+
+    virtual const char* what() const noexcept(true)
+    {
+        return mError.c_str();
+    }
+
+    std::string GetErrorMessage(const std::string& text) const
+    {
+        auto start = text.rfind("\n", mCell.offset);
+        auto end = text.find("\n", mCell.offset);
+        std::string errmsg(mError);
+        errmsg += std::string(text, start, end-start);
+        errmsg += "\n";
+        for(int i = 1; i < mCell.offset-start; i++)
+        {
+            errmsg += " ";
+        }
+        errmsg += "^\n";
+        return errmsg;
+    }
+
+    std::string mError;
+    Cell mCell;
+};
+
+class ProcNode : public Node
+{
+public:
+    ProcNode() 
+    : Node(KIND_PROC) {}
+
+    Graph::GraphFactory mFactory;
 };
 
 class ConstNode : public Node
@@ -208,6 +302,11 @@ public:
         mParents.push_back(posNode);
         mParents.push_back(negNode);
     }
+
+    virtual std::string Label()
+    {
+        return "?";
+    }
     
     bool Bool()
     {
@@ -246,83 +345,6 @@ public:
     Node::Ptr mPosNode;
     Node::Ptr mNegNode;
     Node::Ptr mCurLeg;
-};
-
-class Graph
-{
-public:
-    Graph();
-    
-    Node::Ptr Build(const Cell& proc);
-    
-    typedef std::function<Node::Ptr (const std::vector<Cell>&)>
-        GraphFactory;
-
-    Node::Ptr LookupInputNode(const std::string& label);
-    Node::Ptr LookupObserverNode(const std::string& label);
-
-    void Stabilize();
-
-    std::string GetDOTGraph();
-
-    static std::unique_ptr<Graph> BuildGraph(const std::string& text);
-
-private:
-    void CompleteBuild();
-    Node::Ptr LookupSymbol(const Cell& cell);
-    GraphFactory LookupProcedure(const Cell& token);
-
-    Node::Type InputType2Enum(const std::string& token);
-
-    template<typename T>
-    Node::Ptr BuildForProc(const std::vector<Cell>& args);
-
-    template<typename T>
-    std::shared_ptr<T> BuildNode();
-    
-    std::vector<Node::Ptr> mAllNodes;
-    std::map<uint64_t, Node::Ptr> recomputeHeap; // height -> Nodes
-    std::unordered_map<std::string, Node::Ptr> mVarNodes;
-    std::unordered_map<std::string, Node::Ptr> mObservers;
-    std::unordered_map<std::string, Node::Ptr> mInputs;
-    std::unordered_map<std::string, GraphFactory> mProcs;
-    std::map<uint64_t, Node::Ptr> mNecessaryNodes;
-
-    uint64_t stabilisationId=1;
-    Graph* parent=nullptr;
-};
-
-class GraphBuildException : public std::exception
-{
-public:
-    GraphBuildException(const std::string& error, Cell cell)
-    : mError(error)
-    , mCell(cell)
-    {
-    }
-
-    virtual const char* what() const noexcept(true)
-    {
-        return mError.c_str();
-    }
-
-    std::string GetErrorMessage(const std::string& text) const
-    {
-        auto start = text.rfind("\n", mCell.offset);
-        auto end = text.find("\n", mCell.offset);
-        std::string errmsg(mError);
-        errmsg += std::string(text, start, end-start);
-        errmsg += "\n";
-        for(int i = 1; i < mCell.offset-start; i++)
-        {
-            errmsg += " ";
-        }
-        errmsg += "^\n";
-        return errmsg;
-    }
-
-    std::string mError;
-    Cell mCell;
 };
 
 

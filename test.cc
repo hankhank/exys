@@ -15,7 +15,7 @@ int main(int argc, char* argv[])
         auto graph = Exys::Graph::BuildGraph(buffer.str());
         auto input = graph->LookupInputNode("res");
         auto output = graph->LookupObserverNode("res");
-        std::cout << graph->GetDOTGraph();
+        std::cout << "digraph Exys " << graph->GetDOTGraph();
     }
     catch (const Exys::GraphBuildException& e)
     {

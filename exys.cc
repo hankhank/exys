@@ -84,15 +84,10 @@ Cell ReadFromTokens(std::list<Token>& tokens)
     }
 }
 
-std::vector<Cell> Parse(const std::string& val)
+Cell Parse(const std::string& val)
 {
-    std::vector<Cell> procedures;
     auto tokens = Tokenize(val);
-    while(tokens.size())
-    {
-        procedures.push_back(ReadFromTokens(tokens));
-    }
-    return procedures;
+    return ReadFromTokens(tokens);
 }
 
 template<typename T>
@@ -116,8 +111,13 @@ Node::Ptr Graph::BuildForProc(const std::vector<Cell>& args)
 }
 
 #define ADD_PROC(__ID, __BUILDER) \
-    mProcs[std::string(__ID)] = [this](std::vector<Cell> args)->Node::Ptr \
-                        {return this->__BUILDER(args);}
+    { \
+        auto pnode = BuildNode<ProcNode>(); \
+        pnode->mFactory =  \
+        [this](std::vector<Cell> args)->Node::Ptr \
+                        {return this->__BUILDER(args);}; \
+        mVarNodes[std::string(__ID)] = pnode; \
+    }
 
 Graph::Graph()
 {
@@ -130,25 +130,50 @@ Graph::Graph()
 Node::Ptr Graph::LookupSymbol(const Cell& cell)
 {
     auto niter = mVarNodes.find(cell.token);
-    if (niter == mVarNodes.end())
+    if (niter != mVarNodes.end())
     {
-        std::stringstream err;
-        err << "Could not find symbol - " << cell.token;
-        throw GraphBuildException(err.str(), cell);
+        return niter->second;
     }
-    return niter->second;
+    if(mParent) return mParent->LookupSymbol(cell);
+
+    std::stringstream err;
+    err << "Could not find symbol - " << cell.token;
+    throw GraphBuildException(err.str(), cell);
+
+    return nullptr;
+}
+
+void Graph::SetSymbol(const Cell& cell, Node::Ptr node)
+{
+    auto niter = mVarNodes.find(cell.token);
+    if (niter != mVarNodes.end())
+    {
+        niter->second = node;
+        return;
+    }
+    if(mParent) return mParent->SetSymbol(cell, node);
+
+    std::stringstream err;
+    err << "Could not find symbol - " << cell.token;
+    throw GraphBuildException(err.str(), cell);
 }
 
 Graph::GraphFactory Graph::LookupProcedure(const Cell& cell)
 {
-    auto niter = mProcs.find(cell.token);
-    if (niter == mProcs.end())
+    auto niter = mVarNodes.find(cell.token);
+    if (niter == mVarNodes.end())
     {
         std::stringstream err;
         err << "Could not find procedure - " << cell.token;
         throw GraphBuildException(err.str(), cell);
     }
-    return niter->second;
+    if (niter->second->mKind != Node::KIND_PROC)
+    {
+        std::stringstream err;
+        err << "Not a valid procedure - " << cell.token;
+        throw GraphBuildException(err.str(), cell);
+    }
+    return static_cast<ProcNode*>(niter->second.get())->mFactory;
 }
 
 Node::Type Graph::InputType2Enum(const std::string& token)
@@ -163,6 +188,19 @@ void ValidateListLength(const Cell& cell, size_t min)
         std::stringstream err;
         err << "List length too small. Expected at least "
             << min << " Got " << cell.list.size();
+        throw GraphBuildException(err.str(), cell);
+    }
+}
+
+void ValidateParamListLength(const std::vector<Cell> params1,
+    const std::vector<Cell> params2)
+{
+    if(params1.size() != params2.size())
+    {
+        Cell cell;
+        std::stringstream err;
+        err << "Incorrect number of params. Expected "
+            << params1.size() << " Got " << params2.size();
         throw GraphBuildException(err.str(), cell);
     }
 }
@@ -201,7 +239,17 @@ Node::Ptr Graph::Build(const Cell &cell)
                 // Check neg and pos legs have same type
                 ifNode->SetLegs(condNode, posNode, negNode);
 
-                return ifNode;
+                ret = ifNode;
+            }
+            else if(firstElem.token == "begin")
+            {
+                ValidateListLength(cell, 2);
+
+                std::vector<Cell> cells(cell.list.begin()+1, cell.list.end()); 
+                for(auto c : cells)
+                {
+                    ret = Build(c);
+                }
             }
             else if(firstElem.token == "define")
             {
@@ -221,15 +269,16 @@ Node::Ptr Graph::Build(const Cell &cell)
                 ValidateListLength(cell, 3);
 
                 // Add check that token already exists
-                auto& varToken = cell.list[1].token;
+                auto& var = cell.list[1];
                 auto& exp = cell.list[2];
 
                 // Build parents and adopt their type
                 auto parent = Build(exp);
-                mVarNodes[varToken] = parent;
+                SetSymbol(var, parent);
             }
             else if(firstElem.token == "lambda")
             {
+                ValidateListLength(cell, 3);
                 // Think I need to capture tree here
                 // and build graph whenever invoked
                 // I think this will be the same for
@@ -238,8 +287,29 @@ Node::Ptr Graph::Build(const Cell &cell)
  
                 // Add check for list length
                 // Add check whether token in list send warn
-                auto& lambdaToken = cell.list[1].token;
-                //mProcs[lambdaToken] = []
+                auto params = cell.list[1].list;
+                auto exp = cell.list[2];
+                
+                auto pnode = BuildNode<ProcNode>();
+                pnode->mFactory = 
+                [this, params, exp](std::vector<Cell> args)
+                {
+                    ValidateParamListLength(params, args);
+
+                    auto newSubGraph = std::make_shared<Graph>();
+                    this->mSubGraphs.push_back(newSubGraph);
+                    newSubGraph->mParent = this;
+
+                    for(size_t i = 0; i < params.size(); i++)
+                    {
+                        newSubGraph->mVarNodes[params[i].token]
+                            = newSubGraph->Build(args[i]);
+                        //std::cout << (long int) newSubGraph->mVarNodes[params[i].token].get() << "\n";
+                    }
+
+                    return newSubGraph->Build(exp);
+                };
+                ret = pnode;
             }
             else if(firstElem.token == "input")
             {
@@ -338,7 +408,15 @@ std::string NodeToDotLabel(Node::Ptr node)
 std::string Graph::GetDOTGraph()
 {
     std::set<Node::Ptr> nodes;
-    std::string ret = "digraph Exys {\n";
+
+    std::string ret = "{\n";
+    for(auto f : mSubGraphs)
+    {
+        ret += "subgraph " + std::to_string((long int) f.get()) + " ";
+        ret +=  f->GetDOTGraph();
+        ret += "\n";
+    }
+
     for(auto nodeptr : mAllNodes)
     {
         nodes.insert(nodeptr);
@@ -359,10 +437,13 @@ std::string Graph::GetDOTGraph()
             + std::to_string(i) + "\n" 
             + std::to_string(i) + " [label=" + tokennode.first 
             + "]\n";
+        ++i;
     }
 
     for(auto nodeptr : nodes)
     {
+        //std::cout << nodeptr->mKind << "\n";
+        //std::cout << (long int)nodeptr.get() << "\n";
         ret += NodeToDotLabel(nodeptr) + "\n";
     }
 
@@ -372,12 +453,8 @@ std::string Graph::GetDOTGraph()
 
 std::unique_ptr<Graph> Graph::BuildGraph(const std::string& text)
 {
-    auto cells = Parse(text);
     auto graph = std::make_unique<Graph>();
-    for (auto& cell : cells)
-    {
-        graph->Build(cell);
-    }
+    graph->Build(Parse(text));
     graph->CompleteBuild();
     return graph;
 }
