@@ -1,16 +1,14 @@
 #pragma once
 
+#include <exception>
+#include <string>
 #include <memory>
-#include <cstdint>
-#include <vector>
-#include <set>
-#include <map>
+#include <stdint.h>
 #include <unordered_map>
-#include <functional>
-#include <list>
+#include <map>
 
-#include "parser.h"
 #include "node.h"
+#include "parser.h"
 
 namespace Exys
 {

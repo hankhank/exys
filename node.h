@@ -1,12 +1,10 @@
 #pragma once
 
-#include <memory>
-#include <vector>
-#include <set>
-#include <map>
-#include <unordered_map>
+#include <stdint.h>
 #include <functional>
-#include <list>
+#include <stdexcept>
+#include <string>
+#include <memory>
 
 #include "parser.h"
 
