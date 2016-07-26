@@ -1,28 +1,36 @@
-(begin (input double lmbd)
+(begin 
+    (input double lmbd)
+
     (input double b0.price
                   b1.price
                   b2.price
-                  b3.price)
+                  b3.price
+                  b0.volume
+                  b1.volume
+                  b2.volume
+                  b3.volume)
+
     (input double a0.price
                   a1.price
                   a2.price
-                  a3.price)
+                  a3.price
+                  a0.volume
+                  a1.volume
+                  a2.volume
+                  a3.volume)
+
     (define bids (list b0.price
                        b1.price
                        b2.price
                        b3.price))
-    (define bids (list a0.price
+    (define asks (list a0.price
                        a1.price
                        a2.price
                        a3.price))
-    (define refprice 0)
+
     (define bidsum 0)
-)
-    ;(map (lambda(price) 
-    ;            (set! bidsum ((+ bidsum (exp (* (+ price refprice) lmbd))))) bids))
+    (define refprice 0)
+    (for-each (lambda(price) 
+         (set! bidsum (+ bidsum (* (+ price refprice) lmbd)))) bids)
 
-    ;(define asksum 0)
-    ;(map (lambda(price) 
-                (set! asksum ((+ bidsum (exp (* (+ price refprice) lmbd))))) bids))
-)
-
+    (observe bidsum bs))

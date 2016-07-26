@@ -74,7 +74,24 @@ public:
     Var mValue;
 };
 
-typedef std::function<Node::Ptr (const std::vector<Cell>&)>
+class ListNode : public Node
+{
+public:
+    ListNode() 
+    : Node(KIND_LIST) {}
+
+    void AddElement(Node::Ptr node)
+    {
+        mParents.push_back(node);
+    }
+
+    std::vector<Node::Ptr> GetElements() const
+    {
+        return mParents;
+    }
+};
+
+typedef std::function<Node::Ptr (const ListNode&)>
     SubGraphFactory;
 
 class ProcNode : public Node
@@ -84,13 +101,6 @@ public:
     : Node(KIND_PROC) {}
 
     SubGraphFactory mFactory;
-};
-
-class ListNode : public Node
-{
-public:
-    ListNode() 
-    : Node(KIND_LIST) {}
 };
 
 class ConstNode : public Node
@@ -279,6 +289,14 @@ MATH_NODE(SubNode, -)
 MATH_NODE(DivNode, /)
 MATH_NODE(MulNode, *)
 
+class ExpNode : public Node
+{
+public:
+    ExpNode() 
+    : Node(KIND_PROC) {}
+
+    virtual std::string Label() override {return "exp";}
+};
 
 }
 

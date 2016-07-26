@@ -45,8 +45,8 @@ private:
     std::shared_ptr<T> BuildNode(Args... as);
 
     template<typename T>
-    Node::Ptr BuildForProc(const std::vector<Cell>& args);
-    //Node::Ptr ForEach(const std::vector<Cell>& args);
+    Node::Ptr BuildForProc(const ListNode& args);
+    Node::Ptr ForEach(const ListNode& args);
 
     void RecursiveHeightSet(Node::Ptr node, uint64_t& height);
     

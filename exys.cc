@@ -3,6 +3,7 @@
 #include <set>
 #include <iostream>
 #include <sstream>
+#include <cassert>
 
 namespace Exys
 {
@@ -40,13 +41,12 @@ std::shared_ptr<T> Graph::BuildNode(Args... as)
 }
 
 template<typename T>
-Node::Ptr Graph::BuildForProc(const std::vector<Cell>& args)
+Node::Ptr Graph::BuildForProc(const ListNode& lnode)
 {
     auto mn = BuildNode<T>();
-    for(auto& arg : args)
+    for(auto& node : lnode.GetElements())
     {
-        auto leg = Build(arg);
-        mn->mParents.push_back(leg);
+        mn->mParents.push_back(node);
     }
     return mn;
 }
@@ -55,22 +55,27 @@ Node::Ptr Graph::BuildForProc(const std::vector<Cell>& args)
     { \
         auto pnode = BuildNode<ProcNode>(); \
         pnode->mFactory =  \
-        [this](std::vector<Cell> args)->Node::Ptr \
+        [this](ListNode args)->Node::Ptr \
                         {return this->__BUILDER(args);}; \
         mVarNodes[std::string(__ID)] = pnode; \
     }
 
-//Node::Ptr Graph::ForEach(const std::vector<Cell>& args)
-//{
-//    ValidateListLength(args, 3);
-//    auto func = args[1];
-//    auto list = Build(args[2]);
-//    for(auto l : list.mParents)
-//    {
-//        auto lnode = Build(l);
-//        auto proc = LookupProcedure(func);
-//    }
-//}
+Node::Ptr Graph::ForEach(const ListNode& lnode)
+{
+    //ValidateListLength(args, 3);
+    auto args = lnode.GetElements();
+    assert(args[0]->mKind == KIND_PROC);
+    assert(args[1]->mKind == KIND_LIST);
+    auto func = static_cast<ProcNode*>(args[0].get());
+    auto* list = static_cast<ListNode*>(args[1].get());
+    for(auto l : list->GetElements())
+    {
+        ListNode nlnode;
+        nlnode.AddElement(l);
+        func->mFactory(nlnode);
+    }
+    return nullptr;
+}
 
 Graph::Graph(Graph* parent)
 : Node(KIND_GRAPH) 
@@ -81,7 +86,8 @@ Graph::Graph(Graph* parent)
     ADD_PROC("/", BuildForProc<DivNode>);
     ADD_PROC("*", BuildForProc<MulNode>);
     ADD_PROC("list", BuildForProc<ListNode>);
-    //ADD_PROC("for-each", ForEach);
+    ADD_PROC("for-each", ForEach);
+    ADD_PROC("exp", BuildForProc<ExpNode>);
 }
 
 Node::Ptr Graph::LookupSymbol(const Cell& cell)
@@ -142,6 +148,11 @@ void Graph::DefineNode(const std::string& token, const Cell& exp)
 {
     auto parent = Build(exp);
     mVarNodes[token] = parent;
+}
+
+void Graph::DefineNode(const std::string& token, Node::Ptr node)
+{
+    mVarNodes[token] = node;
 }
 
 Node::Ptr Graph::Build(const Cell &cell)
@@ -230,15 +241,15 @@ Node::Ptr Graph::Build(const Cell &cell)
                 
                 auto pnode = BuildNode<ProcNode>();
                 pnode->mFactory = 
-                [this, params, exp](std::vector<Cell> args)
+                [this, params, exp](ListNode lnode)
                 {
-                    ValidateParamListLength(params, args);
+                    //ValidateParamListLength(params, args);
 
                     auto newSubGraph = BuildNode<Graph>(this);
                     for(size_t i = 0; i < params.size(); i++)
                     {
                         newSubGraph->DefineNode(params[i].token,
-                                args[i]);
+                                lnode.GetElements()[i]);
                     }
                     return newSubGraph->Build(exp);
                 };
@@ -288,8 +299,13 @@ Node::Ptr Graph::Build(const Cell &cell)
             {
                 // Add check for list length
                 auto proc = LookupProcedure(firstElem);
-                std::vector<Cell> args(cell.list.begin()+1, cell.list.end()); 
-                ret = proc(args);
+                ListNode lnode;
+                for(auto arg = cell.list.begin()+1;
+                        arg != cell.list.end(); arg++)
+                {
+                    lnode.AddElement(Build(*arg));
+                }
+                ret = proc(lnode);
             }
         }
     }
@@ -351,6 +367,7 @@ std::string Graph::GetDOTGraph()
         switch(nodeptr->mKind)
         {
             case KIND_PROC: break; // NOP
+            case KIND_LIST: break; // NOP
             case KIND_GRAPH:
             {
                 auto subgraph = static_cast<Graph*>(nodeptr.get());
@@ -394,6 +411,7 @@ std::string Graph::GetDOTGraph()
         {
             case KIND_PROC: break; // NOP
             case KIND_GRAPH: break; // NOP
+            case KIND_LIST: break; // NOP
             default: ret += NodeToDotLabel(nodeptr) + "\n"; break;
         }
     }
