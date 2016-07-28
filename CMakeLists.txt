@@ -8,7 +8,7 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 # Tell CMake to create the helloworld executable
 set (CMAKE_CXX_STANDARD 14)
-add_executable(exys test.cc exys.cc node.cc parser.cc)
+add_executable(exys test.cc exys.cc graph.cc parser.cc)
 
 find_program(iwyu_path NAMES include-what-you-use iwyu)
 if(NOT iwyu_path)

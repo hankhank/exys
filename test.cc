@@ -12,9 +12,9 @@ int main(int argc, char* argv[])
     
     try
     {
-        auto graph = Exys::Graph::BuildGraph(buffer.str());
-        auto input = graph->LookupInputNode("res");
-        auto output = graph->LookupObserverNode("res");
+        auto graph = Exys::Exys::Build(buffer.str());
+        //auto input = graph->LookupInputNode("res");
+        //auto output = graph->LookupObserverNode("res");
         std::cout << "digraph Exys " << graph->GetDOTGraph();
     }
     catch (const Exys::GraphBuildException& e)
