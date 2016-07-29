@@ -59,7 +59,9 @@ Node::Ptr Graph::Map(Node::Ptr node)
     auto mapped = BuildNode(KIND_LIST);
     for(auto exp : exps->mParents)
     {
-        mapped->mParents.push_back(func->mFactory(exp));
+        auto tmp = std::make_shared<Node>(KIND_LIST);
+        tmp->mParents.push_back(exp);
+        mapped->mParents.push_back(func->mFactory(tmp));
     }
     return mapped;
 }
@@ -102,6 +104,10 @@ ProcNodeFactoryFunc Graph::DefaultFactory(const std::string& procname)
         }
         return mn;
     };
+}
+const std::unordered_map<std::string, Node::Ptr>& Graph::GetObservers()
+{
+    return mObservers;
 }
 
 void Graph::SetSupportedProcedures(const std::vector<std::string>& procs)

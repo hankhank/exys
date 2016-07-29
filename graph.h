@@ -49,6 +49,7 @@ public:
 
     std::vector<Ptr> mParents;
     std::string mToken;
+    uint64_t mHeight;
 };
 
 typedef std::function<Node::Ptr (Node::Ptr)> ProcNodeFactoryFunc;
@@ -73,6 +74,8 @@ public:
     Node::Ptr Build(const Cell& cell);
     void DefineNode(const std::string& token, const Cell& cell);
     void DefineNode(const std::string& token, Node::Ptr node);
+
+    const std::unordered_map<std::string, Node::Ptr>& GetObservers();
 
     void SetSupportedProcedures(const std::vector<std::string>& procs);
     

@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include <unordered_map>
 #include <map>
+#include <set>
 
 #include "parser.h"
 #include "graph.h"
@@ -13,24 +14,27 @@
 namespace Exys
 {
 
-//union Signal
-//{
-//    bool b;
-//    int i;
-//    unsigned int u;
-//    double d;
-//};
-//
-//template
-//void sum(Point point)
-//{
-//}
-//
-//struct Point
-//{
-//
-//};
-//
+union Signal
+{
+    bool b;
+    int i;
+    unsigned int u;
+    double d;
+};
+
+struct Point
+{
+    typedef std::shared_ptr<Node> Ptr;
+
+    Signal mSignal;
+    uint64_t mHeight;
+    uint64_t mChangeId;
+    uint64_t mRecomputeId;
+    std::vector<Point*> mParents;
+    std::vector<Point*> mChildren;
+    std::function<void (Point*)> mComputeFunction;
+};
+
 class Exys
 {
 public:
@@ -47,14 +51,14 @@ public:
 
 private:
     void CompleteBuild();
-    //void RecursiveHeightSet(Node::Ptr node, uint64_t& height);
+    void TraverseNodes(Node::Ptr node, uint64_t& height, std::set<Node::Ptr>& necessaryNodes);
     
-    std::vector<Node::Ptr> mAllNodes;
-    std::unordered_map<std::string, Node::Ptr> mVarNodes;
-    std::unordered_map<std::string, Node::Ptr> mObservers;
-    std::unordered_map<std::string, Node::Ptr> mInputs;
+    std::unordered_map<std::string, Point*> mObservers;
+    std::unordered_map<std::string, Point*> mInputs;
 
-    std::map<uint64_t, Node::Ptr> recomputeHeap; // height -> Nodes
+    std::vector<Point> mPointGraph;
+
+    std::map<uint64_t, Point::Ptr> recomputeHeap; // height -> Nodes
     uint64_t stabilisationId=1;
 
     std::unique_ptr<Graph> mGraph;
