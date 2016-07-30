@@ -343,7 +343,6 @@ std::string Graph::GetDOTGraph()
 
             case KIND_CONST:
             case KIND_INPUT:
-            case KIND_OBSERVER:
             case KIND_PROC:
             {
                 auto childLabel = NodeToPtrString(nodeptr);
@@ -377,7 +376,6 @@ std::string Graph::GetDOTGraph()
             case KIND_GRAPH:
             case KIND_CONST:
             case KIND_INPUT:
-            case KIND_OBSERVER:
             case KIND_PROC:
             ret += NodeToDotLabel(nodeptr) + "\n"; break;
         }

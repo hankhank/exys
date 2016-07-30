@@ -7,6 +7,42 @@
 namespace Exys
 {
 
+struct Procs
+{
+    const char* id;
+    ComputeFunction func; 
+};
+
+void ConstDummy(Point& /*point*/)
+{
+}
+
+void Ternary(Point& point)
+{
+}
+
+void SumDouble(Point& point)
+{
+    point = 0.0;
+    for(auto* parent : point.mParents)
+    {
+        point = (double)point.mSignal.d + parent->mSignal.d;
+    }
+}
+
+void SubDouble(Point& point){}
+void DivDouble(Point& point){}
+void MulDouble(Point& point){}
+
+Procs AVAILABLE_PROCS[] =
+{
+    {"?", Ternary},
+    {"+", SumDouble},
+    {"-", SubDouble},
+    {"/", DivDouble},
+    {"*", MulDouble}
+};
+
 Exys::Exys(std::unique_ptr<Graph> graph)
 :mGraph(std::move(graph))
 {
@@ -17,9 +53,26 @@ std::string Exys::GetDOTGraph()
     return mGraph->GetDOTGraph();
 }
 
+ComputeFunction Exys::LookupComputeFunction(Node::Ptr node)
+{
+    if(node->mKind == Node::KIND_CONST || node->mKind == Node::KIND_INPUT)
+    {
+        return ConstDummy;
+    }
+    for(auto& proc : AVAILABLE_PROCS)
+    {
+        if(node->mToken.compare(proc.id) == 0)
+        {
+            return proc.func;
+        }
+    }
+    assert(false);
+    return nullptr;
+}
+
 void Exys::TraverseNodes(Node::Ptr node, uint64_t& height, std::set<Node::Ptr>& necessaryNodes)
 {
-    if (height < node->mHeight) node->mHeight = height;
+    if (height > node->mHeight) node->mHeight = height;
     height++;
 
     necessaryNodes.insert(node);
@@ -37,26 +90,29 @@ size_t FindNodeOffset(const std::set<Node::Ptr>& nodes, Node::Ptr node)
 void Exys::CompleteBuild()
 {
     // First pass - Type checking and adding in casts
+    // TODO
 
     // Collect necessary nodes - nodes that are inputs to an observable
     // node. Also set the heights from observability
     std::set<Node::Ptr> necessaryNodes;
+    std::unordered_map<Node::Ptr, std::string> observers;
     for(auto ob : mGraph->GetObservers())
     {
         uint64_t height=0;
         TraverseNodes(ob.second, height, necessaryNodes);
+        observers[ob.second] = ob.first;
     }
 
     // For cache niceness
     mPointGraph.resize(necessaryNodes.size());
     
-    // Second pass - set heights and add parents and collect inputs and observers
+    // Second pass - set heights and add parents/children and collect inputs and observers
     for(auto node : necessaryNodes)
     {
         size_t offset = FindNodeOffset(necessaryNodes, node);
         auto& point = mPointGraph[offset];
 
-        node->mHeight = point.mHeight;
+        point.mHeight = node->mHeight;
 
         for(auto pnode : node->mParents)
         {
@@ -65,30 +121,87 @@ void Exys::CompleteBuild()
             parent.mChildren.push_back(&point);
         }
 
-        if(node->mKind == Node::KIND_INPUT)    mInputs[node->mToken] = &point;
-        if(node->mKind == Node::KIND_OBSERVER) mObservers[node->mToken] = &point;
+        point.mComputeFunction = LookupComputeFunction(node);
+
+        std::unordered_map<Node::Ptr, std::string>::iterator ob;
+        if(node->mKind == Node::KIND_CONST)
+        {
+            point = std::stod(node->mToken);
+        }
+        else if(node->mKind == Node::KIND_INPUT)
+        {
+            mInputs[node->mToken] = &point;
+        }
+        else if((ob = observers.find(node)) != observers.end())
+        {
+            mObservers[ob->second] = &point;
+        }
     }
 }
 
-//Node::Ptr Exys::LookupInputNode(const std::string& label)
-//{
-//    auto niter = mInputs.find(label);
-//    return niter != mInputs.end() ? niter->second : nullptr;
-//}
-//
-//Node::Ptr Exys::LookupObserverNode(const std::string& label)
-//{
-//    auto niter = mObservers.find(label);
-//    return niter != mObservers.end() ? niter->second : nullptr;
-//}
+void Exys::Stabilize()
+{
+    for(auto& hpp : mRecomputeHeap)
+    {
+        auto* point = hpp.point;
+
+        Signal old = point->mSignal;
+        point->mComputeFunction(*point);
+
+        if(old != point->mSignal)
+        {
+            point->mChangeId = mStabilisationId;
+            for(auto* child : point->mChildren)
+            {
+                mRecomputeHeap.emplace(HeightPtrPair{child->mHeight, child});
+            }
+        }
+        point->mRecomputeId = mStabilisationId;
+    }
+    mStabilisationId++;
+}
+
+void Exys::FlagChanged(Point& point)
+{
+    for(auto* child : point.mChildren)
+    {
+        mRecomputeHeap.emplace(HeightPtrPair{child->mHeight, child});
+    }
+}
+
+bool Exys::HasInputPoint(const std::string& label)
+{
+    auto niter = mInputs.find(label);
+    return niter != mInputs.end();
+}
+
+Point& Exys::LookupInputPoint(const std::string& label)
+{
+    assert(HasInputPoint(label));
+    auto niter = mInputs.find(label);
+    return *niter->second;
+}
+
+bool Exys::HasObserverPoint(const std::string& label)
+{
+    auto niter = mObservers.find(label);
+    return niter != mObservers.end();
+}
+
+Point& Exys::LookupObserverPoint(const std::string& label)
+{
+    assert(HasObserverPoint(label));
+    auto niter = mObservers.find(label);
+    return *niter->second;
+}
 
 std::unique_ptr<Graph> BuildAndLoadGraph()
 {
     std::vector<std::string> procs;
-    procs.push_back("+");
-    procs.push_back("-");
-    procs.push_back("/");
-    procs.push_back("*");
+    for(auto& proc : AVAILABLE_PROCS)
+    {
+        procs.push_back(proc.id);
+    }
     auto graph = std::make_unique<Graph>();
     graph->SetSupportedProcedures(procs);
     return graph;

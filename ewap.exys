@@ -1,5 +1,6 @@
 (begin 
-    (input double lmbd)
+    (input double in)
+    (define lmbd in)
 
     (input double b0.price
                   b1.price
@@ -33,4 +34,4 @@
     (for-each (lambda(price) 
          (set! bidsum (+ bidsum (* (+ price refprice) lmbd)))) bids)
 
-    (observe bidsum bs))
+    (observe bidsum out))
