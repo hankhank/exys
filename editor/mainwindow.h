@@ -42,6 +42,7 @@
 #define MAINWINDOW_H
 
 #include "highlighter.h"
+#include "QGVScene.h"
 
 #include <QMainWindow>
 
@@ -62,6 +63,8 @@ public slots:
     void newFile();
     void openFile(const QString &path = QString());
 
+    void textChanged();
+
 private:
     void setupEditor();
     void setupFileMenu();
@@ -69,6 +72,8 @@ private:
 
     QTextEdit *editor;
     Highlighter *highlighter;
+    QGVScene    *scene;
+    QGraphicsView *view;
 };
 //! [0]
 

@@ -74,11 +74,14 @@ Cell ReadFromTokenDetails(std::list<TokenDetails>& tokens)
     if (token.text == "(") 
     {
         auto l = Cell::List(token.offset);
-        while (tokens.front().text != ")")
+        if (!tokens.empty())
         {
-            l.list.push_back(ReadFromTokenDetails(tokens));
+            while (tokens.front().text != ")")
+            {
+                l.list.push_back(ReadFromTokenDetails(tokens));
+            }
+            tokens.pop_front();
         }
-        tokens.pop_front();
         return l;
     }
     else

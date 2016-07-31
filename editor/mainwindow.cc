@@ -39,8 +39,10 @@
 ****************************************************************************/
 
 #include <QtWidgets>
+#include <memory>
 
 #include "mainwindow.h"
+#include "exys.h"
 
 //! [0]
 MainWindow::MainWindow(QWidget *parent)
@@ -50,8 +52,17 @@ MainWindow::MainWindow(QWidget *parent)
     setupHelpMenu();
     setupEditor();
 
-    setCentralWidget(editor);
+    scene = new QGVScene("DEMO", this);
+    view = new QGraphicsView(scene);
+    
+    auto* splitter = new QSplitter(Qt::Horizontal, this);
+    splitter->addWidget(editor);
+    splitter->addWidget(view);
+
+    setCentralWidget(splitter);
     setWindowTitle(tr("Syntax Highlighter"));
+
+    connect(editor, SIGNAL(textChanged()), SLOT(textChanged()));
 }
 //! [0]
 
@@ -74,7 +85,7 @@ void MainWindow::openFile(const QString &path)
     QString fileName = path;
 
     if (fileName.isNull())
-        fileName = QFileDialog::getOpenFileName(this, tr("Open File"), "", "C++ Files (*.cpp *.h)");
+        fileName = QFileDialog::getOpenFileName(this, tr("Open File"), "", "Exys Files (*.exys)");
 
     if (!fileName.isEmpty()) {
         QFile file(fileName);
@@ -120,3 +131,20 @@ void MainWindow::setupHelpMenu()
     helpMenu->addAction(tr("&About"), this, SLOT(about()));
     helpMenu->addAction(tr("About &Qt"), qApp, SLOT(aboutQt()));
 }
+
+void MainWindow::textChanged()
+{
+    try
+    {
+        std::unique_ptr<Exys::Exys> graph = Exys::Exys::Build(editor->toPlainText().toStdString());
+        scene->loadLayout(graph->GetDOTGraph().c_str());
+        scene->applyLayout();
+
+    }
+    catch(...)
+    {
+    }
+
+
+}
+
