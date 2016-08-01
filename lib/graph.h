@@ -121,12 +121,12 @@ public:
 
     std::string GetErrorMessage(const std::string& text) const
     {
-        auto start = text.rfind("\n", mCell.offset);
-        auto end = text.find("\n", mCell.offset);
+        auto start = text.rfind("\n", mCell.details.firstColumn);
+        auto end = text.find("\n", mCell.details.firstColumn);
         std::string errmsg(mError);
         errmsg += std::string(text, start, end-start);
         errmsg += "\n";
-        for(int i = 1; i < mCell.offset-start; i++)
+        for(int i = 1; i < mCell.details.firstColumn-start; i++)
         {
             errmsg += " ";
         }

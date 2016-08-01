@@ -123,7 +123,7 @@ void Graph::AddProcFactory(const std::string id, ProcNodeFactoryFunc factory)
 
 void Graph::SetSymbol(const Cell& cell, Node::Ptr node)
 {
-    auto niter = mVarNodes.find(cell.token);
+    auto niter = mVarNodes.find(cell.details.text);
     if (niter != mVarNodes.end())
     {
         niter->second = node;
@@ -132,13 +132,13 @@ void Graph::SetSymbol(const Cell& cell, Node::Ptr node)
     if(mParent) return mParent->SetSymbol(cell, node);
 
     std::stringstream err;
-    err << "Could not find symbol - " << cell.token;
+    err << "Could not find symbol - " << cell.details.text;
     throw GraphBuildException(err.str(), cell);
 }
 
 Node::Ptr Graph::LookupSymbol(const Cell& cell)
 {
-    auto niter = mVarNodes.find(cell.token);
+    auto niter = mVarNodes.find(cell.details.text);
     if (niter != mVarNodes.end())
     {
         return niter->second;
@@ -146,7 +146,7 @@ Node::Ptr Graph::LookupSymbol(const Cell& cell)
     if(mParent) return mParent->LookupSymbol(cell);
 
     std::stringstream err;
-    err << "Could not find symbol - " << cell.token;
+    err << "Could not find symbol - " << cell.details.text;
     throw GraphBuildException(err.str(), cell);
 
     return nullptr;
@@ -158,7 +158,7 @@ ProcNodeFactoryFunc Graph::LookupProcedure(const Cell& cell)
     if (node->mKind != Node::KIND_PROC_FACTORY)
     {
         std::stringstream err;
-        err << "Not a valid procedure - " << cell.token;
+        err << "Not a valid procedure - " << cell.details.text;
         throw GraphBuildException(err.str(), cell);
     }
     return static_cast<ProcNodeFactory*>(node.get())->mFactory;
@@ -190,7 +190,7 @@ Node::Ptr Graph::Build(const Cell &cell)
     if(cell.type == Cell::Type::NUMBER)
     {
         auto cnode = BuildNode(KIND_CONST);
-        cnode->mToken = cell.token;
+        cnode->mToken = cell.details.text;
         ret = cnode;
     }
     else if(cell.type == Cell::Type::LIST)
@@ -198,7 +198,7 @@ Node::Ptr Graph::Build(const Cell &cell)
         if (!cell.list.empty())
         {
             auto& firstElem = cell.list.front();
-            if(firstElem.token == "begin")
+            if(firstElem.details.text == "begin")
             {
                 ValidateListLength(cell, 2);
 
@@ -207,11 +207,11 @@ Node::Ptr Graph::Build(const Cell &cell)
                     ret = Build(*c);
                 }
             }
-            else if(firstElem.token == "define")
+            else if(firstElem.details.text == "define")
             {
                 ValidateListLength(cell, 3);
 
-                auto& varToken = cell.list[1].token;
+                auto& varToken = cell.list[1].details.text;
                 auto& exp = cell.list[2];
 
                 // check whether its been defined in this scope
@@ -219,7 +219,7 @@ Node::Ptr Graph::Build(const Cell &cell)
                 // Build parents and adopt their type
                 DefineNode(varToken, exp);
             }
-            else if(firstElem.token == "set!")
+            else if(firstElem.details.text == "set!")
             {
                 ValidateListLength(cell, 3);
 
@@ -231,7 +231,7 @@ Node::Ptr Graph::Build(const Cell &cell)
                 auto parent = Build(exp);
                 SetSymbol(var, parent);
             }
-            else if(firstElem.token == "lambda")
+            else if(firstElem.details.text == "lambda")
             {
                 ValidateListLength(cell, 3);
                 // Add check for list length
@@ -248,7 +248,7 @@ Node::Ptr Graph::Build(const Cell &cell)
                         auto newSubGraph = BuildNode<Graph>(this);
                         for(size_t i = 0; i < params.size(); i++)
                         {
-                            newSubGraph->DefineNode(params[i].token,
+                            newSubGraph->DefineNode(params[i].details.text,
                                     node->mParents[i]);
                         }
                         return newSubGraph->Build(exp);
@@ -256,12 +256,12 @@ Node::Ptr Graph::Build(const Cell &cell)
                 );
                 ret = pnode;
             }
-            else if(firstElem.token == "input")
+            else if(firstElem.details.text == "input")
             {
                 ValidateListLength(cell, 3);
 
                 // Add check whether token in list send warn
-                auto& inputTypeToken = cell.list[1].token;
+                auto& inputTypeToken = cell.list[1].details.text;
 
                 // Check valid type
                 auto inputType = InputType2Enum(inputTypeToken);
@@ -270,7 +270,7 @@ Node::Ptr Graph::Build(const Cell &cell)
                 for(auto iter = cell.list.begin()+2;
                     iter != cell.list.end(); iter++)
                 {
-                    auto& inputToken = iter->token;
+                    auto& inputToken = iter->details.text;
 
                     // check input hasn't already been declared
                     
@@ -280,14 +280,14 @@ Node::Ptr Graph::Build(const Cell &cell)
                     DefineNode(inputToken, inputNode);
                 }
             }
-            else if(firstElem.token == "observe")
+            else if(firstElem.details.text == "observe")
             {
                 ValidateListLength(cell, 3);
 
                 // Add check that token already exists
                 // Add check that we aren't already ouputing to this observer
                 auto& varToken = cell.list[1];
-                auto& outputToken = cell.list[2].token;
+                auto& outputToken = cell.list[2].details.text;
 
                 // Register Observer
                 auto varNode = LookupSymbol(varToken);

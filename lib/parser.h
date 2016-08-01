@@ -2,9 +2,19 @@
 
 #include <vector>
 #include <string>
+#include <list>
 
 namespace Exys
 {
+
+struct TokenDetails
+{
+    std::string text;
+    int firstLineNumber;
+    int firstColumn;
+    int endLineNumber;
+    int endColumn;
+};
 
 struct Cell
 {
@@ -14,19 +24,25 @@ struct Cell
         SYMBOL,
         NUMBER
     };
-
+    
     Type type;
-    std::string token;
-    int64_t offset;
+    TokenDetails details;
+
     std::vector<Cell> list;
     
-    static Cell Symbol(const std::string& tok, int offset) 
-    { return {SYMBOL, tok, offset, {}};}
-    static Cell Number(const std::string& tok, int offset) 
-    { return {NUMBER, tok, offset, {}};}
-    static Cell List(int offset) 
-    { return {LIST, "", offset, {}};}
+    static Cell Symbol(const TokenDetails& details) 
+    { return {SYMBOL, details, {}}; }
+
+    static Cell Number(const TokenDetails& details) 
+    { return {NUMBER, details, {}}; }
+
+    static Cell List(const TokenDetails& details) 
+    { return {LIST, details, {}}; }
 };
+
+std::list<TokenDetails> Tokenize(const std::string& str);
+Cell Atom(TokenDetails token);
+Cell ReadFromTokenDetails(std::list<TokenDetails>& tokens);
 
 Cell Parse(const std::string& val);
 

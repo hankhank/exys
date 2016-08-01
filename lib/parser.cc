@@ -1,4 +1,3 @@
-#include <list>
 #include <cctype>
 #include <cwctype>
 #include <algorithm>
@@ -8,62 +7,92 @@
 namespace Exys
 {
 
-struct TokenDetails
-{
-    std::string text;
-    int64_t offset;
-};
-
 // convert given string to list of tokens
-std::list<TokenDetails> TokenDetailsize(const std::string & str)
+std::list<TokenDetails> Tokenize(const std::string & str)
 {
     std::list<TokenDetails> tokens;
-    const char * s = str.c_str();
-    const char * ref = s;
-    while (*s) 
+
+    bool inComment = false;
+
+    std::string tok;
+    int lineNumber = 0;
+    int column = 0;
+    int startLineNumber = 0;
+    int startColumn = 0;
+
+    auto pushtoken = [&]()
     {
-        if (*s == ';')
+        tokens.push_back({tok, startLineNumber, startColumn, lineNumber, column});
+        tok.clear();
+    };
+
+    for(auto s = str.begin(); s != str.end(); ++s)
+    {
+        if(*s == ';')
         {
-            while(*s && *s++ != '\n');
-            continue;
+            inComment = true;
         }
-        while (iswspace(*s)) ++s;
-        if (*s == '(' || *s == ')')
+        else if(*s == '\n')
         {
-            tokens.push_back({*s++ == '(' ? "(" : ")", s-ref});
+            inComment = false;
+            ++lineNumber;
+            column = 0;
         }
-        else 
+        else if(*s == '(')
         {
-            const char * t = s;
-            while (*t && *t != ' ' && *t != '(' && *t != ')')
+            if(tok.size())
             {
-                ++t;
+                pushtoken();
             }
-            if(s != t)
-            {
-                auto tokstr = std::string(s,t);
-                tokstr.erase(std::remove(tokstr.begin(), tokstr.end(), '\n'), tokstr.end());
-                tokens.push_back({tokstr, s-ref});
-            }
-            s = t;
+            std::string tok = "(";
+            startLineNumber = lineNumber;
+            startColumn = column;
+            pushtoken();   
         }
+        else if(*s == ')')
+        {
+            if(tok.size())
+            {
+                pushtoken();   
+            }
+            std::string tok = ")";
+            startLineNumber = lineNumber;
+            startColumn = column;
+            pushtoken();   
+        }
+        else if (iswspace(*s))
+        {
+            if(tok.size())
+            {
+                pushtoken();   
+            }
+        }
+        else
+        {
+            if(!tok.size())
+            {
+                startLineNumber = lineNumber;   
+                startColumn = column;   
+            }
+            tok.append(&*s);
+        }
+        ++column;
     }
+
     return tokens;
 }
 
 Cell Atom(TokenDetails token)
 {
-    auto text = token.text;
-    auto offset = token.offset;
     if
     (
-        (text.size() && std::isdigit(text[0])) || 
-        (text.size() > 1 && text[0] == '-' && std::isdigit(text[1]))
+        (token.text.size() && std::isdigit(token.text[0])) || 
+        (token.text.size() > 1 && token.text[0] == '-' && std::isdigit(token.text[1]))
     )
     {
-        return Cell::Number(text, offset);
+        return Cell::Number(token);
     }
-    return Cell::Symbol(text, offset);
+    return Cell::Symbol(token);
 }
 
 // return the Lisp expression in the given tokens
@@ -73,7 +102,7 @@ Cell ReadFromTokenDetails(std::list<TokenDetails>& tokens)
     tokens.pop_front();
     if (token.text == "(") 
     {
-        auto l = Cell::List(token.offset);
+        auto l = Cell::List(token);
         if (!tokens.empty())
         {
             while (tokens.front().text != ")")
@@ -92,7 +121,7 @@ Cell ReadFromTokenDetails(std::list<TokenDetails>& tokens)
 
 Cell Parse(const std::string& val)
 {
-    auto tokens = TokenDetailsize(val);
+    auto tokens = Tokenize(val);
     return ReadFromTokenDetails(tokens);
 }
 
