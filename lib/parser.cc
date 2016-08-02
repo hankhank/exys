@@ -20,10 +20,13 @@ std::list<TokenDetails> Tokenize(const std::string & str)
     int startLineNumber = 0;
     int startColumn = 0;
 
-    auto pushtoken = [&]()
+    auto trypushtoken = [&]()
     {
-        tokens.push_back({tok, startLineNumber, startColumn, lineNumber, column});
-        tok.clear();
+        if(tok.size())
+        {
+            tokens.push_back({tok, startLineNumber, startColumn, lineNumber, startColumn+tok.size()-1});
+            tok.clear();
+        }
     };
 
     for(auto s = str.begin(); s != str.end(); ++s)
@@ -34,38 +37,35 @@ std::list<TokenDetails> Tokenize(const std::string & str)
         }
         else if(*s == '\n')
         {
+            trypushtoken();
             inComment = false;
             ++lineNumber;
             column = 0;
+            continue;
+        }
+        else if(inComment)
+        {
+            trypushtoken();
         }
         else if(*s == '(')
         {
-            if(tok.size())
-            {
-                pushtoken();
-            }
-            std::string tok = "(";
+            trypushtoken();
+            tok = "(";
             startLineNumber = lineNumber;
             startColumn = column;
-            pushtoken();   
+            trypushtoken();   
         }
         else if(*s == ')')
         {
-            if(tok.size())
-            {
-                pushtoken();   
-            }
-            std::string tok = ")";
+            trypushtoken();
+            tok = ")";
             startLineNumber = lineNumber;
             startColumn = column;
-            pushtoken();   
+            trypushtoken();   
         }
         else if (iswspace(*s))
         {
-            if(tok.size())
-            {
-                pushtoken();   
-            }
+            trypushtoken();   
         }
         else
         {
@@ -74,7 +74,7 @@ std::list<TokenDetails> Tokenize(const std::string & str)
                 startLineNumber = lineNumber;   
                 startColumn = column;   
             }
-            tok.append(&*s);
+            tok.append(1, *s);
         }
         ++column;
     }
