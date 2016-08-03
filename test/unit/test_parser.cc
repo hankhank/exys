@@ -236,4 +236,53 @@ TEST(Tokenize, GeneralExample_Comments)
     RunTest(resultdata.first, resultdata.second);
 }
 
+void CheckCellType(std::string tok, Cell::Type type)
+{
+    TokenDetails d;
+    d.text = tok;
+    auto c = Atom(d);
+    ASSERT_EQ(c.type, type);
+}
+
+TEST(Atom, Empty)
+{   
+    CheckCellType("", Cell::Type::SYMBOL);
+}
+
+TEST(Atom, GeneralSymbol)
+{   
+    CheckCellType("Token", Cell::Type::SYMBOL);
+}
+
+TEST(Atom, SymbolWithLetterInIt)
+{   
+    CheckCellType("Token1", Cell::Type::SYMBOL);
+    CheckCellType("Token1", Cell::Type::SYMBOL);
+    CheckCellType("Token2.0", Cell::Type::SYMBOL);
+    CheckCellType("-Token2.0", Cell::Type::SYMBOL);
+    CheckCellType("Token-Hype", Cell::Type::SYMBOL);
+}
+
+TEST(Atom, Zero)
+{   
+    CheckCellType("0", Cell::Type::NUMBER);
+}
+
+TEST(Atom, Ints)
+{   
+    CheckCellType("1", Cell::Type::NUMBER);
+    CheckCellType("10", Cell::Type::NUMBER);
+    CheckCellType("10000", Cell::Type::NUMBER);
+    CheckCellType("-10000", Cell::Type::NUMBER);
+}
+
+TEST(Atom, Floats)
+{   
+    CheckCellType("1.0", Cell::Type::NUMBER);
+    CheckCellType("0.0", Cell::Type::NUMBER);
+    CheckCellType("-1.0", Cell::Type::NUMBER);
+    CheckCellType("-1.00000", Cell::Type::NUMBER);
+    CheckCellType("10000.00000", Cell::Type::NUMBER);
+}
+
 }}
