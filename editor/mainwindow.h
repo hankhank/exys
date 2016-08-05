@@ -42,7 +42,7 @@
 #define MAINWINDOW_H
 
 #include "highlighter.h"
-#include "QGVScene.h"
+#include "qtgv_scene.h"
 
 #include <QMainWindow>
 
@@ -72,7 +72,7 @@ private:
 
     QTextEdit *editor;
     Highlighter *highlighter;
-    QGVScene    *scene;
+    QtGvScene    *scene;
     QGraphicsView *view;
 };
 //! [0]

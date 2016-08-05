@@ -8,8 +8,10 @@ find_package(Qt5Network)
 
 add_executable(exys_editor main.cc mainwindow.cc highlighter.cc )
 
-target_link_libraries(exys_editor exys qgvcore)
+target_link_libraries(exys_editor exys qtgv)
 
 # Use the Widgets module from Qt 5.
 target_link_libraries(exys_editor Qt5::Widgets)
 target_link_libraries(exys_editor Qt5::Core)
+
+add_subdirectory(qtgv)

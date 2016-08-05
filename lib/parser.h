@@ -42,7 +42,7 @@ struct Cell
 
 std::list<TokenDetails> Tokenize(const std::string& str);
 Cell Atom(TokenDetails token);
-Cell ReadFromTokenDetails(std::list<TokenDetails>& tokens);
+Cell ReadFromTokenDetails(const std::list<TokenDetails>& tokens);
 
 Cell Parse(const std::string& val);
 

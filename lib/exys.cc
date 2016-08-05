@@ -50,7 +50,7 @@ Exys::Exys(std::unique_ptr<Graph> graph)
 
 std::string Exys::GetDOTGraph()
 {
-    return mGraph->GetDOTGraph();
+    return "digraph " + mGraph->GetDOTGraph();
 }
 
 ComputeFunction Exys::LookupComputeFunction(Node::Ptr node)

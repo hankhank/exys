@@ -52,7 +52,7 @@ MainWindow::MainWindow(QWidget *parent)
     setupHelpMenu();
     setupEditor();
 
-    scene = new QGVScene("DEMO", this);
+    scene = new QtGvScene("DEMO", this);
     view = new QGraphicsView(scene);
     
     auto* splitter = new QSplitter(Qt::Horizontal, this);
@@ -137,9 +137,7 @@ void MainWindow::textChanged()
     try
     {
         std::unique_ptr<Exys::Exys> graph = Exys::Exys::Build(editor->toPlainText().toStdString());
-        scene->loadLayout(graph->GetDOTGraph().c_str());
-        scene->applyLayout();
-
+        scene->LoadLayout(graph->GetDOTGraph().c_str());
     }
     catch(...)
     {

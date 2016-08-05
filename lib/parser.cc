@@ -1,6 +1,8 @@
 #include <cctype>
 #include <cwctype>
+#include <cassert>
 #include <algorithm>
+#include <stack>
 
 #include "parser.h"
 
@@ -96,27 +98,41 @@ Cell Atom(TokenDetails token)
 }
 
 // return the Lisp expression in the given tokens
-Cell ReadFromTokenDetails(std::list<TokenDetails>& tokens)
+Cell ReadFromTokenDetails(const std::list<TokenDetails>& tokens)
 {
-    auto token = tokens.front();
-    tokens.pop_front();
-    if (token.text == "(") 
+    Cell root;
+    if(!tokens.size())
     {
-        auto l = Cell::List(token);
-        if (!tokens.empty())
+        // nothing
+        return root;
+    }
+
+    std::stack<Cell*> cellStack;
+    cellStack.push(&root);
+
+    for(auto token : tokens)
+    {
+        auto* cell = cellStack.top();
+        if(token.text == "(")
         {
-            while (tokens.front().text != ")")
-            {
-                l.list.push_back(ReadFromTokenDetails(tokens));
-            }
-            tokens.pop_front();
+            cell->list.emplace_back(Cell::List(token));
+            cellStack.push(&cell->list.back());
         }
-        return l;
+        else if(token.text == ")")
+        {
+            if(cell->type != Cell::Type::LIST)
+            {
+                assert(false);
+                //raise;
+            }
+            cellStack.pop();
+        }
+        else
+        {
+            cell->list.emplace_back(Atom(token));
+        }
     }
-    else
-    {
-        return Atom(token);
-    }
+    return root.list.front();
 }
 
 Cell Parse(const std::string& val)
