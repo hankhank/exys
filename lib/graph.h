@@ -94,6 +94,9 @@ private:
     Node::Ptr Map(Node::Ptr node);
     Node::Ptr ForEach(Node::Ptr node);
     Node::Ptr List(Node::Ptr node);
+    Node::Ptr Zip(Node::Ptr node);
+    Node::Ptr Car(Node::Ptr node);
+    Node::Ptr Cdr(Node::Ptr node);
 
     template<typename T=Node, typename... Args>
     std::shared_ptr<T> BuildNode(Args... as);

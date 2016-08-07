@@ -64,6 +64,7 @@ public slots:
     void openFile(const QString &path = QString());
 
     void textChanged();
+    void fileChanged(const QString&);
 
 private:
     void setupEditor();

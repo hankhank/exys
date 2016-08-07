@@ -40,7 +40,18 @@ Procs AVAILABLE_PROCS[] =
     {"+", SumDouble},
     {"-", SubDouble},
     {"/", DivDouble},
-    {"*", MulDouble}
+    {"*", MulDouble},
+    {"<", MulDouble},
+    {"<=", MulDouble},
+    {">", MulDouble},
+    {">=", MulDouble},
+    {"==", MulDouble},
+    {"!=", MulDouble},
+    {"min", MulDouble},
+    {"max", MulDouble},
+    {"exp", MulDouble},
+    {"ln", MulDouble},
+    {"not", MulDouble}
 };
 
 Exys::Exys(std::unique_ptr<Graph> graph)
@@ -161,7 +172,7 @@ void Exys::Stabilize()
     mStabilisationId++;
 }
 
-void Exys::FlagChanged(Point& point)
+void Exys::PointChanged(Point& point)
 {
     for(auto* child : point.mChildren)
     {
@@ -182,6 +193,16 @@ Point& Exys::LookupInputPoint(const std::string& label)
     return *niter->second;
 }
 
+std::vector<std::string> Exys::GetInputPointLabels()
+{
+    std::vector<std::string> ret;
+    for(const auto& ip : mInputs)
+    {
+        ret.push_back(ip.first);
+    }
+    return ret;
+}
+
 bool Exys::HasObserverPoint(const std::string& label)
 {
     auto niter = mObservers.find(label);
@@ -193,6 +214,16 @@ Point& Exys::LookupObserverPoint(const std::string& label)
     assert(HasObserverPoint(label));
     auto niter = mObservers.find(label);
     return *niter->second;
+}
+
+std::vector<std::string> Exys::GetObserverPointLabels()
+{
+    std::vector<std::string> ret;
+    for(const auto& ip : mObservers)
+    {
+        ret.push_back(ip.first);
+    }
+    return ret;
 }
 
 std::unique_ptr<Graph> BuildAndLoadGraph()

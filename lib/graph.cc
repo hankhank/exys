@@ -5,8 +5,15 @@
 
 #include "graph.h"
 
+// Things to test
+// zipping lists together in mini lists
+// variable length lists
+// memory - flipflop
+// timers/decay
+
 namespace Exys
 {
+
 void ValidateListLength(const Cell& cell, size_t min)
 {
     if(cell.list.size() < min)
@@ -71,6 +78,53 @@ Node::Ptr Graph::List(Node::Ptr node)
     return node;
 }
 
+Node::Ptr Graph::Zip(Node::Ptr node)
+{
+    //ValidateListLength(args, 3);
+    // Validate all lists same length
+    // Validate all parents are lists
+    auto args = node->mParents;
+    auto zipped = BuildNode(KIND_LIST);
+    auto& zparents = zipped->mParents;
+    for(auto arg : args)
+    {
+        int i = 0;
+        for(auto a : arg->mParents)
+        {   
+            if(i >= zparents.size())
+            {
+                zparents.push_back(BuildNode(KIND_LIST));
+            }
+            zparents[i]->mParents.push_back(a);
+            ++i;
+        }
+    }
+    return zipped;
+}
+
+Node::Ptr Graph::Car(Node::Ptr node)
+{
+    // Validate arg list is 1 long
+    // Validate node is list
+    // Validate list is at least 1 long
+    auto arg = node->mParents[0];
+    return arg->mParents[0];
+}
+
+Node::Ptr Graph::Cdr(Node::Ptr node)
+{
+    // Validate arg list is 1 long
+    // Validate node is list
+    // Validate list is at least 1 long
+    auto arg = node->mParents[0];
+    auto cdr = BuildNode(KIND_LIST);
+    for(auto a = arg->mParents.begin() + 1; a != arg->mParents.end(); a++)
+    {
+        cdr->mParents.push_back(*a);
+    }
+    return cdr;
+}
+
 #define WRAP(__FUNC) \
     [this](Node::Ptr ptr) -> Node::Ptr{return this->__FUNC(ptr);}
 
@@ -82,6 +136,9 @@ Graph::Graph(Graph* parent)
     AddProcFactory("for-each", WRAP(ForEach));
     AddProcFactory("map",      WRAP(Map));
     AddProcFactory("list",     WRAP(List));
+    AddProcFactory("zip",      WRAP(Zip));
+    AddProcFactory("car",      WRAP(Car));
+    AddProcFactory("cdr",      WRAP(Cdr));
 }
 
 template<typename T, typename... Args>
@@ -332,15 +389,6 @@ std::string Graph::GetDOTGraph()
         switch(nodeptr->mKind)
         {
             default: break;
-            case KIND_GRAPH:
-            {
-                auto subgraph = std::static_pointer_cast<Graph>(nodeptr);
-                ret += "subgraph " + std::to_string((long int) subgraph.get()) + " ";
-                ret +=  subgraph->GetDOTGraph();
-                ret += "\n";
-            }
-            break;
-
             case KIND_CONST:
             case KIND_INPUT:
             case KIND_PROC:
@@ -372,7 +420,6 @@ std::string Graph::GetDOTGraph()
         switch(nodeptr->mKind)
         {
             default: break;
-
             case KIND_GRAPH:
             case KIND_CONST:
             case KIND_INPUT:

@@ -50,7 +50,7 @@ Highlighter::Highlighter(QTextDocument *parent)
     QStringList keywordPatterns;
     keywordPatterns << "\\bdefine\\b" << "\\bfor-each\\b" 
                     << "\\bmap\\b" << "\\blist\\b" 
-                    << "\\bbegin\\b";
+                    << "\\bbegin\\b" << "\\binput\\b";
     foreach (const QString &pattern, keywordPatterns) {
         rule.pattern = QRegExp(pattern);
         rule.format = keywordFormat;

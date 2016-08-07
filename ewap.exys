@@ -31,7 +31,38 @@
 
     (define bidsum 0)
     (define refprice 0)
-    (for-each (lambda(price) 
-         (set! bidsum (+ bidsum (* (+ price refprice) lmbd)))) bids)
+    (define bidsumfunc 
+        (lambda(price) 
+            (set! bidsum 
+                (+  bidsum 
+                    (* lmbd
+                        (+ price refprice))))))
+    (define maptest
+        (lambda (price)
+            (? (< price 100) price 0)))
+    
+    (define sumlist
+        (lambda (l)
+            (begin 
+                (define total 0)
+                (for-each 
+                    (lambda (i) (set! total (+ total i)))
+                    l)
+                total)))
+    
+    (define mullist
+        (lambda (l)
+            (begin 
+                (define total 1)
+                (for-each 
+                    (lambda (i) (set! total (* total i)))
+                    l)
+                total)))
+    (define bidask (zip bids asks))
+    (set! bids (map sumlist bidask))
+    ;(set! bidsum (sumlist bids))
+    ;(set! bids (map maptest bids))
+    (for-each bidsumfunc bids)
 
     (observe bidsum out))
+

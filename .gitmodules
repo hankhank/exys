@@ -1,0 +1,3 @@
+[submodule "mxe"]
+	path = mxe
+	url = git@github.com:hankhank/mxe.git

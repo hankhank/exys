@@ -63,6 +63,14 @@ MainWindow::MainWindow(QWidget *parent)
     setWindowTitle(tr("Syntax Highlighter"));
 
     connect(editor, SIGNAL(textChanged()), SLOT(textChanged()));
+
+    auto args = QCoreApplication::arguments();
+    if(args.size() > 1)
+    {
+        auto watcher = new QFileSystemWatcher(this);
+        watcher->addPath(args[1]);
+        connect(watcher, SIGNAL(fileChanged(const QString&)), this, SLOT(fileChanged(const QString&)));
+    }
 }
 //! [0]
 
@@ -142,7 +150,13 @@ void MainWindow::textChanged()
     catch(...)
     {
     }
+}
 
-
+void MainWindow::fileChanged(const QString& path)
+{
+    QFile file(path);
+    file.open(QIODevice::ReadOnly);
+    QTextStream txt(&file);
+    editor->setText(txt.readAll());
 }
 

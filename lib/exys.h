@@ -53,14 +53,16 @@ class Exys
 public:
     Exys(std::unique_ptr<Graph> graph);
 
-    void FlagChanged(Point& point);
+    void PointChanged(Point& point);
     void Stabilize();
 
     bool HasInputPoint(const std::string& label);
     Point& LookupInputPoint(const std::string& label);
+    std::vector<std::string> GetInputPointLabels();
 
     bool HasObserverPoint(const std::string& label);
     Point& LookupObserverPoint(const std::string& label);
+    std::vector<std::string> GetObserverPointLabels();
 
     std::string GetDOTGraph();
 
