@@ -122,8 +122,11 @@ Cell ReadFromTokenDetails(const std::list<TokenDetails>& tokens)
         {
             if(cell->type != Cell::Type::LIST)
             {
-                assert(false);
-                //raise;
+                throw ParseException("Unmatched parentheses. Closed and not opened", cell->details);
+            }
+            else if(cellStack.size() == 0)
+            {
+                throw ParseException("Unmatched parentheses. Closed and not opened", token);
             }
             cellStack.pop();
         }
@@ -132,6 +135,12 @@ Cell ReadFromTokenDetails(const std::list<TokenDetails>& tokens)
             cell->list.emplace_back(Atom(token));
         }
     }
+    
+    if(cellStack.size())
+    {
+        throw ParseException("Unmatched parentheses. Opened and  not closed", cellStack.top()->details);
+    }
+
     return root.list.front();
 }
 
@@ -139,6 +148,42 @@ Cell Parse(const std::string& val)
 {
     auto tokens = Tokenize(val);
     return ReadFromTokenDetails(tokens);
+}
+
+ParseException::ParseException(const std::string& error, TokenDetails details)
+: mError(error)
+, mDetails(details)
+{
+}
+
+const char* ParseException::what() const noexcept(true)
+{
+    return mError.c_str();
+}
+
+std::string ParseException::GetErrorMessage(const std::string& inputText) const
+{
+    int lineNumber = 0;
+    std::string::size_type pos = 0, prev = 0;
+    while ((pos = inputText.find('\n', prev)) != std::string::npos)
+    {
+        if(lineNumber++ > mDetails.firstLineNumber) break;
+        prev = pos + 1;
+    }
+    
+    std::string errmsg;
+    errmsg += "Line " + std::to_string(mDetails.firstLineNumber);
+    errmsg += ": ";
+    errmsg += mError;
+    errmsg += "\n";
+    errmsg += inputText.substr(prev, pos-prev);
+    errmsg += "\n";
+    for(int i = 0; i < mDetails.firstColumn; i++)
+    {
+        errmsg += " ";
+    }
+    errmsg += "^\n";
+    return errmsg;
 }
 
 }

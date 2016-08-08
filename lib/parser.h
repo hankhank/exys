@@ -20,16 +20,17 @@ struct Cell
 {
     enum Type 
     {
+        NONE,
         LIST,
         SYMBOL,
         NUMBER
     };
     
-    Type type;
+    Type type = NONE;
     TokenDetails details;
 
     std::vector<Cell> list;
-    
+
     static Cell Symbol(const TokenDetails& details) 
     { return {SYMBOL, details, {}}; }
 
@@ -38,6 +39,18 @@ struct Cell
 
     static Cell List(const TokenDetails& details) 
     { return {LIST, details, {}}; }
+};
+
+class ParseException : public std::exception
+{
+public:
+    ParseException(const std::string& error, TokenDetails details);
+
+    virtual const char* what() const noexcept(true);
+    std::string GetErrorMessage(const std::string& inputText) const;
+
+    std::string mError;
+    TokenDetails mDetails;
 };
 
 std::list<TokenDetails> Tokenize(const std::string& str);

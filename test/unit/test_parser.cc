@@ -285,4 +285,69 @@ TEST(Atom, Floats)
     CheckCellType("10000.00000", Cell::Type::NUMBER);
 }
 
+TEST(ReadFromTokenDetails, empty)
+{
+    std::list<TokenDetails> empty;
+    auto cell = ReadFromTokenDetails(empty);
+    ASSERT_EQ(cell.type, Cell::NONE);
+}
+
+TEST(ReadFromTokenDetails, Unbalanced_lhs_single)
+{
+    std::list<TokenDetails> toks = 
+    {
+        {"(", 0, 0, 0, 0}
+    };
+    ASSERT_THROW(auto cell = ReadFromTokenDetails(toks),
+                ParseException);
+}
+
+TEST(ReadFromTokenDetails, Unbalanced_rhs_single)
+{
+    std::list<TokenDetails> toks = 
+    {
+        {")", 0, 0, 0, 0}
+    };
+    ASSERT_THROW(auto cell = ReadFromTokenDetails(toks),
+                ParseException);
+}
+
+TEST(ReadFromTokenDetails, Unbalanced_open_shut_open)
+{
+    std::list<TokenDetails> toks = 
+    {
+        {"(", 0, 0, 0, 0},
+        {")", 0, 0, 0, 0},
+        {"(", 0, 0, 0, 0}
+    };
+    ASSERT_THROW(auto cell = ReadFromTokenDetails(toks),
+                ParseException);
+}
+
+TEST(ReadFromTokenDetails, Unbalanced_open_shut_close)
+{
+    std::list<TokenDetails> toks = 
+    {
+        {"(", 0, 0, 0, 0},
+        {")", 0, 0, 0, 0},
+        {")", 0, 0, 0, 0}
+    };
+    ASSERT_THROW(auto cell = ReadFromTokenDetails(toks),
+                ParseException);
+}
+
+TEST(ReadFromTokenDetails, Unbalanced_nested)
+{
+    std::list<TokenDetails> toks = 
+    {
+        {"(", 0, 0, 0, 0},
+        {"(", 0, 0, 0, 0},
+        {"(", 0, 0, 0, 0},
+        {")", 0, 0, 0, 0},
+        {")", 0, 0, 0, 0}
+    };
+    ASSERT_THROW(auto cell = ReadFromTokenDetails(toks),
+                ParseException);
+}
+
 }}
