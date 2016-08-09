@@ -19,7 +19,6 @@ int main(int argc, char* argv[])
     
     try
     {
-        std::cout << buffer.str();
         auto graph = Exys::Exys::Build(buffer.str());
         //auto& input = graph->LookupInputPoint("in");
         //auto& output = graph->LookupObserverPoint("out");

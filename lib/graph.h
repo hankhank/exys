@@ -111,31 +111,10 @@ private:
 class GraphBuildException : public std::exception
 {
 public:
-    GraphBuildException(const std::string& error, Cell cell)
-    : mError(error)
-    , mCell(cell)
-    {
-    }
+    GraphBuildException(const std::string& error, Cell cell);
 
-    virtual const char* what() const noexcept(true)
-    {
-        return mError.c_str();
-    }
-
-    std::string GetErrorMessage(const std::string& text) const
-    {
-        auto start = text.rfind("\n", mCell.details.firstColumn);
-        auto end = text.find("\n", mCell.details.firstColumn);
-        std::string errmsg(mError);
-        errmsg += std::string(text, start, end-start);
-        errmsg += "\n";
-        for(int i = 1; i < mCell.details.firstColumn-start; i++)
-        {
-            errmsg += " ";
-        }
-        errmsg += "^\n";
-        return errmsg;
-    }
+    virtual const char* what() const noexcept(true);
+    std::string GetErrorMessage(const std::string& text) const;
 
     std::string mError;
     Cell mCell;

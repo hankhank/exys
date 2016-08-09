@@ -5,6 +5,7 @@
 #include <stack>
 
 #include "parser.h"
+#include "helpers.h"
 
 namespace Exys
 {
@@ -122,11 +123,11 @@ Cell ReadFromTokenDetails(const std::list<TokenDetails>& tokens)
         {
             if(cell->type != Cell::Type::LIST)
             {
-                throw ParseException("Unmatched parentheses. Closed and not opened", cell->details);
+                throw ParseException("Extra closing parentheses", token);
             }
             else if(cellStack.size() == 0)
             {
-                throw ParseException("Unmatched parentheses. Closed and not opened", token);
+                throw ParseException("Extra closing parentheses", token);
             }
             cellStack.pop();
         }
@@ -136,9 +137,9 @@ Cell ReadFromTokenDetails(const std::list<TokenDetails>& tokens)
         }
     }
     
-    if(cellStack.size())
+    if(cellStack.size() > 1)
     {
-        throw ParseException("Unmatched parentheses. Opened and  not closed", cellStack.top()->details);
+        throw ParseException("Opened parentheses not closed", cellStack.top()->details);
     }
 
     return root.list.front();
@@ -163,20 +164,12 @@ const char* ParseException::what() const noexcept(true)
 
 std::string ParseException::GetErrorMessage(const std::string& inputText) const
 {
-    int lineNumber = 0;
-    std::string::size_type pos = 0, prev = 0;
-    while ((pos = inputText.find('\n', prev)) != std::string::npos)
-    {
-        if(lineNumber++ > mDetails.firstLineNumber) break;
-        prev = pos + 1;
-    }
-    
     std::string errmsg;
-    errmsg += "Line " + std::to_string(mDetails.firstLineNumber);
-    errmsg += ": ";
+    errmsg += "Line " + std::to_string(mDetails.firstLineNumber+1);
+    errmsg += ": Error: ";
     errmsg += mError;
     errmsg += "\n";
-    errmsg += inputText.substr(prev, pos-prev);
+    errmsg += GetLine(inputText, mDetails.firstLineNumber);
     errmsg += "\n";
     for(int i = 0; i < mDetails.firstColumn; i++)
     {

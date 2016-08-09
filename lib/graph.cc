@@ -4,9 +4,10 @@
 #include <set>
 
 #include "graph.h"
+#include "helpers.h"
 
 // Things to test
-// zipping lists together in mini lists
+// zipping lists together in mini lists - done
 // variable length lists
 // memory - flipflop
 // timers/decay
@@ -14,13 +15,20 @@
 namespace Exys
 {
 
-void ValidateListLength(const Cell& cell, size_t min)
+void ValidateListLength(const Cell& cell, size_t min, size_t max=std::numeric_limits<size_t>::max())
 {
     if(cell.list.size() < min)
     {
         std::stringstream err;
-        err << "List length too small. Expected at least "
+        err << "Not enough items in list for function. Expected at least "
             << min << " Got " << cell.list.size();
+        throw GraphBuildException(err.str(), cell);
+    }
+    if(cell.list.size() > max)
+    {
+        std::stringstream err;
+        err << "Too many items in list for function. Expected at most "
+            << max << " Got " << cell.list.size();
         throw GraphBuildException(err.str(), cell);
     }
 }
@@ -431,5 +439,34 @@ std::string Graph::GetDOTGraph()
     ret += "}";
     return ret;
 }
+
+GraphBuildException::GraphBuildException(const std::string& error, Cell cell)
+: mError(error)
+, mCell(cell)
+{
+}
+
+const char* GraphBuildException::what() const noexcept(true)
+{
+    return mError.c_str();
+}
+
+std::string GraphBuildException::GetErrorMessage(const std::string& inputText) const
+{
+    std::string errmsg;
+    errmsg += "Line " + std::to_string(mCell.details.firstLineNumber+1);
+    errmsg += ": Error: ";
+    errmsg += mError;
+    errmsg += "\n";
+    errmsg += GetLine(inputText, mCell.details.firstLineNumber);
+    errmsg += "\n";
+    for(int i = 0; i < mCell.details.firstColumn; i++)
+    {
+        errmsg += " ";
+    }
+    errmsg += "^\n";
+    return errmsg;
+}
+
 
 }
