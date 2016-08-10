@@ -1,0 +1,68 @@
+(begin 
+    (input double in)
+    (define lmbd in)
+
+    (input double b0.price
+                  b1.price
+                  b2.price
+                  b3.price
+                  b0.volume
+                  b1.volume
+                  b2.volume
+                  b3.volume)
+
+    (input double a0.price
+                  a1.price
+                  a2.price
+                  a3.price
+                  a0.volume
+                  a1.volume
+                  a2.volume
+                  a3.volume)
+
+    (define bids (list b0.price
+                       b1.price
+                       b2.price
+                       b3.price))
+    (define asks (list a0.price
+                       a1.price
+                       a2.price
+                       a3.price))
+
+    (define bidsum 0)
+    (define refprice 0)
+    (define bidsumfunc 
+        (lambda(price) 
+            (set! bidsum 
+                (+  bidsum 
+                    (* lmbd
+                        (+ price refprice))))))
+    (define maptest
+        (lambda (price)
+            (? (< price 100) price 0)))
+    
+    (define sumlist
+        (lambda (l)
+            (begin 
+                (define total 0)
+                (for-each 
+                    (lambda (i) (set! total (+ total i)))
+                    l)
+                total)))
+    
+    (define mullist
+        (lambda (l)
+            (begin 
+                (define total 1)
+                (for-each 
+                    (lambda (i) (set! total (* total i)))
+                    l)
+                total)))
+    (define bidask (zip bids asks))
+    (set! bids (map sumlist bidask))
+    ;(set! bidsum (sumlist bids))
+    ;(set! bids (map maptest bids))
+    (for-each bidsumfunc bids)
+
+    (observe bidsum out))
+

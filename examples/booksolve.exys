@@ -1,0 +1,60 @@
+(begin 
+    (input double b0.price
+                  b1.price
+                  b2.price
+                  b3.price
+                  b0.volume
+                  b1.volume
+                  b2.volume
+                  b3.volume)
+
+    (input double a0.price
+                  a1.price
+                  a2.price
+                  a3.price
+                  a0.volume
+                  a1.volume
+                  a2.volume
+                  a3.volume)
+
+    (define bids (list (list b0.price b0.volume)
+                       (list b1.price b1.volume)
+                       (list b2.price b2.volume)
+                       (list b3.price b3.volume)))
+
+    (define asks (list (list a0.price a0.volume)
+                       (list a1.price a1.volume)
+                       (list a2.price a2.volume)
+                       (list a3.price a3.volume)))
+
+    ; Sums up volumes on one side
+    (define sumside 
+        (lambda (l) 
+            (begin
+                (define total 0)
+                (for-each 
+                    (lambda (x) (set! total (+ total (car (cdr x)))))
+                    l)
+                total)))
+
+    (define bidsum (sumside bids))
+    
+    (define resistancePriceVol
+        (lambda (bidsum side)
+            (begin
+                (define finalprice 0)
+                (define volLeft bidsum)
+                (for-each
+                    (lambda (level) 
+                        (begin 
+                            (set! finalprice
+                                (? 
+                                    (> volLeft 0) 
+                                    (car level)
+                                    finalprice))
+                            (set! volLeft
+                                (- volLeft (car (cdr level))))))
+                    side)
+                finalprice)))
+    (define out (resistancePriceVol bidsum asks)))
+
