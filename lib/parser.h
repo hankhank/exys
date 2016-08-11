@@ -32,13 +32,28 @@ struct Cell
     std::vector<Cell> list;
 
     static Cell Symbol(const TokenDetails& details) 
-    { return {SYMBOL, details, {}}; }
+    {
+        Cell c;
+        c.type = SYMBOL;
+        c.details = details;
+        return c;
+    }
 
     static Cell Number(const TokenDetails& details) 
-    { return {NUMBER, details, {}}; }
+    {
+        Cell c;
+        c.type = NUMBER;
+        c.details = details;
+        return c;
+    }
 
     static Cell List(const TokenDetails& details) 
-    { return {LIST, details, {}}; }
+    {
+        Cell c;
+        c.type = LIST;
+        c.details = details;
+        return c;
+    }
 };
 
 class ParseException : public std::exception
