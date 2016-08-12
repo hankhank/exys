@@ -11,7 +11,7 @@ INCLUDE_DIRECTORIES(${GRAPHVIZ_INCLUDE_DIRS})
 # Activate Export macro for building the library itself
 # if QtGvCORE_LIB is not set or equal 0 (null), import macro is used
 
-ADD_LIBRARY(qtgv SHARED 
+ADD_LIBRARY(qtgv STATIC 
   qtgv_edge.cc
   qtgv_node.cc
   qtgv_scene.cc
