@@ -56,5 +56,10 @@
                                 (- volLeft (car (cdr level))))))
                     side)
                 finalprice)))
-    (define out (resistancePriceVol bidsum asks)))
+    (define out (resistancePriceVol bidsum asks))
+    (observe out out))
+
+; inject b0.price  1
+; stablise
+; expect out 1
 

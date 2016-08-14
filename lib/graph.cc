@@ -33,15 +33,14 @@ void ValidateListLength(const Cell& cell, size_t min, size_t max=std::numeric_li
     }
 }
 
-void ValidateParamListLength(const std::vector<Cell> params1,
-    const std::vector<Cell> params2)
+void ValidateParamListLength(const std::vector<Cell> params1, const Node::Ptr node)
 {
-    if(params1.size() != params2.size())
+    if(params1.size() != node->mParents.size())
     {
         Cell cell;
         std::stringstream err;
         err << "Incorrect number of params. Expected "
-            << params1.size() << " Got " << params2.size();
+            << params1.size() << " Got " << node->mParents.size();
         throw GraphBuildException(err.str(), cell);
     }
 }
@@ -157,27 +156,30 @@ std::shared_ptr<T> Graph::BuildNode(Args... as)
     return ret;
 }
 
-ProcNodeFactoryFunc Graph::DefaultFactory(const std::string& procname)
+const std::unordered_map<std::string, Node::Ptr>& Graph::GetObservers()
 {
-    return [this, procname](Node::Ptr node) -> Node::Ptr
+    return mObservers;
+}
+
+
+void Graph::SetSupportedProcedures(const std::vector<Procedure>& procs)
+{
+    for(const auto& proc : procs) AddProcFactory(proc.id, DefaultFactory(proc));
+}
+
+ProcNodeFactoryFunc Graph::DefaultFactory(const Procedure& procedure)
+{
+    return [this, procedure](Node::Ptr node) -> Node::Ptr
     {
+        procedure.validate(node);
         auto mn = BuildNode(KIND_PROC);
-        mn->mToken = procname;
+        mn->mToken = procedure.id;
         for(auto& n : node->mParents)
         {
             mn->mParents.push_back(n);
         }
         return mn;
     };
-}
-const std::unordered_map<std::string, Node::Ptr>& Graph::GetObservers()
-{
-    return mObservers;
-}
-
-void Graph::SetSupportedProcedures(const std::vector<std::string>& procs)
-{
-    for(const auto& proc : procs) AddProcFactory(proc, DefaultFactory(proc));
 }
 
 void Graph::AddProcFactory(const std::string id, ProcNodeFactoryFunc factory)
@@ -308,7 +310,7 @@ Node::Ptr Graph::Build(const Cell &cell)
                 (
                     [this, params, exp](Node::Ptr node)
                     {
-                        //ValidateParamListLength(params, args);
+                        ValidateParamListLength(params, node);
 
                         auto newSubGraph = BuildNode<Graph>(this);
                         for(size_t i = 0; i < params.size(); i++)

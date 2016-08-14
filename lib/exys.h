@@ -8,7 +8,6 @@
 #include <map>
 #include <set>
 
-#include "parser.h"
 #include "graph.h"
 
 namespace Exys
@@ -46,6 +45,16 @@ struct Point
     Point& operator=(int i)  {mSignal.i = i;}
     Point& operator=(unsigned int u) {mSignal.u = u;}
     Point& operator=(double d) {mSignal.d = d;}
+
+    bool operator==(bool b) {return mSignal.b = b;}
+    bool operator==(int i)  {return mSignal.i = i;}
+    bool operator==(unsigned int u) {return mSignal.u = u;}
+    bool operator==(double d) {return mSignal.d = d;}
+
+    bool operator!=(bool b) {return mSignal.b != b;}
+    bool operator!=(int i)  {return mSignal.i != i;}
+    bool operator!=(unsigned int u) {return mSignal.u != u;}
+    bool operator!=(double d) {return mSignal.d != d;}
 };
 
 class Exys
@@ -55,6 +64,7 @@ public:
 
     void PointChanged(Point& point);
     void Stabilize();
+    bool IsDirty();
 
     bool HasInputPoint(const std::string& label);
     Point& LookupInputPoint(const std::string& label);

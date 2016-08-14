@@ -71,7 +71,7 @@ QtGvScene::~QtGvScene()
 
 void QtGvScene::LoadLayout(const QString &text)
 {
-    qCritical()<<text;
+    Clear();
     mGraph = agmemread2(text.toLocal8Bit().constData());
     if(!mGraph) return;
 
@@ -81,7 +81,6 @@ void QtGvScene::LoadLayout(const QString &text)
         return;
     }
 
-    Clear();
     //Debug output
 		//gvRenderFilename(mContext, mGraph.get(), "png", "debug.png");
 

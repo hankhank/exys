@@ -4,6 +4,7 @@
 #include <sstream>
 
 #include "exys.h"
+#include "executioner.h"
 
 int main(int argc, char* argv[])
 {
@@ -20,9 +21,9 @@ int main(int argc, char* argv[])
     try
     {
         auto graph = Exys::Exys::Build(buffer.str());
-        //auto& input = graph->LookupInputPoint("in");
-        //auto& output = graph->LookupObserverPoint("out");
-        return 0;
+        auto results = Exys::Execute(*graph, buffer.str());
+        std::cout << results.second << "\n";
+        return results.first ? 0 : -1;
     }
     catch (const Exys::ParseException& e)
     {

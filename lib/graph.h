@@ -66,6 +66,13 @@ public:
     ProcNodeFactoryFunc mFactory;
 };
 
+typedef std::function<void (Node::Ptr)> ProcedureValidationFunction;
+struct Procedure
+{
+    const char* id;
+    ProcedureValidationFunction validate;
+};
+
 class Graph : public Node
 {
 public:
@@ -77,12 +84,12 @@ public:
 
     const std::unordered_map<std::string, Node::Ptr>& GetObservers();
 
-    void SetSupportedProcedures(const std::vector<std::string>& procs);
+    void SetSupportedProcedures(const std::vector<Procedure>& procs);
     
     std::string GetDOTGraph();
 
 private:
-    ProcNodeFactoryFunc DefaultFactory(const std::string& procname);
+    ProcNodeFactoryFunc DefaultFactory(const Procedure& procedure);
     void AddProcFactory(const std::string id, ProcNodeFactoryFunc factory);
     Node::Ptr LookupSymbol(const Cell& cell);
     ProcNodeFactoryFunc LookupProcedure(const Cell& cell);

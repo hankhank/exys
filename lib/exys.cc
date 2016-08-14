@@ -7,9 +7,9 @@
 namespace Exys
 {
 
-struct Procs
+struct PointProcessor
 {
-    const char* id;
+    Procedure procedure;
     ComputeFunction func; 
 };
 
@@ -34,24 +34,28 @@ void SubDouble(Point& point){}
 void DivDouble(Point& point){}
 void MulDouble(Point& point){}
 
-Procs AVAILABLE_PROCS[] =
+void DummyValidator(Node::Ptr)
 {
-    {"?", Ternary},
-    {"+", SumDouble},
-    {"-", SubDouble},
-    {"/", DivDouble},
-    {"*", MulDouble},
-    {"<", MulDouble},
-    {"<=", MulDouble},
-    {">", MulDouble},
-    {">=", MulDouble},
-    {"==", MulDouble},
-    {"!=", MulDouble},
-    {"min", MulDouble},
-    {"max", MulDouble},
-    {"exp", MulDouble},
-    {"ln", MulDouble},
-    {"not", MulDouble}
+}
+
+PointProcessor AVAILABLE_PROCS[] =
+{
+    {{"?",    DummyValidator},  Ternary},
+    {{"+",    DummyValidator},  SumDouble},
+    {{"-",    DummyValidator},  SubDouble},
+    {{"/",    DummyValidator},  DivDouble},
+    {{"*",    DummyValidator},  MulDouble},
+    {{"<",    DummyValidator},  MulDouble},
+    {{"<=",   DummyValidator},  MulDouble},
+    {{">",    DummyValidator},  MulDouble},
+    {{">=",   DummyValidator},  MulDouble},
+    {{"==",   DummyValidator},  MulDouble},
+    {{"!=",   DummyValidator},  MulDouble},
+    {{"min",  DummyValidator},  MulDouble},
+    {{"max",  DummyValidator},  MulDouble},
+    {{"exp",  DummyValidator},  MulDouble},
+    {{"ln",   DummyValidator},  MulDouble},
+    {{"not",  DummyValidator},  MulDouble}
 };
 
 Exys::Exys(std::unique_ptr<Graph> graph)
@@ -72,7 +76,7 @@ ComputeFunction Exys::LookupComputeFunction(Node::Ptr node)
     }
     for(auto& proc : AVAILABLE_PROCS)
     {
-        if(node->mToken.compare(proc.id) == 0)
+        if(node->mToken.compare(proc.procedure.id) == 0)
         {
             return proc.func;
         }
@@ -148,6 +152,11 @@ void Exys::CompleteBuild()
             mObservers[ob->second] = &point;
         }
     }
+}
+
+bool Exys::IsDirty()
+{
+    return !mRecomputeHeap.empty();
 }
 
 void Exys::Stabilize()
@@ -228,13 +237,10 @@ std::vector<std::string> Exys::GetObserverPointLabels()
 
 std::unique_ptr<Graph> BuildAndLoadGraph()
 {
-    std::vector<std::string> procs;
-    for(auto& proc : AVAILABLE_PROCS)
-    {
-        procs.push_back(proc.id);
-    }
     auto graph = std::make_unique<Graph>();
-    graph->SetSupportedProcedures(procs);
+    std::vector<Procedure> procedures;
+    for(const auto &proc : AVAILABLE_PROCS) procedures.push_back(proc.procedure);
+    graph->SetSupportedProcedures(procedures);
     return graph;
 }
 
