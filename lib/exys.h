@@ -95,7 +95,7 @@ private:
 
         bool operator<(const HeightPtrPair& rhs) const
         {
-            return (height < rhs.height) || ((height == rhs.height) && (point < rhs.point));
+            return (height > rhs.height) || ((height == rhs.height) && (point > rhs.point));
         }
     };
     std::set<HeightPtrPair> mRecomputeHeap; // height -> Nodes

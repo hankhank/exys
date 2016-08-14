@@ -1,0 +1,9 @@
+(begin
+    (define out (map (lambda (x) (+ x 1)) (list 0 1 2 3)))
+    (observe (car out) out)
+    (observe (car (cdr out)) out2))
+
+; Test 1
+; stabilize
+; expect out1 1
+; expect out2 2

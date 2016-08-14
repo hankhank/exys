@@ -1,0 +1,17 @@
+(begin
+    (input double in1 in2 in3)
+    (define out (? in1 in2 in3))
+    (observe out out))
+
+; inject in2 2
+; inject in3 3
+
+; Test 1
+; inject in1 0
+; stabilize
+; expect out 3
+
+; Test 2
+; inject in1 1
+; stabilize
+; expect out 2

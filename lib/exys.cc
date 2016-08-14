@@ -17,22 +17,58 @@ void ConstDummy(Point& /*point*/)
 {
 }
 
-void Ternary(Point& point)
+template<typename T, template<typename T> typename Op>
+const T& OverloadWrap(const T& a, const T& b)
 {
+    //Op<T> o;
+    return Op<T>(a, b);
 }
 
-void SumDouble(Point& point)
+void Ternary(Point& point)
 {
-    point = 0.0;
-    for(auto* parent : point.mParents)
+    assert(point.mParents.size() == 3);
+    if(point.mParents[0]->mSignal.d)
     {
-        point = (double)point.mSignal.d + parent->mSignal.d;
+        point = point.mParents[1]->mSignal.d;
+    }
+    else
+    {
+        point = point.mParents[2]->mSignal.d;
     }
 }
 
-void SubDouble(Point& point){}
-void DivDouble(Point& point){}
-void MulDouble(Point& point){}
+template<typename Op> 
+void LoopOperator(Point& point)
+{
+    assert(point.mParents.size() >= 2);
+    Op o;
+    auto p = point.mParents.begin();
+    point = (*p)->mSignal.d;
+    for(p++; p != point.mParents.end(); p++)
+    {
+        point = o(point.mSignal.d, (*p)->mSignal.d);
+    }
+}
+
+template<typename Op> 
+void UnaryOperator(Point& point)
+{
+    assert(point.mParents.size() == 1);
+    Op o;
+    point = o(point.mParents[0]->mSignal.d);
+}
+
+template<typename Op> 
+void PairOperator(Point& point)
+{
+    assert(point.mParents.size() == 2);
+    Op o;
+    point = o(point.mParents[0]->mSignal.d, point.mParents[1]->mSignal.d);
+}
+
+void MulDouble(Point& point)
+{
+}
 
 void DummyValidator(Node::Ptr)
 {
@@ -41,21 +77,24 @@ void DummyValidator(Node::Ptr)
 PointProcessor AVAILABLE_PROCS[] =
 {
     {{"?",    DummyValidator},  Ternary},
-    {{"+",    DummyValidator},  SumDouble},
-    {{"-",    DummyValidator},  SubDouble},
-    {{"/",    DummyValidator},  DivDouble},
-    {{"*",    DummyValidator},  MulDouble},
-    {{"<",    DummyValidator},  MulDouble},
-    {{"<=",   DummyValidator},  MulDouble},
-    {{">",    DummyValidator},  MulDouble},
-    {{">=",   DummyValidator},  MulDouble},
-    {{"==",   DummyValidator},  MulDouble},
-    {{"!=",   DummyValidator},  MulDouble},
-    {{"min",  DummyValidator},  MulDouble},
-    {{"max",  DummyValidator},  MulDouble},
-    {{"exp",  DummyValidator},  MulDouble},
-    {{"ln",   DummyValidator},  MulDouble},
-    {{"not",  DummyValidator},  MulDouble}
+    {{"+",    DummyValidator},  LoopOperator<std::plus<double>>},
+    {{"-",    DummyValidator},  LoopOperator<std::minus<double>>},
+    {{"/",    DummyValidator},  LoopOperator<std::divides<double>>},
+    {{"*",    DummyValidator},  LoopOperator<std::multiplies<double>>},
+    //{{"%",    DummyValidator},  LoopOperator<std::modulus<double>>},
+    {{"<",    DummyValidator},  PairOperator<std::less<double>>},
+    {{"<=",   DummyValidator},  PairOperator<std::less_equal<double>>},
+    {{">",    DummyValidator},  PairOperator<std::greater<double>>},
+    {{">=",   DummyValidator},  PairOperator<std::greater_equal<double>>},
+    {{"==",   DummyValidator},  PairOperator<std::equal_to<double>>},
+    {{"!=",   DummyValidator},  PairOperator<std::not_equal_to<double>>},
+    {{"&&",   DummyValidator},  PairOperator<std::logical_and<double>>},
+    {{"||",   DummyValidator},  PairOperator<std::logical_or<double>>},
+    //{{"min",  DummyValidator},  LoopOperator<OverloadWrap<double, std::min>>},
+    //{{"max",  DummyValidator},  LoopOperator<OverloadWrap<double, std::max>>},
+    //{{"exp",  DummyValidator},  MulDouble},
+    //{{"ln",   DummyValidator},  MulDouble},
+    {{"not",  DummyValidator},  UnaryOperator<std::logical_not<double>>}
 };
 
 Exys::Exys(std::unique_ptr<Graph> graph)
@@ -147,11 +186,14 @@ void Exys::CompleteBuild()
         {
             mInputs[node->mToken] = &point;
         }
-        else if((ob = observers.find(node)) != observers.end())
+        if((ob = observers.find(node)) != observers.end())
         {
             mObservers[ob->second] = &point;
         }
+
+        mRecomputeHeap.emplace(HeightPtrPair{point.mHeight, &point});
     }
+    Stabilize();
 }
 
 bool Exys::IsDirty()
@@ -179,6 +221,7 @@ void Exys::Stabilize()
         point->mRecomputeId = mStabilisationId;
     }
     mStabilisationId++;
+    mRecomputeHeap.clear();
 }
 
 void Exys::PointChanged(Point& point)

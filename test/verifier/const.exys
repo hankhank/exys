@@ -1,0 +1,16 @@
+(begin
+    (define zero 0)
+    (define one 1)
+    (define negone -1)
+    (define tendouble 10.0)
+    (observe zero zero)
+    (observe one one)
+    (observe negone negone)
+    (observe tendouble tendouble))
+
+; Test 1
+; stabilize
+; expect zero 0
+; expect one 1
+; expect negone -1
+; expect tendouble 10

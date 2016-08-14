@@ -161,7 +161,6 @@ const std::unordered_map<std::string, Node::Ptr>& Graph::GetObservers()
     return mObservers;
 }
 
-
 void Graph::SetSupportedProcedures(const std::vector<Procedure>& procs)
 {
     for(const auto& proc : procs) AddProcFactory(proc.id, DefaultFactory(proc));
@@ -357,7 +356,7 @@ Node::Ptr Graph::Build(const Cell &cell)
                 auto& outputToken = cell.list[2].details.text;
 
                 // Register Observer
-                auto varNode = LookupSymbol(varToken);
+                auto varNode = Build(varToken);
                 mObservers[outputToken] = varNode;
             }
             else // procedure call

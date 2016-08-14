@@ -60,6 +60,6 @@
     (observe out out))
 
 ; inject b0.price  1
-; stablise
+; stabilize
 ; expect out 1
 

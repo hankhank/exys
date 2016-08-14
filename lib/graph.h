@@ -48,8 +48,8 @@ public:
     Type mType=TYPE_UNKNOWN;
 
     std::vector<Ptr> mParents;
-    std::string mToken;
-    uint64_t mHeight;
+    std::string mToken = "";
+    uint64_t mHeight = 0;
 };
 
 typedef std::function<Node::Ptr (Node::Ptr)> ProcNodeFactoryFunc;
