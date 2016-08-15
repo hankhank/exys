@@ -17,12 +17,12 @@ void ConstDummy(Point& /*point*/)
 {
 }
 
-template<typename T, template<typename T> typename Op>
-const T& OverloadWrap(const T& a, const T& b)
-{
-    //Op<T> o;
-    return Op<T>(a, b);
-}
+//template<typename T, template<typename T> typename Op>
+//const T& OverloadWrap(const T& a, const T& b)
+//{
+//    //Op<T> o;
+//    return Op<T>(a, b);
+//}
 
 void Ternary(Point& point)
 {
