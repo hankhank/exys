@@ -255,6 +255,16 @@ std::vector<std::string> Exys::GetInputPointLabels()
     return ret;
 }
 
+std::unordered_map<std::string, double> Exys::DumpInputs()
+{
+    std::unordered_map<std::string, double> ret;
+    for(const auto& ip : mInputs)
+    {
+        ret[ip.first] = ip.second->mSignal.d;
+    }
+    return ret;
+}
+
 bool Exys::HasObserverPoint(const std::string& label)
 {
     auto niter = mObservers.find(label);
@@ -274,6 +284,16 @@ std::vector<std::string> Exys::GetObserverPointLabels()
     for(const auto& ip : mObservers)
     {
         ret.push_back(ip.first);
+    }
+    return ret;
+}
+
+std::unordered_map<std::string, double> Exys::DumpObservers()
+{
+    std::unordered_map<std::string, double> ret;
+    for(const auto& ip : mObservers)
+    {
+        ret[ip.first] = ip.second->mSignal.d;
     }
     return ret;
 }

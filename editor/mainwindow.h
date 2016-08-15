@@ -1,6 +1,5 @@
 
-#ifndef MAINWINDOW_H
-#define MAINWINDOW_H
+#pragma once
 
 #include "highlighter.h"
 #include "linetextedit.h"
@@ -8,8 +7,13 @@
 
 #include <QMainWindow>
 
+class QTableWidget;
 
-//! [0]
+namespace Exys 
+{
+struct GraphState;
+}
+
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
@@ -29,12 +33,12 @@ private:
     void setupEditor();
     void setupFileMenu();
     void setupHelpMenu();
+    void setupTable();
+    void setTable(const Exys::GraphState &states);
 
     CodeEditor *editor;
     Highlighter *highlighter;
     QtGvScene    *scene;
     QGraphicsView *view;
+    QTableWidget *table;
 };
-//! [0]
-
-#endif // MAINWINDOW_H

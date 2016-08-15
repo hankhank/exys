@@ -69,10 +69,12 @@ public:
     bool HasInputPoint(const std::string& label);
     Point& LookupInputPoint(const std::string& label);
     std::vector<std::string> GetInputPointLabels();
+    std::unordered_map<std::string, double> DumpInputs();
 
     bool HasObserverPoint(const std::string& label);
     Point& LookupObserverPoint(const std::string& label);
     std::vector<std::string> GetObserverPointLabels();
+    std::unordered_map<std::string, double> DumpObservers();
 
     std::string GetDOTGraph();
 

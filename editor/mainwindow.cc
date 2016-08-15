@@ -3,6 +3,7 @@
 
 #include "mainwindow.h"
 #include "exys.h"
+#include "executioner.h"
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -10,13 +11,21 @@ MainWindow::MainWindow(QWidget *parent)
     setupFileMenu();
     setupHelpMenu();
     setupEditor();
+    setupTable();
 
     scene = new QtGvScene("DEMO", this);
     view = new QGraphicsView(scene);
-    
+
+    auto* graphWidget = new QWidget(this);
+    auto* hsplit = new QHBoxLayout(this);
+
+    hsplit->addWidget(view);
+    hsplit->addWidget(table);
+    graphWidget->setLayout(hsplit);
+
     auto* splitter = new QSplitter(Qt::Horizontal, this);
     splitter->addWidget(editor);
-    splitter->addWidget(view);
+    splitter->addWidget(graphWidget);
 
     setCentralWidget(splitter);
     setWindowTitle(tr("Exys Editor"));
@@ -93,6 +102,57 @@ void MainWindow::setupHelpMenu()
     helpMenu->addAction(tr("&About"), this, SLOT(about()));
 }
 
+void MainWindow::setupTable()
+{
+    table = new QTableWidget(this);
+}
+
+// would be better if states werent in unordered map as we 
+// cant actually on them being in the same order for each level
+void MainWindow::setTable(const Exys::GraphState &state)
+{
+    table->clear();
+    table->setRowCount(0);
+    table->setColumnCount(0);
+    if(state.inputs.size() && state.observers.size())
+    {
+        const auto& inputs = state.inputs;
+        const auto& observers = state.observers;
+
+        table->setRowCount(inputs.size());
+        table->setColumnCount(inputs.size() + observers.size());
+
+        int col = 0;
+        QStringList headers;
+        for(const auto& input : inputs)
+        {
+            headers << input.first;
+            int row = 0;
+            for(auto val : input.second)
+            {
+                table->insertRow(row);
+                table->setItem(row, col, 
+                    new QTableWidgetItem(QString::number(val)));
+                ++row;
+            }
+            ++col;
+        }
+
+        for(const auto& observer : observers)
+        {
+            headers << observer.first;
+            int row = 0;
+            for(auto val : observer.second)
+            {
+                table->setItem(row, col, 
+                    new QTableWidgetItem(QString::number(val)));
+                ++row;
+            }
+            ++col;
+        }
+    }
+}
+
 void MainWindow::textChanged()
 {
     const auto &text = editor->toPlainText().toStdString();
@@ -100,6 +160,8 @@ void MainWindow::textChanged()
     {
         std::unique_ptr<Exys::Exys> graph = Exys::Exys::Build(text);
         scene->LoadLayout(graph->GetDOTGraph().c_str());
+        auto results = Exys::Execute(*graph, buffer.str());
+        setTable(std::get<3>(results));
     }
     catch (const Exys::ParseException& e)
     {

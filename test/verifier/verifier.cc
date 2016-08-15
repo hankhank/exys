@@ -22,8 +22,8 @@ int main(int argc, char* argv[])
     {
         auto graph = Exys::Exys::Build(buffer.str());
         auto results = Exys::Execute(*graph, buffer.str());
-        std::cout << results.second << "\n";
-        return results.first ? 0 : -1;
+        std::cout << std::get<1>(results) << "\n";
+        return std::get<0>(results) ? 0 : -1;
     }
     catch (const Exys::ParseException& e)
     {

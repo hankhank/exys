@@ -49,10 +49,17 @@ inline std::vector<std::string> GetPotentialComputeLines(const std::string& text
     return ret;
 }
 
-inline std::pair<bool, std::string> Execute(Exys& exysInstance, const std::string& text)
+struct GraphState
+{
+    std::unordered_map<std::string, std::vector<double>> inputs;
+    std::unordered_map<std::string, std::vector<double>> observers;
+};
+
+inline std::tuple<bool, std::string, GraphState> Execute(Exys& exysInstance, const std::string& text)
 {
     bool ret = true;
     std::string resultStr;
+    GraphState state;
 
     const auto potCompLines = GetPotentialComputeLines(text);
     for(const auto pcl : potCompLines)
@@ -71,6 +78,14 @@ inline std::pair<bool, std::string> Execute(Exys& exysInstance, const std::strin
         else if(sl.size() && sl[0] == "stabilize")
         {
             exysInstance.Stabilize();
+            for(const auto& input : exysInstance.DumpInputs())
+            {
+                state.inputs[input.first].push_back(input.second);
+            }
+            for(const auto& observer : exysInstance.DumpObservers())
+            {
+                state.observers[observer.first].push_back(observer.second);
+            }
         }
         else if(sl.size() > 2 && sl[0] == "expect")
         {
@@ -95,6 +110,6 @@ inline std::pair<bool, std::string> Execute(Exys& exysInstance, const std::strin
     {
         resultStr = "All expectations met :)";
     }
-    return std::make_pair(ret, resultStr);
+    return std::make_tuple(ret, resultStr, state);
 }
 }
