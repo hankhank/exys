@@ -13,6 +13,15 @@ CodeEditor::CodeEditor(QWidget *parent) : QTextEdit(parent)
 
     updateLineNumberAreaWidth(0);
     highlightCurrentLine();
+
+    QFont font;
+    font.setFamily("Courier");
+    font.setStyleHint(QFont::Monospace);
+    font.setFixedPitch(true);
+    font.setPointSize(10);
+
+    QFontMetrics metrics(font);
+    setTabStopWidth(4 * metrics.width(' '));
 }
 
 int CodeEditor::lineNumberAreaWidth()

@@ -22,10 +22,14 @@ int memiofread(void *chan, char *buf, int bufsize)
     int l;
     rdr_t *s;
 
-    if (bufsize == 0) return 0;
+    if (bufsize == 0)
+            return 0;
+
     s = (rdr_t *) chan;
     if (s->cur >= s->len)
             return 0;
+
+    memset(buf, '\0', bufsize);
     l = 0;
     ptr = s->data + s->cur;
     optr = buf;
@@ -73,7 +77,13 @@ void QtGvScene::LoadLayout(const QString &text)
 {
     Clear();
     mGraph = agmemread2(text.toLocal8Bit().constData());
-    if(!mGraph) return;
+    if(!mGraph) 
+    {
+        // fails every second time have no idea why
+        // this is a nassstty hack
+        mGraph = agmemread2(text.toLocal8Bit().constData());
+        if(!mGraph) return;
+    }
 
     if(gvLayout(mContext, mGraph, "dot") != 0)
     {
@@ -110,8 +120,17 @@ void QtGvScene::LoadLayout(const QString &text)
     update();
 }
 
+void QtGvScene::SetError(const QString &text)
+{
+    Clear();
+    setBackgroundBrush(Qt::red);
+    auto* t = new QGraphicsTextItem(text);
+    addItem(t);
+}
+
 void QtGvScene::Clear()
 {
+    setBackgroundBrush(Qt::NoBrush);
     mNodes.clear();
     mEdges.clear();
     QGraphicsScene::clear();

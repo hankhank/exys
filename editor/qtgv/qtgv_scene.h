@@ -20,6 +20,7 @@ public:
     virtual ~QtGvScene();
 
     void LoadLayout(const QString &text);
+    void SetError(const QString &text);
     void Clear();
 
 signals:

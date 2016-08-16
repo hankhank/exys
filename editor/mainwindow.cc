@@ -16,16 +16,14 @@ MainWindow::MainWindow(QWidget *parent)
     scene = new QtGvScene("DEMO", this);
     view = new QGraphicsView(scene);
 
-    auto* graphWidget = new QWidget(this);
-    auto* hsplit = new QHBoxLayout(this);
+    auto* hsplit = new QSplitter(Qt::Vertical, this);
 
     hsplit->addWidget(view);
     hsplit->addWidget(table);
-    graphWidget->setLayout(hsplit);
 
     auto* splitter = new QSplitter(Qt::Horizontal, this);
     splitter->addWidget(editor);
-    splitter->addWidget(graphWidget);
+    splitter->addWidget(hsplit);
 
     setCentralWidget(splitter);
     setWindowTitle(tr("Exys Editor"));
@@ -119,18 +117,17 @@ void MainWindow::setTable(const Exys::GraphState &state)
         const auto& inputs = state.inputs;
         const auto& observers = state.observers;
 
-        table->setRowCount(inputs.size());
         table->setColumnCount(inputs.size() + observers.size());
 
         int col = 0;
         QStringList headers;
         for(const auto& input : inputs)
         {
-            headers << input.first;
+            headers << input.first.c_str();
             int row = 0;
             for(auto val : input.second)
             {
-                table->insertRow(row);
+                if(row >= table->rowCount()) table->insertRow(row);
                 table->setItem(row, col, 
                     new QTableWidgetItem(QString::number(val)));
                 ++row;
@@ -140,16 +137,18 @@ void MainWindow::setTable(const Exys::GraphState &state)
 
         for(const auto& observer : observers)
         {
-            headers << observer.first;
+            headers << observer.first.c_str();
             int row = 0;
             for(auto val : observer.second)
             {
+                if(row >= table->rowCount()) table->insertRow(row);
                 table->setItem(row, col, 
                     new QTableWidgetItem(QString::number(val)));
                 ++row;
             }
             ++col;
         }
+        table->setHorizontalHeaderLabels(headers);
     }
 }
 
@@ -160,16 +159,18 @@ void MainWindow::textChanged()
     {
         std::unique_ptr<Exys::Exys> graph = Exys::Exys::Build(text);
         scene->LoadLayout(graph->GetDOTGraph().c_str());
-        auto results = Exys::Execute(*graph, buffer.str());
-        setTable(std::get<3>(results));
+        auto results = Exys::Execute(*graph, text);
+        setTable(std::get<2>(results));
     }
     catch (const Exys::ParseException& e)
     {
         qWarning() << e.GetErrorMessage(text).c_str();
+        scene->SetError(e.GetErrorMessage(text).c_str());
     }
     catch (const Exys::GraphBuildException& e)
     {
         qWarning() << e.GetErrorMessage(text).c_str();
+        scene->SetError(e.GetErrorMessage(text).c_str());
     }
 }
 

@@ -51,8 +51,8 @@ inline std::vector<std::string> GetPotentialComputeLines(const std::string& text
 
 struct GraphState
 {
-    std::unordered_map<std::string, std::vector<double>> inputs;
-    std::unordered_map<std::string, std::vector<double>> observers;
+    std::map<std::string, std::vector<double>> inputs;
+    std::map<std::string, std::vector<double>> observers;
 };
 
 inline std::tuple<bool, std::string, GraphState> Execute(Exys& exysInstance, const std::string& text)
