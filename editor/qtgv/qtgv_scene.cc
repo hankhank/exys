@@ -65,8 +65,11 @@ Agraph_t *agmemread2(const char *cp)
 QtGvScene::QtGvScene(const QString &name, QObject *parent) 
 : QGraphicsScene(parent)
 {
-    //mContext = gvContext();
+#ifdef WIN32
 	mContext = gvContextPlugins(lt_preloaded_symbols, true);
+#else
+    mContext = gvContext();
+#endif
     mGraph = agopen(name.toLocal8Bit().data(), Agdirected, NULL);
 }
 

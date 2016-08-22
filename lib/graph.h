@@ -104,6 +104,7 @@ private:
     Node::Ptr Zip(Node::Ptr node);
     Node::Ptr Car(Node::Ptr node);
     Node::Ptr Cdr(Node::Ptr node);
+    Node::Ptr Fold(Node::Ptr node);
 
     template<typename T=Node, typename... Args>
     std::shared_ptr<T> BuildNode(Args... as);

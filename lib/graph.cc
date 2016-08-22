@@ -80,6 +80,26 @@ Node::Ptr Graph::Map(Node::Ptr node)
     return mapped;
 }
 
+Node::Ptr Graph::Fold(Node::Ptr node)
+{
+    //ValidateListLength(args, 3);
+    auto args = node->mParents;
+    assert(args[0]->mKind == KIND_PROC_FACTORY);
+    assert(args[2]->mKind == KIND_LIST);
+    auto func = std::static_pointer_cast<ProcNodeFactory>(args[0]);
+    auto last = std::static_pointer_cast<Node>(args[1]);
+    auto exps = std::static_pointer_cast<Node>(args[2]);
+    for(auto exp : exps->mParents)
+    {
+        auto tmp = std::make_shared<Node>(KIND_LIST);
+        tmp->mParents.push_back(last);
+        tmp->mParents.push_back(exp);
+        last = func->mFactory(tmp);
+    }
+
+    return last;
+}
+
 Node::Ptr Graph::List(Node::Ptr node)
 {
     return node;
@@ -135,17 +155,19 @@ Node::Ptr Graph::Cdr(Node::Ptr node)
 #define WRAP(__FUNC) \
     [this](Node::Ptr ptr) -> Node::Ptr{return this->__FUNC(ptr);}
 
-
 Graph::Graph(Graph* parent)
 : Node(KIND_GRAPH) 
 , mParent(parent)
 {
     AddProcFactory("for-each", WRAP(ForEach));
     AddProcFactory("map",      WRAP(Map));
+    AddProcFactory("fold",     WRAP(Fold));
     AddProcFactory("list",     WRAP(List));
     AddProcFactory("zip",      WRAP(Zip));
     AddProcFactory("car",      WRAP(Car));
     AddProcFactory("cdr",      WRAP(Cdr));
+    AddProcFactory("head",     WRAP(Car));
+    AddProcFactory("rest",     WRAP(Cdr));
 }
 
 template<typename T, typename... Args>
