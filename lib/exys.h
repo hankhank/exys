@@ -13,97 +13,60 @@
 namespace Exys
 {
 
-union Signal
-{
-    bool b;
-    int i;
-    unsigned int u;
-    double d;
-    bool operator!=(const Signal& rhs)
-    {
-        return d != rhs.d;
-    }
-};
-
-struct Point;
-
-typedef std::function<void (Point&)> ComputeFunction;
-
 struct Point
 {
-    typedef std::shared_ptr<Node> Ptr;
+    union
+    {
+        bool mB;
+        int mI;
+        unsigned int mU;
+        double mD;
+    }
 
-    Signal mSignal;
-    uint64_t mHeight;
-    uint64_t mChangeId;
-    uint64_t mRecomputeId;
-    std::vector<Point*> mParents;
-    std::vector<Point*> mChildren;
-    ComputeFunction mComputeFunction;
+    bool operator!=(const Signal& rhs)
+    {
+        return mD != rhs.d;
+    }
 
-    Point& operator=(bool b) {mSignal.b = b;}
-    Point& operator=(int i)  {mSignal.i = i;}
-    Point& operator=(unsigned int u) {mSignal.u = u;}
-    Point& operator=(double d) {mSignal.d = d;}
+    Point& operator=(bool b) {mB = b;}
+    Point& operator=(int i)  {mI = i;}
+    Point& operator=(unsigned int u) {mU = u;}
+    Point& operator=(double d) {mD = d;}
 
-    bool operator==(bool b) {return mSignal.b = b;}
-    bool operator==(int i)  {return mSignal.i = i;}
-    bool operator==(unsigned int u) {return mSignal.u = u;}
-    bool operator==(double d) {return mSignal.d = d;}
+    bool operator==(bool b) {return mB = b;}
+    bool operator==(int i)  {return mI = i;}
+    bool operator==(unsigned int u) {return mU = u;}
+    bool operator==(double d) {return mD = d;}
 
-    bool operator!=(bool b) {return mSignal.b != b;}
-    bool operator!=(int i)  {return mSignal.i != i;}
-    bool operator!=(unsigned int u) {return mSignal.u != u;}
-    bool operator!=(double d) {return mSignal.d != d;}
+    bool operator!=(bool b) {return mB != b;}
+    bool operator!=(int i)  {return mI != i;}
+    bool operator!=(unsigned int u) {return mU != u;}
+    bool operator!=(double d) {return mD != d;}
 };
 
-class Exys
+class IEngine
 {
 public:
-    Exys(std::unique_ptr<Graph> graph);
+    virtual ~IEngine() {}
 
-    void PointChanged(Point& point);
-    void Stabilize();
-    bool IsDirty();
+    virtual void PointChanged(Point& point) = 0;
+    virtual void Stabilize() = 0;
+    virtual bool IsDirty() = 0;
 
-    bool HasInputPoint(const std::string& label);
-    Point& LookupInputPoint(const std::string& label);
-    std::vector<std::string> GetInputPointLabels();
-    std::unordered_map<std::string, double> DumpInputs();
+    virtual bool HasInputPoint(const std::string& label) = 0;
+    virtual Point& LookupInputPoint(const std::string& label) = 0;
+    virtual std::vector<std::string> GetInputPointLabels() = 0;
+    virtual std::unordered_map<std::string, double> DumpInputs() = 0;
 
-    bool HasObserverPoint(const std::string& label);
-    Point& LookupObserverPoint(const std::string& label);
-    std::vector<std::string> GetObserverPointLabels();
-    std::unordered_map<std::string, double> DumpObservers();
+    virtual bool HasObserverPoint(const std::string& label) = 0
+    virtual Point& LookupObserverPoint(const std::string& label) = 0;
+    virtual std::vector<std::string> GetObserverPointLabels() = 0;
+    virtual std::unordered_map<std::string, double> DumpObservers() = 0;
 
-    std::string GetDOTGraph();
+    virtual std::string GetDOTGraph() = 0;
 
-    static std::unique_ptr<Exys> Build(const std::string& text);
+    static std::unique_ptr<IEngine> Build(const std::string& text);
 
-private:
-    void CompleteBuild();
-    void TraverseNodes(Node::Ptr node, uint64_t& height, std::set<Node::Ptr>& necessaryNodes);
-    ComputeFunction LookupComputeFunction(Node::Ptr node);
-    
-    std::unordered_map<std::string, Point*> mObservers;
-    std::unordered_map<std::string, Point*> mInputs;
-
-    std::vector<Point> mPointGraph;
-
-    struct HeightPtrPair
-    {
-        uint64_t height;
-        Point* point;
-
-        bool operator<(const HeightPtrPair& rhs) const
-        {
-            return (height > rhs.height) || ((height == rhs.height) && (point > rhs.point));
-        }
-    };
-    std::set<HeightPtrPair> mRecomputeHeap; // height -> Nodes
-    uint64_t mStabilisationId=1;
-
-    std::unique_ptr<Graph> mGraph;
 };
 
 };
