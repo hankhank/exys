@@ -3,6 +3,7 @@
 #include <iostream>
 #include <sstream>
 #include <cassert>
+#include <cmath>
 
 namespace Exys
 {
@@ -29,6 +30,29 @@ void Ternary(InterPoint& point)
         point = *point.mParents[2];
     }
 }
+
+#define FUNCTOR(_NAME, _T, _FUNC) \
+struct _NAME \
+{ \
+    _T operator() (_T x) \
+    { \
+        return _FUNC(x); \
+    } \
+}; \
+
+#define FUNCTOR_TWO_ARG(_NAME, _T, _FUNC) \
+struct _NAME \
+{ \
+    _T operator() (_T x, _T y) \
+    { \
+        return _FUNC(x, y); \
+    } \
+}; \
+
+FUNCTOR_TWO_ARG(MinFunc, double, std::min);
+FUNCTOR_TWO_ARG(MaxFunc, double, std::max);
+FUNCTOR(ExpFunc, double, std::exp);
+FUNCTOR(LogFunc, double, std::log);
 
 template<typename Op> 
 void LoopOperator(InterPoint& point)
@@ -83,10 +107,10 @@ InterPointProcessor AVAILABLE_PROCS[] =
     {{"!=",   DummyValidator},  PairOperator<std::not_equal_to<double>>},
     {{"&&",   DummyValidator},  PairOperator<std::logical_and<double>>},
     {{"||",   DummyValidator},  PairOperator<std::logical_or<double>>},
-    //{{"min",  DummyValidator},  LoopOperator<OverloadWrap<double, std::min>>},
-    //{{"max",  DummyValidator},  LoopOperator<OverloadWrap<double, std::max>>},
-    //{{"exp",  DummyValidator},  MulDouble},
-    //{{"ln",   DummyValidator},  MulDouble},
+    {{"min",  DummyValidator},  LoopOperator<MinFunc>},
+    {{"max",  DummyValidator},  LoopOperator<MaxFunc>},
+    {{"exp",  DummyValidator},  UnaryOperator<ExpFunc>},
+    {{"ln",   DummyValidator},  UnaryOperator<LogFunc>},
     {{"not",  DummyValidator},  UnaryOperator<std::logical_not<double>>}
 };
 
