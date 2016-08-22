@@ -21,27 +21,29 @@ struct Point
         int mI;
         unsigned int mU;
         double mD;
-    }
+    };
 
-    bool operator!=(const Signal& rhs)
+    bool operator!=(const Point& rhs)
     {
-        return mD != rhs.d;
+        return mD != rhs.mD;
     }
 
-    Point& operator=(bool b) {mB = b;}
-    Point& operator=(int i)  {mI = i;}
-    Point& operator=(unsigned int u) {mU = u;}
-    Point& operator=(double d) {mD = d;}
+    Point& operator=(Point& p)       {mD = p.mD; return *this;}
 
-    bool operator==(bool b) {return mB = b;}
-    bool operator==(int i)  {return mI = i;}
+    Point& operator=(bool b)         {mB = b; return *this;}
+    Point& operator=(int i)          {mI = i; return *this;}
+    Point& operator=(unsigned int u) {mU = u; return *this;}
+    Point& operator=(double d)       {mD = d; return *this;}
+
+    bool operator==(bool b)         {return mB = b;}
+    bool operator==(int i)          {return mI = i;}
     bool operator==(unsigned int u) {return mU = u;}
-    bool operator==(double d) {return mD = d;}
+    bool operator==(double d)       {return mD = d;}
 
-    bool operator!=(bool b) {return mB != b;}
-    bool operator!=(int i)  {return mI != i;}
+    bool operator!=(bool b)         {return mB != b;}
+    bool operator!=(int i)          {return mI != i;}
     bool operator!=(unsigned int u) {return mU != u;}
-    bool operator!=(double d) {return mD != d;}
+    bool operator!=(double d)       {return mD != d;}
 };
 
 class IEngine
@@ -58,15 +60,12 @@ public:
     virtual std::vector<std::string> GetInputPointLabels() = 0;
     virtual std::unordered_map<std::string, double> DumpInputs() = 0;
 
-    virtual bool HasObserverPoint(const std::string& label) = 0
+    virtual bool HasObserverPoint(const std::string& label) = 0;
     virtual Point& LookupObserverPoint(const std::string& label) = 0;
     virtual std::vector<std::string> GetObserverPointLabels() = 0;
     virtual std::unordered_map<std::string, double> DumpObservers() = 0;
 
     virtual std::string GetDOTGraph() = 0;
-
-    static std::unique_ptr<IEngine> Build(const std::string& text);
-
 };
 
 };

@@ -1,5 +1,5 @@
 
-#include "exys.h"
+#include "interpreter.h"
 #include <iostream>
 #include <sstream>
 #include <cassert>
@@ -7,66 +7,59 @@
 namespace Exys
 {
 
-struct PointProcessor
+struct InterPointProcessor
 {
     Procedure procedure;
     ComputeFunction func; 
 };
 
-void ConstDummy(Point& /*point*/)
+void ConstDummy(InterPoint& /*point*/)
 {
 }
 
-//template<typename T, template<typename T> typename Op>
-//const T& OverloadWrap(const T& a, const T& b)
-//{
-//    //Op<T> o;
-//    return Op<T>(a, b);
-//}
-
-void Ternary(Point& point)
+void Ternary(InterPoint& point)
 {
     assert(point.mParents.size() == 3);
-    if(point.mParents[0]->mSignal.d)
+    if(point.mParents[0]->mPoint.mD)
     {
-        point = point.mParents[1]->mSignal.d;
+        point = *point.mParents[1];
     }
     else
     {
-        point = point.mParents[2]->mSignal.d;
+        point = *point.mParents[2];
     }
 }
 
 template<typename Op> 
-void LoopOperator(Point& point)
+void LoopOperator(InterPoint& point)
 {
     assert(point.mParents.size() >= 2);
     Op o;
     auto p = point.mParents.begin();
-    point = (*p)->mSignal.d;
+    point = (*p)->mPoint.mD;
     for(p++; p != point.mParents.end(); p++)
     {
-        point = o(point.mSignal.d, (*p)->mSignal.d);
+        point = o(point.mPoint.mD, (*p)->mPoint.mD);
     }
 }
 
 template<typename Op> 
-void UnaryOperator(Point& point)
+void UnaryOperator(InterPoint& point)
 {
     assert(point.mParents.size() == 1);
     Op o;
-    point = o(point.mParents[0]->mSignal.d);
+    point = o(point.mParents[0]->mPoint.mD);
 }
 
 template<typename Op> 
-void PairOperator(Point& point)
+void PairOperator(InterPoint& point)
 {
     assert(point.mParents.size() == 2);
     Op o;
-    point = o(point.mParents[0]->mSignal.d, point.mParents[1]->mSignal.d);
+    point = o(point.mParents[0]->mPoint.mD, point.mParents[1]->mPoint.mD);
 }
 
-void MulDouble(Point& point)
+void MulDouble(InterPoint& point)
 {
 }
 
@@ -74,7 +67,7 @@ void DummyValidator(Node::Ptr)
 {
 }
 
-PointProcessor AVAILABLE_PROCS[] =
+InterPointProcessor AVAILABLE_PROCS[] =
 {
     {{"?",    DummyValidator},  Ternary},
     {{"+",    DummyValidator},  LoopOperator<std::plus<double>>},
@@ -97,17 +90,17 @@ PointProcessor AVAILABLE_PROCS[] =
     {{"not",  DummyValidator},  UnaryOperator<std::logical_not<double>>}
 };
 
-Exys::Exys(std::unique_ptr<Graph> graph)
+Interpreter::Interpreter(std::unique_ptr<Graph> graph)
 :mGraph(std::move(graph))
 {
 }
 
-std::string Exys::GetDOTGraph()
+std::string Interpreter::GetDOTGraph()
 {
     return "digraph " + mGraph->GetDOTGraph();
 }
 
-ComputeFunction Exys::LookupComputeFunction(Node::Ptr node)
+ComputeFunction Interpreter::LookupComputeFunction(Node::Ptr node)
 {
     if(node->mKind == Node::KIND_CONST || node->mKind == Node::KIND_INPUT)
     {
@@ -124,7 +117,7 @@ ComputeFunction Exys::LookupComputeFunction(Node::Ptr node)
     return nullptr;
 }
 
-void Exys::TraverseNodes(Node::Ptr node, uint64_t& height, std::set<Node::Ptr>& necessaryNodes)
+void Interpreter::TraverseNodes(Node::Ptr node, uint64_t& height, std::set<Node::Ptr>& necessaryNodes)
 {
     if (height > node->mHeight) node->mHeight = height;
     height++;
@@ -141,7 +134,7 @@ size_t FindNodeOffset(const std::set<Node::Ptr>& nodes, Node::Ptr node)
     return std::distance(nodes.begin(), nodes.find(node));
 }
 
-void Exys::CompleteBuild()
+void Interpreter::CompleteBuild()
 {
     // First pass - Type checking and adding in casts
     // TODO
@@ -158,19 +151,19 @@ void Exys::CompleteBuild()
     }
 
     // For cache niceness
-    mPointGraph.resize(necessaryNodes.size());
+    mInterPointGraph.resize(necessaryNodes.size());
     
     // Second pass - set heights and add parents/children and collect inputs and observers
     for(auto node : necessaryNodes)
     {
         size_t offset = FindNodeOffset(necessaryNodes, node);
-        auto& point = mPointGraph[offset];
+        auto& point = mInterPointGraph[offset];
 
         point.mHeight = node->mHeight;
 
         for(auto pnode : node->mParents)
         {
-            auto& parent = mPointGraph[FindNodeOffset(necessaryNodes, pnode)];
+            auto& parent = mInterPointGraph[FindNodeOffset(necessaryNodes, pnode)];
             point.mParents.push_back(&parent);
             parent.mChildren.push_back(&point);
         }
@@ -196,56 +189,57 @@ void Exys::CompleteBuild()
     Stabilize();
 }
 
-bool Exys::IsDirty()
+bool Interpreter::IsDirty()
 {
     return !mRecomputeHeap.empty();
 }
 
-void Exys::Stabilize()
+void Interpreter::Stabilize()
 {
     for(auto& hpp : mRecomputeHeap)
     {
-        auto* point = hpp.point;
+        auto& point = *hpp.point;
 
-        Signal old = point->mSignal;
-        point->mComputeFunction(*point);
+        InterPoint old = point;
+        point.mComputeFunction(point);
 
-        if(old != point->mSignal)
+        if(old != point)
         {
-            point->mChangeId = mStabilisationId;
-            for(auto* child : point->mChildren)
+            point.mChangeId = mStabilisationId;
+            for(auto* child : point.mChildren)
             {
                 mRecomputeHeap.emplace(HeightPtrPair{child->mHeight, child});
             }
         }
-        point->mRecomputeId = mStabilisationId;
+        point.mRecomputeId = mStabilisationId;
     }
     mStabilisationId++;
     mRecomputeHeap.clear();
 }
 
-void Exys::PointChanged(Point& point)
+void Interpreter::PointChanged(Point& point)
 {
-    for(auto* child : point.mChildren)
+    auto* interpoint = (InterPoint*) &point; // Ugly c hack 
+    for(auto* child : interpoint->mChildren)
     {
         mRecomputeHeap.emplace(HeightPtrPair{child->mHeight, child});
     }
 }
 
-bool Exys::HasInputPoint(const std::string& label)
+bool Interpreter::HasInputPoint(const std::string& label)
 {
     auto niter = mInputs.find(label);
     return niter != mInputs.end();
 }
 
-Point& Exys::LookupInputPoint(const std::string& label)
+Point& Interpreter::LookupInputPoint(const std::string& label)
 {
     assert(HasInputPoint(label));
     auto niter = mInputs.find(label);
-    return *niter->second;
+    return niter->second->mPoint;
 }
 
-std::vector<std::string> Exys::GetInputPointLabels()
+std::vector<std::string> Interpreter::GetInputPointLabels()
 {
     std::vector<std::string> ret;
     for(const auto& ip : mInputs)
@@ -255,30 +249,30 @@ std::vector<std::string> Exys::GetInputPointLabels()
     return ret;
 }
 
-std::unordered_map<std::string, double> Exys::DumpInputs()
+std::unordered_map<std::string, double> Interpreter::DumpInputs()
 {
     std::unordered_map<std::string, double> ret;
     for(const auto& ip : mInputs)
     {
-        ret[ip.first] = ip.second->mSignal.d;
+        ret[ip.first] = ip.second->mPoint.mD;
     }
     return ret;
 }
 
-bool Exys::HasObserverPoint(const std::string& label)
+bool Interpreter::HasObserverPoint(const std::string& label)
 {
     auto niter = mObservers.find(label);
     return niter != mObservers.end();
 }
 
-Point& Exys::LookupObserverPoint(const std::string& label)
+Point& Interpreter::LookupObserverPoint(const std::string& label)
 {
     assert(HasObserverPoint(label));
     auto niter = mObservers.find(label);
-    return *niter->second;
+    return niter->second->mPoint;
 }
 
-std::vector<std::string> Exys::GetObserverPointLabels()
+std::vector<std::string> Interpreter::GetObserverPointLabels()
 {
     std::vector<std::string> ret;
     for(const auto& ip : mObservers)
@@ -288,12 +282,12 @@ std::vector<std::string> Exys::GetObserverPointLabels()
     return ret;
 }
 
-std::unordered_map<std::string, double> Exys::DumpObservers()
+std::unordered_map<std::string, double> Interpreter::DumpObservers()
 {
     std::unordered_map<std::string, double> ret;
     for(const auto& ip : mObservers)
     {
-        ret[ip.first] = ip.second->mSignal.d;
+        ret[ip.first] = ip.second->mPoint.mD;
     }
     return ret;
 }
@@ -307,13 +301,13 @@ std::unique_ptr<Graph> BuildAndLoadGraph()
     return graph;
 }
 
-std::unique_ptr<Exys> Exys::Build(const std::string& text)
+std::unique_ptr<IEngine> Interpreter::Build(const std::string& text)
 {
     auto graph = BuildAndLoadGraph();
     graph->Build(Parse(text));
-    auto exys = std::make_unique<Exys>(std::move(graph));
-    exys->CompleteBuild();
-    return exys;
+    auto engine = std::make_unique<Interpreter>(std::move(graph));
+    engine->CompleteBuild();
+    return engine;
 }
 
 }

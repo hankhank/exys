@@ -8,7 +8,7 @@
 #include <map>
 #include <set>
 
-#include "graph.h"
+#include "exys.h"
 
 namespace Exys
 {
@@ -26,45 +26,52 @@ struct InterPoint
     std::vector<InterPoint*> mParents;
     std::vector<InterPoint*> mChildren;
     ComputeFunction mComputeFunction;
+
+    bool operator!=(const InterPoint& rhs) { return mPoint != rhs.mPoint; }
+
+    InterPoint& operator=(InterPoint ip) {mPoint = ip.mPoint; return *this;}
+    InterPoint& operator=(double d)      {mPoint = d; return *this;}
 };
 
 class Interpreter : public IEngine
 {
 public:
-    Exys(std::unique_ptr<Graph> graph);
+    Interpreter(std::unique_ptr<Graph> graph);
 
-    void PointChanged(Point& point);
-    void Stabilize();
-    bool IsDirty();
+    virtual ~Interpreter() {}
 
-    bool HasInputPoint(const std::string& label);
-    Point& LookupInputPoint(const std::string& label);
-    std::vector<std::string> GetInputPointLabels();
-    std::unordered_map<std::string, double> DumpInputs();
+    void PointChanged(Point& point) override;
+    void Stabilize() override;
+    bool IsDirty() override;
 
-    bool HasObserverPoint(const std::string& label);
-    Point& LookupObserverPoint(const std::string& label);
-    std::vector<std::string> GetObserverPointLabels();
-    std::unordered_map<std::string, double> DumpObservers();
+    bool HasInputPoint(const std::string& label) override;
+    Point& LookupInputPoint(const std::string& label) override;
+    std::vector<std::string> GetInputPointLabels() override;
+    std::unordered_map<std::string, double> DumpInputs() override;
 
-    std::string GetDOTGraph();
+    bool HasObserverPoint(const std::string& label) override;
+    Point& LookupObserverPoint(const std::string& label) override;
+    std::vector<std::string> GetObserverPointLabels() override;
+    std::unordered_map<std::string, double> DumpObservers() override;
 
-    static std::unique_ptr<Exys> Build(const std::string& text);
+    std::string GetDOTGraph() override;
+
+    static std::unique_ptr<IEngine> Build(const std::string& text);
 
 private:
     void CompleteBuild();
     void TraverseNodes(Node::Ptr node, uint64_t& height, std::set<Node::Ptr>& necessaryNodes);
     ComputeFunction LookupComputeFunction(Node::Ptr node);
     
-    std::unordered_map<std::string, Point*> mObservers;
-    std::unordered_map<std::string, Point*> mInputs;
+    std::unordered_map<std::string, InterPoint*> mObservers;
+    std::unordered_map<std::string, InterPoint*> mInputs;
 
-    std::vector<Point> mPointGraph;
+    std::vector<InterPoint> mInterPointGraph;
 
     struct HeightPtrPair
     {
         uint64_t height;
-        Point* point;
+        InterPoint* point;
 
         bool operator<(const HeightPtrPair& rhs) const
         {

@@ -4,6 +4,7 @@
 #include "mainwindow.h"
 #include "exys.h"
 #include "executioner.h"
+#include "interpreter.h"
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -157,7 +158,7 @@ void MainWindow::textChanged()
     const auto &text = editor->toPlainText().toStdString();
     try
     {
-        std::unique_ptr<Exys::Exys> graph = Exys::Exys::Build(text);
+        auto graph = Exys::Interpreter::Build(text);
         scene->LoadLayout(graph->GetDOTGraph().c_str());
         auto results = Exys::Execute(*graph, text);
         setTable(std::get<2>(results));

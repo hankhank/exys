@@ -55,7 +55,7 @@ struct GraphState
     std::map<std::string, std::vector<double>> observers;
 };
 
-inline std::tuple<bool, std::string, GraphState> Execute(Exys& exysInstance, const std::string& text)
+inline std::tuple<bool, std::string, GraphState> Execute(IEngine& exysInstance, const std::string& text)
 {
     bool ret = true;
     std::string resultStr;
@@ -101,7 +101,7 @@ inline std::tuple<bool, std::string, GraphState> Execute(Exys& exysInstance, con
                 if(p != std::stod(sl[2]))
                 {
                     ret &= false;
-                    resultStr += "Value does not meet expectation - " + label + "!=" + sl[2] + " actual " + std::to_string(p.mSignal.d);
+                    resultStr += "Value does not meet expectation - " + label + "!=" + sl[2] + " actual " + std::to_string(p.mD);
                 }
             }
         }
