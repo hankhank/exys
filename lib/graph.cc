@@ -379,6 +379,7 @@ Node::Ptr Graph::Build(const Cell &cell)
 
                 // Register Observer
                 auto varNode = Build(varToken);
+                varNode->mIsObserver = true;
                 mObservers[outputToken] = varNode;
             }
             else // procedure call

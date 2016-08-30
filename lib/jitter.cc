@@ -30,38 +30,80 @@ void Jitter::TraverseNodes(Node::Ptr node, uint64_t& height, std::set<Node::Ptr>
     }
 }
 
+ComputeFunction Interpreter::LookupComputeFunction(Node::Ptr node)
+{
+    if(node->mKind == Node::KIND_CONST || node->mKind == Node::KIND_INPUT)
+    {
+        return ConstDummy;
+    }
+    for(auto& proc : AVAILABLE_PROCS)
+    {
+        if(node->mToken.compare(proc.procedure.id) == 0)
+        {
+            return proc.func;
+        }
+    }
+    assert(false);
+    return nullptr;
+}
+
+llvm::Value* Jitter::GetPtrForPoint(Point& point)
+{
+    auto* ptrAsInt = llvm::ConstantInt::get(llvm::Type::getInt64Ty(mLlvmContext), (uintptr_t)&point.mD);
+    return llvm::ConstantExpr::getIntToPtr(ptrAsInt, llvm::Type::getDoublePtrTy(mLlvmContext));
+}
+
+struct JitPoint
+{
+    llvm::Value* mValue = nullptr;
+    Point* mPoint = nullptr;
+    bool mIsObserver = false;
+    uint64_t mHeight;
+
+    std::vector<JitPoint*> mParents;
+    std::vector<JitPoint*> mChildren;
+
+    bool operator!=(const InterPoint& rhs) { return mPoint != rhs.mPoint; }
+
+    InterPoint& operator=(InterPoint ip) {mPoint = ip.mPoint; return *this;}
+    InterPoint& operator=(double d)      {mPoint = d; return *this;}
+};
+
 void Jitter::CompleteBuild()
 {
-#if 0
     // Collect necessary nodes - nodes that are inputs to an observable
     // node. Also set the heights from observability
     std::set<Node::Ptr> necessaryNodes;
-    std::unordered_map<Node::Ptr, std::string> observers;
     for(auto ob : mGraph->GetObservers())
     {
         uint64_t height=0;
         TraverseNodes(ob.second, height, necessaryNodes);
-        observers[ob.second] = ob.first;
     }
 
     // Second pass - set heights and add parents/children and collect inputs and observers
+    std::set<JitPoint> mRecomputeHeap;
+    std::unordered_map<Node::Ptr, std::string> inputs;
     for(auto node : necessaryNodes)
     {
-        if(node->mKind == Node::KIND_CONST)
+        for(auto pnode : node->mParents)
         {
-            //point = std::stod(node->mToken);
-        }
-        else if(node->mKind == Node::KIND_INPUT)
-        {
-            //mInputs[node->mToken] = &point;
-        }
-        std::unordered_map<Node::Ptr, std::string>::iterator ob;
-        if((ob = observers.find(node)) != observers.end())
-        {
-            //mObservers[ob->second] = &point;
+            auto& parent = mInterPointGraph[FindNodeOffset(necessaryNodes, pnode)];
+            point.mParents.push_back(&parent);
+            parent.mChildren.push_back(&point);
         }
     }
-#endif
+    
+    std::set<HeightPtrPair> mRecomputeHeap;
+    for(auto& hpp : mRecomputeHeap)
+    {
+        hpp.value = GenerateFunction(hpp);
+        if(hpp.observer)
+        {
+            builder.CreateStore(hpp.value, GetPtrForPoint(hpp.point));
+        }
+    }
+
+    mInterPointGraph.resize(necessaryNodes.size());
 
     LLVMInitializeNativeTarget();
     LLVMInitializeNativeAsmPrinter();
@@ -72,7 +114,7 @@ void Jitter::CompleteBuild()
     std::vector<llvm::Type*> args;
 
     llvm::Function *stabilizeFunc =
-    llvm::cast<llvm::Function>(M->getOrInsertFunction("stabilizeFunc", 
+    llvm::cast<llvm::Function>(M->getOrInsertFunction("StabilizeFunc", 
                     llvm::FunctionType::get(
                         llvm::Type::getVoidTy(mLlvmContext), // void return
                         args,
@@ -81,16 +123,6 @@ void Jitter::CompleteBuild()
     auto *BB = llvm::BasicBlock::Create(mLlvmContext, "StabilizeBlock", stabilizeFunc);
 
     llvm::IRBuilder<> builder(BB);
-
-    volatile double test[2];
-    test[0] = 100.0;
-    test[1] = 0;
-
-    auto* in = llvm::ConstantInt::get(llvm::Type::getInt64Ty(mLlvmContext), (uintptr_t)&test[0]);
-    auto* out = llvm::ConstantInt::get(llvm::Type::getInt64Ty(mLlvmContext), (uintptr_t)&test[1]);
-
-    llvm::Value* inptr = llvm::ConstantExpr::getIntToPtr(in, llvm::Type::getDoublePtrTy(mLlvmContext));
-    llvm::Value* outptr = llvm::ConstantExpr::getIntToPtr(out, llvm::Type::getDoublePtrTy(mLlvmContext));
 
     auto* loadIn = builder.CreateLoad(inptr);
 
@@ -117,14 +149,6 @@ void Jitter::CompleteBuild()
   std::vector<llvm::GenericValue> noargs;
   EE->finalizeObject();
   llvm::GenericValue gv = EE->runFunction(stabilizeFunc, noargs);
-  std::cout << test[0];
-  std::cout << "\n";
-  std::cout << (uintptr_t)&test[0];
-  std::cout << "\n";
-  std::cout << test[1];
-  std::cout << "\n";
-  std::cout << (uintptr_t)&test[1];
-  std::cout << "\n";
 
     Stabilize();
 }

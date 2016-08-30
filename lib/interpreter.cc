@@ -166,12 +166,10 @@ void Interpreter::CompleteBuild()
     // Collect necessary nodes - nodes that are inputs to an observable
     // node. Also set the heights from observability
     std::set<Node::Ptr> necessaryNodes;
-    std::unordered_map<Node::Ptr, std::string> observers;
     for(auto ob : mGraph->GetObservers())
     {
         uint64_t height=0;
         TraverseNodes(ob.second, height, necessaryNodes);
-        observers[ob.second] = ob.first;
     }
 
     // For cache niceness
@@ -194,7 +192,6 @@ void Interpreter::CompleteBuild()
 
         point.mComputeFunction = LookupComputeFunction(node);
 
-        std::unordered_map<Node::Ptr, std::string>::iterator ob;
         if(node->mKind == Node::KIND_CONST)
         {
             point = std::stod(node->mToken);
@@ -203,9 +200,9 @@ void Interpreter::CompleteBuild()
         {
             mInputs[node->mToken] = &point;
         }
-        if((ob = observers.find(node)) != observers.end())
+        if(node->mIsObserver)
         {
-            mObservers[ob->second] = &point;
+            mObservers[node->mToken] = &point;
         }
 
         mRecomputeHeap.emplace(HeightPtrPair{point.mHeight, &point});

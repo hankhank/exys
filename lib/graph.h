@@ -22,7 +22,6 @@ public:
         KIND_CONST,
         KIND_LIST,
         KIND_INPUT,
-        KIND_OBSERVER,
         KIND_PROC,
         KIND_PROC_FACTORY,
         KIND_GRAPH
@@ -47,8 +46,11 @@ public:
     Kind mKind=KIND_UNKNOWN;
     Type mType=TYPE_UNKNOWN;
 
-    std::vector<Ptr> mParents;
     std::string mToken = "";
+    std::vector<Ptr> mParents;
+    bool mIsObserver = false;
+    
+    // Not populated in graph.cc but for use by later stages
     uint64_t mHeight = 0;
 
     bool operator<(const Node& rhs) const

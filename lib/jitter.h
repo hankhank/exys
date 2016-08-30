@@ -56,6 +56,9 @@ private:
     void CompleteBuild();
     void TraverseNodes(Node::Ptr node, uint64_t& height, std::set<Node::Ptr>& necessaryNodes);
 
+    // LLVM helpers
+    llvm::Value* GetValueForPoint(Point& point);
+
     llvm::LLVMContext mLlvmContext;
     std::unique_ptr<llvm::ExecutionEngine> mLlvmExecEngine;
     
