@@ -30,11 +30,11 @@ void Jitter::TraverseNodes(Node::Ptr node, uint64_t& height, std::set<Node::Ptr>
     }
 }
 
+using namespace llvm;
+
 void Jitter::CompleteBuild()
 {
-    // First pass - Type checking and adding in casts
-    // TODO
-
+#if 0
     // Collect necessary nodes - nodes that are inputs to an observable
     // node. Also set the heights from observability
     std::set<Node::Ptr> necessaryNodes;
@@ -49,19 +49,6 @@ void Jitter::CompleteBuild()
     // Second pass - set heights and add parents/children and collect inputs and observers
     for(auto node : necessaryNodes)
     {
-        //size_t offset = FindNodeOffset(necessaryNodes, node);
-        //auto& point = mInterPointGraph[offset];
-
-        //point.mHeight = node->mHeight;
-
-        //for(auto pnode : node->mParents)
-        //{
-        //    auto& parent = mInterPointGraph[FindNodeOffset(necessaryNodes, pnode)];
-        //    point.mParents.push_back(&parent);
-        //    parent.mChildren.push_back(&point);
-        //}
-
-        std::unordered_map<Node::Ptr, std::string>::iterator ob;
         if(node->mKind == Node::KIND_CONST)
         {
             //point = std::stod(node->mToken);
@@ -70,11 +57,76 @@ void Jitter::CompleteBuild()
         {
             //mInputs[node->mToken] = &point;
         }
+        std::unordered_map<Node::Ptr, std::string>::iterator ob;
         if((ob = observers.find(node)) != observers.end())
         {
             //mObservers[ob->second] = &point;
         }
     }
+#endif
+
+    LLVMInitializeNativeTarget();
+    LLVMInitializeNativeAsmPrinter();
+
+    auto Owner = std::make_unique<llvm::Module>("exys", mLlvmContext);
+    llvm::Module *M = Owner.get();
+  
+    std::vector<llvm::Type*> args;
+
+    llvm::Function *stabilizeFunc =
+    llvm::cast<llvm::Function>(M->getOrInsertFunction("stabilizeFunc", 
+                    llvm::FunctionType::get(
+                        llvm::Type::getVoidTy(mLlvmContext), // void return
+                        args,
+                        false))); // no var args
+
+    auto *BB = llvm::BasicBlock::Create(mLlvmContext, "StabilizeBlock", stabilizeFunc);
+
+    llvm::IRBuilder<> builder(BB);
+
+    volatile double test[2];
+    test[0] = 100.0;
+    test[1] = 0;
+
+    auto* in = llvm::ConstantInt::get(llvm::Type::getInt64Ty(mLlvmContext), (uintptr_t)&test[0]);
+    auto* out = llvm::ConstantInt::get(llvm::Type::getInt64Ty(mLlvmContext), (uintptr_t)&test[1]);
+
+    llvm::Value* inptr = llvm::ConstantExpr::getIntToPtr(in, llvm::Type::getDoublePtrTy(mLlvmContext));
+    llvm::Value* outptr = llvm::ConstantExpr::getIntToPtr(out, llvm::Type::getDoublePtrTy(mLlvmContext));
+
+    //auto* loadIn = builder.CreateLoad(inptr);
+
+    //llvm::Value *Add = builder.CreateAdd(loadIn, loadIn);
+    //llvm::Value *addtwo = builder.CreateAdd(loadIn, Add);
+
+    //auto* storeOut = builder.CreateStore(addtwo, outptr);
+    //auto* storeOut = builder.CreateStore(loadIn, outptr);
+
+    builder.CreateRetVoid();
+
+  // Now we create the JIT.
+  //EE
+  //std::string error; ExecutionEngine *ee = EngineBuilder(module).create();
+    std::string error;
+  llvm::ExecutionEngine* EE = llvm::EngineBuilder(std::move(Owner)).setEngineKind(llvm::EngineKind::JIT).setErrorStr(&error).create();
+  std::cout << error;
+  assert(EE);
+  llvm::outs() << "We just constructed this LLVM module:\n\n" << *M;
+
+  std::cout << "\n\nRunning foo: ";
+
+  // Call the `foo' function with no arguments:
+  std::vector<llvm::GenericValue> noargs;
+  llvm::GenericValue gv = EE->runFunction(stabilizeFunc, noargs);
+  std::cout << test[0];
+  std::cout << "\n";
+  std::cout << (uintptr_t)&test[0];
+  std::cout << "\n";
+  std::cout << test[1];
+  std::cout << "\n";
+  std::cout << (uintptr_t)&test[1];
+  std::cout << "\n";
+
     Stabilize();
 }
 
@@ -172,7 +224,7 @@ std::unique_ptr<IEngine> Jitter::Build(const std::string& text)
     graph->Build(Parse(text));
     auto engine = std::make_unique<Jitter>(std::move(graph));
     engine->CompleteBuild();
-    return engine;
+    return std::unique_ptr<IEngine>(std::move(engine));
 }
 
 }

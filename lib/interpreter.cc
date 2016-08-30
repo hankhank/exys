@@ -331,7 +331,7 @@ std::unique_ptr<IEngine> Interpreter::Build(const std::string& text)
     graph->Build(Parse(text));
     auto engine = std::make_unique<Interpreter>(std::move(graph));
     engine->CompleteBuild();
-    return engine;
+    return std::unique_ptr<IEngine>(std::move(engine));
 }
 
 }

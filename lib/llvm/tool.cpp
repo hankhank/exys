@@ -33,6 +33,10 @@
 //   existing function name?
 //
 //===----------------------------------------------------------------------===//
+//#include <iostream>
+//#include <sstream>
+//#include <cassert>
+//#include <cmath>
 
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ExecutionEngine/GenericValue.h"
@@ -51,7 +55,8 @@ using namespace llvm;
 
 int main() {
   
-  InitializeNativeTarget();
+    LLVMInitializeNativeTarget();
+    LLVMInitializeNativeAsmPrinter();
 
   LLVMContext Context;
   
@@ -62,10 +67,10 @@ int main() {
   // Create the add1 function entry and insert this entry into module M.  The
   // function will have a return type of "int" and take an argument of "int".
   // The '0' terminates the list of argument types.
+  std::vector<Type*> args;
+  args.push_back(Type::getInt32Ty(Context));
   Function *Add1F =
-    cast<Function>(M->getOrInsertFunction("add1", Type::getInt32Ty(Context),
-                                          Type::getInt32Ty(Context),
-                                          nullptr));
+    cast<Function>(M->getOrInsertFunction("add1", FunctionType::get(Type::getInt32Ty(Context), args, false)));
 
   // Add a basic block to the function. As before, it automatically inserts
   // because of the last argument.
@@ -114,7 +119,8 @@ int main() {
   builder.CreateRet(Add1CallRes);
 
   // Now we create the JIT.
-  ExecutionEngine* EE = EngineBuilder(std::move(Owner)).create();
+  ExecutionEngine* EE = EngineBuilder(std::move(Owner)).setEngineKind(llvm::EngineKind::JIT).create();
+  EE->finalizeObject();
 
   outs() << "We just constructed this LLVM module:\n\n" << *M;
   outs() << "\n\nRunning foo: ";
@@ -130,3 +136,68 @@ int main() {
   llvm_shutdown();
   return 0;
 }
+#if 0
+int main()
+{
+    llvm::InitializeNativeTarget();
+  LLVMContext mLlvmContext;
+    auto Owner = std::make_unique<llvm::Module>("exys", mLlvmContext);
+    llvm::Module *M = Owner.get();
+  
+    std::vector<llvm::Type*> args;
+
+    llvm::Function *stabilizeFunc =
+    llvm::cast<llvm::Function>(M->getOrInsertFunction("stabilizeFunc", 
+                    llvm::FunctionType::get(
+                        llvm::Type::getVoidTy(mLlvmContext), // void return
+                        args,
+                        false))); // no var args
+
+    auto *BB = llvm::BasicBlock::Create(mLlvmContext, "StabilizeBlock", stabilizeFunc);
+
+    llvm::IRBuilder<> builder(BB);
+
+    volatile double test[2];
+    test[0] = 100.0;
+    test[1] = 0;
+
+    auto* in = llvm::ConstantInt::get(llvm::Type::getInt64Ty(mLlvmContext), (uintptr_t)&test[0]);
+    auto* out = llvm::ConstantInt::get(llvm::Type::getInt64Ty(mLlvmContext), (uintptr_t)&test[1]);
+
+    llvm::Value* inptr = llvm::ConstantExpr::getIntToPtr(in, llvm::Type::getDoublePtrTy(mLlvmContext));
+    llvm::Value* outptr = llvm::ConstantExpr::getIntToPtr(out, llvm::Type::getDoublePtrTy(mLlvmContext));
+
+    auto* loadIn = builder.CreateLoad(inptr);
+
+    llvm::Value *Add = builder.CreateAdd(loadIn, loadIn);
+    llvm::Value *addtwo = builder.CreateAdd(loadIn, Add);
+
+    auto* storeOut = builder.CreateStore(addtwo, outptr);
+
+    builder.CreateRetVoid();
+
+  // Now we create the JIT.
+  //EE
+  //std::string error; ExecutionEngine *ee = EngineBuilder(module).create();
+    std::string error;
+  llvm::ExecutionEngine* EE = llvm::EngineBuilder(std::move(Owner)).setErrorStr(&error).create();
+  //assert(EE);
+  //std::cout << error;
+  //llvm::outs() << "We just constructed this LLVM module:\n\n" << *M;
+
+  //std::cout << "\n\nRunning foo: ";
+
+  // Call the `foo' function with no arguments:
+  std::vector<llvm::GenericValue> noargs;
+  llvm::GenericValue gv = EE->runFunction(stabilizeFunc, noargs);
+  //std::cout << test[0];
+  //std::cout << "\n";
+  //std::cout << (uintptr_t)&test[0];
+  //std::cout << "\n";
+  //std::cout << test[1];
+  //std::cout << "\n";
+  //std::cout << (uintptr_t)&test[1];
+  //std::cout << "\n";
+
+}
+#endif

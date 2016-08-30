@@ -50,6 +50,11 @@ public:
     std::vector<Ptr> mParents;
     std::string mToken = "";
     uint64_t mHeight = 0;
+
+    bool operator<(const Node& rhs) const
+    {
+        return (mHeight > rhs.mHeight);
+    }
 };
 
 typedef std::function<Node::Ptr (Node::Ptr)> ProcNodeFactoryFunc;

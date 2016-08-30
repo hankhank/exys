@@ -8,6 +8,20 @@
 #include <map>
 #include <set>
 
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/ExecutionEngine/GenericValue.h"
+#include "llvm/ExecutionEngine/Interpreter.h"
+#include "llvm/ExecutionEngine/MCJIT.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/Module.h"
+#include "llvm/Support/ManagedStatic.h"
+#include "llvm/Support/TargetSelect.h"
+#include "llvm/Support/raw_ostream.h"
+
 #include "exys.h"
 
 namespace Exys
@@ -42,8 +56,13 @@ private:
     void CompleteBuild();
     void TraverseNodes(Node::Ptr node, uint64_t& height, std::set<Node::Ptr>& necessaryNodes);
 
-    std::unordered_map<std::string, void*> mObservers;
-    std::unordered_map<std::string, void*> mInputs;
+    llvm::LLVMContext mLlvmContext;
+    std::unique_ptr<llvm::ExecutionEngine> mLlvmExecEngine;
+    
+    std::vector<Point> mInputPoints;
+    std::vector<Point> mOutputPoints;
+    std::unordered_map<std::string, Point*> mObservers;
+    std::unordered_map<std::string, Point*> mInputs;
 
     uint64_t mStabilisationId=1;
 

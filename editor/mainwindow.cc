@@ -5,6 +5,7 @@
 #include "exys.h"
 #include "executioner.h"
 #include "interpreter.h"
+#include "jitter.h"
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -158,7 +159,7 @@ void MainWindow::textChanged()
     const auto &text = editor->toPlainText().toStdString();
     try
     {
-        auto graph = Exys::Interpreter::Build(text);
+        auto graph = Exys::Jitter::Build(text);
         scene->LoadLayout(graph->GetDOTGraph().c_str());
         auto results = Exys::Execute(*graph, text);
         setTable(std::get<2>(results));

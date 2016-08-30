@@ -27,7 +27,7 @@ std::list<TokenDetails> Tokenize(const std::string & str)
     {
         if(tok.size())
         {
-            tokens.push_back({tok, startLineNumber, startColumn, lineNumber, startColumn+tok.size()-1});
+            tokens.push_back({tok, startLineNumber, startColumn, lineNumber, static_cast<int>(startColumn+tok.size()-1)});
             tok.clear();
         }
     };
