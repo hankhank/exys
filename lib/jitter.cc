@@ -30,8 +30,6 @@ void Jitter::TraverseNodes(Node::Ptr node, uint64_t& height, std::set<Node::Ptr>
     }
 }
 
-using namespace llvm;
-
 void Jitter::CompleteBuild()
 {
 #if 0
@@ -94,13 +92,13 @@ void Jitter::CompleteBuild()
     llvm::Value* inptr = llvm::ConstantExpr::getIntToPtr(in, llvm::Type::getDoublePtrTy(mLlvmContext));
     llvm::Value* outptr = llvm::ConstantExpr::getIntToPtr(out, llvm::Type::getDoublePtrTy(mLlvmContext));
 
-    //auto* loadIn = builder.CreateLoad(inptr);
+    auto* loadIn = builder.CreateLoad(inptr);
 
-    //llvm::Value *Add = builder.CreateAdd(loadIn, loadIn);
-    //llvm::Value *addtwo = builder.CreateAdd(loadIn, Add);
+    llvm::Value *Add = builder.CreateFAdd(loadIn, loadIn);
+    llvm::Value *addtwo = builder.CreateFAdd(loadIn, Add);
 
-    //auto* storeOut = builder.CreateStore(addtwo, outptr);
-    //auto* storeOut = builder.CreateStore(loadIn, outptr);
+    auto* storeOut = builder.CreateStore(addtwo, outptr);
+    //auto* storeOut = builder.CreateStore(Add, outptr);
 
     builder.CreateRetVoid();
 
@@ -117,6 +115,7 @@ void Jitter::CompleteBuild()
 
   // Call the `foo' function with no arguments:
   std::vector<llvm::GenericValue> noargs;
+  EE->finalizeObject();
   llvm::GenericValue gv = EE->runFunction(stabilizeFunc, noargs);
   std::cout << test[0];
   std::cout << "\n";

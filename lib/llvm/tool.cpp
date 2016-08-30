@@ -120,18 +120,25 @@ int main() {
 
   // Now we create the JIT.
   ExecutionEngine* EE = EngineBuilder(std::move(Owner)).setEngineKind(llvm::EngineKind::JIT).create();
+  int (*foofunc)(void);
+  foofunc = (int (*)())EE->getFunctionAddress("foo");
+  assert(foofunc);
   EE->finalizeObject();
+  foofunc();
 
   outs() << "We just constructed this LLVM module:\n\n" << *M;
+
   outs() << "\n\nRunning foo: ";
   outs().flush();
 
   // Call the `foo' function with no arguments:
+  //
   std::vector<GenericValue> noargs;
-  GenericValue gv = EE->runFunction(FooF, noargs);
+  //GenericValue gv = EE->runFunction(FooF, noargs);
 
   // Import result of execution:
-  outs() << "Result: " << gv.IntVal << "\n";
+  //outs() << "Result: " << gv.IntVal << "\n";
+
   delete EE;
   llvm_shutdown();
   return 0;
