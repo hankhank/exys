@@ -23,7 +23,7 @@ struct JitPoint
     }
 };
 
-typedef std::function<llvm::Value* (const JitPoint&)> ComputeFunction;
+typedef std::function<llvm::Value* (llvm::IRBuilder<>&, const JitPoint&)> ComputeFunction;
 
 struct JitPointProcessor
 {
@@ -35,7 +35,7 @@ void DummyValidator(Node::Ptr)
 {
 }
 
-void JitAddDouble(llvm::IRBuilder<>&  builder, const JitPoint& point)
+llvm::Value* JitAddDouble(llvm::IRBuilder<>& builder, const JitPoint& point)
 {
     //llvm::Value *Add = builder.CreateFAdd(loadIn, loadIn);
 }
@@ -43,7 +43,7 @@ void JitAddDouble(llvm::IRBuilder<>&  builder, const JitPoint& point)
 JitPointProcessor AVAILABLE_PROCS[] =
 {
     //{{"?",    DummyValidator},  Ternary},
-    {{"+",    DummyValidator},  LoopOperator<std::plus<double>>},
+    {{"+",    DummyValidator},  JitAddDouble},
     //{{"-",    DummyValidator},  LoopOperator<std::minus<double>>},
     //{{"/",    DummyValidator},  LoopOperator<std::divides<double>>},
     //{{"*",    DummyValidator},  LoopOperator<std::multiplies<double>>},
@@ -62,7 +62,6 @@ JitPointProcessor AVAILABLE_PROCS[] =
     //{{"ln",   DummyValidator},  UnaryOperator<LogFunc>},
     //{{"not",  DummyValidator},  UnaryOperator<std::logical_not<double>>}
 };
-
 
 Jitter::Jitter(std::unique_ptr<Graph> graph)
 :mGraph(std::move(graph))
