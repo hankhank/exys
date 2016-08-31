@@ -27,6 +27,8 @@
 namespace Exys
 {
 
+class JitPoint;
+
 class Jitter : public IEngine
 {
 public:
@@ -57,10 +59,12 @@ private:
     void TraverseNodes(Node::Ptr node, uint64_t& height, std::set<Node::Ptr>& necessaryNodes);
 
     // LLVM helpers
-    llvm::Value* GetValueForPoint(Point& point);
+    llvm::Value* GetPtrForPoint(Point& point);
+    llvm::Value* JitNode(llvm::IRBuilder<>&  builder, const JitPoint& jp);
 
     llvm::LLVMContext mLlvmContext;
     std::unique_ptr<llvm::ExecutionEngine> mLlvmExecEngine;
+    llvm::Function* mStabilizeFunc = nullptr;
     
     std::vector<Point> mInputPoints;
     std::vector<Point> mOutputPoints;
@@ -68,6 +72,7 @@ private:
     std::unordered_map<std::string, Point*> mInputs;
 
     uint64_t mStabilisationId=1;
+    bool mDirty = true;
 
     std::unique_ptr<Graph> mGraph;
 };
