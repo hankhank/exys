@@ -83,10 +83,6 @@ void PairOperator(InterPoint& point)
     point = o(point.mParents[0]->mPoint.mD, point.mParents[1]->mPoint.mD);
 }
 
-void MulDouble(InterPoint& point)
-{
-}
-
 void DummyValidator(Node::Ptr)
 {
 }

@@ -34,7 +34,7 @@ class Jitter : public IEngine
 public:
     Jitter(std::unique_ptr<Graph> graph);
 
-    virtual ~Jitter() {}
+    virtual ~Jitter();
 
     void PointChanged(Point& point) override;
     void Stabilize() override;
@@ -63,8 +63,9 @@ private:
     llvm::Value* JitNode(llvm::IRBuilder<>&  builder, const JitPoint& jp);
 
     llvm::LLVMContext mLlvmContext;
-    std::unique_ptr<llvm::ExecutionEngine> mLlvmExecEngine;
+    llvm::ExecutionEngine* mLlvmExecEngine;
     llvm::Function* mStabilizeFunc = nullptr;
+    void (*mRawStabilizeFunc)() = nullptr;
     
     std::vector<Point> mInputPoints;
     std::vector<Point> mOutputPoints;

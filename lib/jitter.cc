@@ -35,18 +35,43 @@ void DummyValidator(Node::Ptr)
 {
 }
 
-llvm::Value* JitAddDouble(llvm::IRBuilder<>& builder, const JitPoint& point)
+llvm::Value* JitTernary(llvm::IRBuilder<>& builder, const JitPoint& point)
 {
-    //llvm::Value *Add = builder.CreateFAdd(loadIn, loadIn);
+    assert(point.mParents.size() == 3);
+    llvm::Value* zero = llvm::ConstantFP::get(builder.getDoubleTy(), 0.0);
+    llvm::Value* cmp = builder.CreateFCmpOEQ(point.mParents[0]->mValue, zero);
+    return builder.CreateSelect(cmp,
+            point.mParents[1]->mValue,
+            point.mParents[2]->mValue);
 }
+
+#define DEFINE_LOOP_OPERATOR(__FUNCNAME, __MEMFUNC) \
+llvm::Value* __FUNCNAME(llvm::IRBuilder<>& builder, const JitPoint& point) \
+{ \
+    assert(point.mParents.size() >= 2); \
+    auto p = point.mParents.begin(); \
+    llvm::Value *val = (*p)->mValue; \
+    for(p++; p != point.mParents.end(); p++) \
+    { \
+        assert(val); \
+        assert((*p)->mValue); \
+        val = (builder.__MEMFUNC)(val, (*p)->mValue); \
+    } \
+    return val; \
+}
+
+DEFINE_LOOP_OPERATOR(JitDoubleAdd, CreateFAdd);
+DEFINE_LOOP_OPERATOR(JitDoubleSub, CreateFSub);
+DEFINE_LOOP_OPERATOR(JitDoubleMul, CreateFMul);
+DEFINE_LOOP_OPERATOR(JitDoubleDiv, CreateFDiv);
 
 JitPointProcessor AVAILABLE_PROCS[] =
 {
-    //{{"?",    DummyValidator},  Ternary},
-    {{"+",    DummyValidator},  JitAddDouble},
-    //{{"-",    DummyValidator},  LoopOperator<std::minus<double>>},
-    //{{"/",    DummyValidator},  LoopOperator<std::divides<double>>},
-    //{{"*",    DummyValidator},  LoopOperator<std::multiplies<double>>},
+    {{"?",    DummyValidator},  JitTernary},
+    {{"+",    DummyValidator},  JitDoubleAdd},
+    {{"-",    DummyValidator},  JitDoubleSub},
+    {{"/",    DummyValidator},  JitDoubleDiv},
+    {{"*",    DummyValidator},  JitDoubleMul},
     ////{{"%",    DummyValidator},  LoopOperator<std::modulus<double>>},
     //{{"<",    DummyValidator},  PairOperator<std::less<double>>},
     //{{"<=",   DummyValidator},  PairOperator<std::less_equal<double>>},
@@ -66,6 +91,15 @@ JitPointProcessor AVAILABLE_PROCS[] =
 Jitter::Jitter(std::unique_ptr<Graph> graph)
 :mGraph(std::move(graph))
 {
+}
+
+Jitter::~Jitter()
+{
+    if(mLlvmExecEngine)
+    {
+        //delete mLlvmExecEngine;
+        llvm::llvm_shutdown();
+    }
 }
 
 std::string Jitter::GetDOTGraph()
@@ -91,19 +125,12 @@ llvm::Value* Jitter::GetPtrForPoint(Point& point)
     return llvm::ConstantExpr::getIntToPtr(ptrAsInt, llvm::Type::getDoublePtrTy(mLlvmContext));
 }
 
-    //llvm::Value *Add = builder.CreateFAdd(loadIn, loadIn);
-    //llvm::Value *addtwo = builder.CreateFAdd(loadIn, Add);
-
-    //auto* storeOut = builder.CreateStore(addtwo, outptr);
-    //auto* storeOut = builder.CreateStore(Add, outptr);
-
-
-llvm::Value* Jitter::JitNode(llvm::IRBuilder<>&  builder, const JitPoint& jp)
+llvm::Value* Jitter::JitNode(llvm::IRBuilder<>& builder, const JitPoint& jp)
 {
     llvm::Value* ret = nullptr;
     if(jp.mNode->mKind == Node::KIND_CONST)
     {
-      ret = llvm::ConstantInt::get(builder.getDoubleTy(), std::stod(jp.mNode->mToken));
+      ret = llvm::ConstantFP::get(builder.getDoubleTy(), std::stod(jp.mNode->mToken));
     }
     else if(jp.mNode->mKind == Node::KIND_INPUT)
     {
@@ -112,6 +139,14 @@ llvm::Value* Jitter::JitNode(llvm::IRBuilder<>&  builder, const JitPoint& jp)
     }
     else if(jp.mNode->mKind == Node::KIND_PROC)
     {
+        for(auto& proc : AVAILABLE_PROCS)
+        {
+            if(jp.mNode->mToken.compare(proc.procedure.id) == 0)
+            {
+                ret = proc.func(builder, jp);
+            }
+        }
+        assert(ret);
     }
 
     if(jp.mNode->mIsObserver)
@@ -171,8 +206,7 @@ void Jitter::CompleteBuild()
     }
     
     // Copy into computed heap
-    std::set<JitPoint> jitHeap;
-    std::copy(jitPoints.begin(), jitPoints.end(), std::inserter(jitHeap, jitHeap.begin()));
+    std::sort(jitPoints.begin(), jitPoints.end());
     
     // JIT IT BABY
     LLVMInitializeNativeTarget();
@@ -194,24 +228,24 @@ void Jitter::CompleteBuild()
 
     llvm::IRBuilder<> builder(BB);
 
-    for(auto& jp : jitHeap)
+    for(auto& jp : jitPoints)
     {
         const_cast<JitPoint&>(jp).mValue = JitNode(builder, jp);
     }
 
     builder.CreateRetVoid();
     std::string error;
-    mLlvmExecEngine.reset(llvm::EngineBuilder(std::move(Owner))
+    mLlvmExecEngine = llvm::EngineBuilder(std::move(Owner))
                                 .setEngineKind(llvm::EngineKind::JIT)
                                 .setErrorStr(&error)
-                                .create());
+                                .create();
     if(!mLlvmExecEngine)
     {
         // throw here
         std::cout << error;
         assert(mLlvmExecEngine);
     }
-
+    mRawStabilizeFunc = (void(*)()) mLlvmExecEngine->getPointerToFunction(mStabilizeFunc);
     mLlvmExecEngine->finalizeObject();
 
     llvm::outs() << "We just constructed this LLVM module:\n\n" << *M;
@@ -228,8 +262,15 @@ void Jitter::Stabilize()
 {
     if(mDirty)
     {
-        std::vector<llvm::GenericValue> noargs;
-        mLlvmExecEngine->runFunction(mStabilizeFunc, noargs);
+        if(mRawStabilizeFunc)
+        {
+            mRawStabilizeFunc();
+        }
+        else
+        {
+            std::vector<llvm::GenericValue> noargs;
+            mLlvmExecEngine->runFunction(mStabilizeFunc, noargs);
+        }
         mDirty = false;
     }
 }
