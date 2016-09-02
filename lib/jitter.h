@@ -62,7 +62,9 @@ private:
     llvm::Value* GetPtrForPoint(Point& point);
     llvm::Value* JitNode(llvm::IRBuilder<>&  builder, const JitPoint& jp);
 
-    llvm::LLVMContext mLlvmContext;
+    // def memleaks here but llvm doesnt doc how to pull down
+    // the exec engine and the examples I've hit segfaults
+    llvm::LLVMContext* mLlvmContext;
     llvm::ExecutionEngine* mLlvmExecEngine;
     llvm::Function* mStabilizeFunc = nullptr;
     void (*mRawStabilizeFunc)() = nullptr;

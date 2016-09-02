@@ -38,8 +38,7 @@ void DummyValidator(Node::Ptr)
 llvm::Value* JitTernary(llvm::IRBuilder<>& builder, const JitPoint& point)
 {
     assert(point.mParents.size() == 3);
-    llvm::Value* zero = llvm::ConstantFP::get(builder.getDoubleTy(), 0.0);
-    llvm::Value* cmp = builder.CreateFCmpOEQ(point.mParents[0]->mValue, zero);
+    llvm::Value* cmp = builder.CreateTrunc(point.mParents[0]->mValue, builder.getInt1Ty());
     return builder.CreateSelect(cmp,
             point.mParents[1]->mValue,
             point.mParents[2]->mValue);
@@ -65,6 +64,22 @@ DEFINE_LOOP_OPERATOR(JitDoubleSub, CreateFSub);
 DEFINE_LOOP_OPERATOR(JitDoubleMul, CreateFMul);
 DEFINE_LOOP_OPERATOR(JitDoubleDiv, CreateFDiv);
 
+#define DEFINE_PAIR_OPERATOR(__FUNCNAME, __MEMFUNC) \
+llvm::Value* __FUNCNAME(llvm::IRBuilder<>& builder, const JitPoint& point) \
+{ \
+    assert(point.mParents.size() == 2); \
+    return builder.__MEMFUNC(point.mParents[0]->mValue, point.mParents[1]->mValue); \
+}
+
+DEFINE_LOOP_OPERATOR(JitDoubleLT,  CreateFCmpOLT);
+DEFINE_LOOP_OPERATOR(JitDoubleLE,  CreateFCmpOLE);
+DEFINE_LOOP_OPERATOR(JitDoubleGT,  CreateFCmpOGT);
+DEFINE_LOOP_OPERATOR(JitDoubleGE,  CreateFCmpOGE);
+DEFINE_LOOP_OPERATOR(JitDoubleEQ,  CreateFCmpOEQ);
+DEFINE_LOOP_OPERATOR(JitDoubleNE,  CreateFCmpONE);
+DEFINE_LOOP_OPERATOR(JitDoubleAnd, CreateAnd);
+DEFINE_LOOP_OPERATOR(JitDoubleOr,  CreateOr);
+
 JitPointProcessor AVAILABLE_PROCS[] =
 {
     {{"?",    DummyValidator},  JitTernary},
@@ -73,14 +88,14 @@ JitPointProcessor AVAILABLE_PROCS[] =
     {{"/",    DummyValidator},  JitDoubleDiv},
     {{"*",    DummyValidator},  JitDoubleMul},
     ////{{"%",    DummyValidator},  LoopOperator<std::modulus<double>>},
-    //{{"<",    DummyValidator},  PairOperator<std::less<double>>},
-    //{{"<=",   DummyValidator},  PairOperator<std::less_equal<double>>},
-    //{{">",    DummyValidator},  PairOperator<std::greater<double>>},
-    //{{">=",   DummyValidator},  PairOperator<std::greater_equal<double>>},
-    //{{"==",   DummyValidator},  PairOperator<std::equal_to<double>>},
-    //{{"!=",   DummyValidator},  PairOperator<std::not_equal_to<double>>},
-    //{{"&&",   DummyValidator},  PairOperator<std::logical_and<double>>},
-    //{{"||",   DummyValidator},  PairOperator<std::logical_or<double>>},
+    {{"<",    DummyValidator},  JitDoubleLT},
+    {{"<=",   DummyValidator},  JitDoubleLE},
+    {{">",    DummyValidator},  JitDoubleGT},
+    {{">=",   DummyValidator},  JitDoubleGE},
+    {{"==",   DummyValidator},  JitDoubleEQ},
+    {{"!=",   DummyValidator},  JitDoubleNE},
+    {{"&&",   DummyValidator},  JitDoubleAnd},
+    {{"||",   DummyValidator},  JitDoubleOr},
     //{{"min",  DummyValidator},  LoopOperator<MinFunc>},
     //{{"max",  DummyValidator},  LoopOperator<MaxFunc>},
     //{{"exp",  DummyValidator},  UnaryOperator<ExpFunc>},
@@ -121,8 +136,8 @@ void Jitter::TraverseNodes(Node::Ptr node, uint64_t& height, std::set<Node::Ptr>
 
 llvm::Value* Jitter::GetPtrForPoint(Point& point)
 {
-    auto* ptrAsInt = llvm::ConstantInt::get(llvm::Type::getInt64Ty(mLlvmContext), (uintptr_t)&point.mD);
-    return llvm::ConstantExpr::getIntToPtr(ptrAsInt, llvm::Type::getDoublePtrTy(mLlvmContext));
+    auto* ptrAsInt = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*mLlvmContext), (uintptr_t)&point.mD);
+    return llvm::ConstantExpr::getIntToPtr(ptrAsInt, llvm::Type::getDoublePtrTy(*mLlvmContext));
 }
 
 llvm::Value* Jitter::JitNode(llvm::IRBuilder<>& builder, const JitPoint& jp)
@@ -163,7 +178,18 @@ size_t FindNodeOffset(const std::set<Node::Ptr>& nodes, Node::Ptr node)
     return std::distance(nodes.begin(), nodes.find(node));
 }
 
+struct CmpJitPointPtr
+{
+    bool operator()(const JitPoint* lhs, const JitPoint* rhs) const
+    {
+        const auto height = lhs->mNode->mHeight;
+        const auto rhsHeight = rhs->mNode->mHeight;
+        return (height > rhsHeight) || ((height == rhsHeight) && (lhs > rhs));
+    }
+};
+
 void Jitter::CompleteBuild()
+
 {
     // Collect necessary nodes - nodes that are inputs to an observable
     // node. Also set the heights from observability
@@ -206,13 +232,18 @@ void Jitter::CompleteBuild()
     }
     
     // Copy into computed heap
-    std::sort(jitPoints.begin(), jitPoints.end());
+    std::set<JitPoint*, CmpJitPointPtr> jitHeap;
+    for(auto& jp : jitPoints)
+    {
+        jitHeap.insert(&jp);
+    }
     
     // JIT IT BABY
+    mLlvmContext = new llvm::LLVMContext;
     LLVMInitializeNativeTarget();
     LLVMInitializeNativeAsmPrinter();
 
-    auto Owner = std::make_unique<llvm::Module>("exys", mLlvmContext);
+    auto Owner = std::make_unique<llvm::Module>("exys", *mLlvmContext);
     llvm::Module *M = Owner.get();
   
     std::vector<llvm::Type*> args;
@@ -220,17 +251,17 @@ void Jitter::CompleteBuild()
     mStabilizeFunc =
     llvm::cast<llvm::Function>(M->getOrInsertFunction("StabilizeFunc", 
                     llvm::FunctionType::get(
-                        llvm::Type::getVoidTy(mLlvmContext), // void return
+                        llvm::Type::getVoidTy(*mLlvmContext), // void return
                         args,
                         false))); // no var args
 
-    auto *BB = llvm::BasicBlock::Create(mLlvmContext, "StabilizeBlock", mStabilizeFunc);
+    auto *BB = llvm::BasicBlock::Create(*mLlvmContext, "StabilizeBlock", mStabilizeFunc);
 
     llvm::IRBuilder<> builder(BB);
 
-    for(auto& jp : jitPoints)
+    for(auto& jp : jitHeap)
     {
-        const_cast<JitPoint&>(jp).mValue = JitNode(builder, jp);
+        const_cast<JitPoint*>(jp)->mValue = JitNode(builder, *jp);
     }
 
     builder.CreateRetVoid();
