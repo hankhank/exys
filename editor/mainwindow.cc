@@ -159,7 +159,7 @@ void MainWindow::textChanged()
     const auto &text = editor->toPlainText().toStdString();
     try
     {
-        auto graph = Exys::Jitter::Build(text);
+        auto graph = Exys::Interpreter::Build(text);
         scene->LoadLayout(graph->GetDOTGraph().c_str());
         auto results = Exys::Execute(*graph, text);
         setTable(std::get<2>(results));

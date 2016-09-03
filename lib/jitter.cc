@@ -31,14 +31,20 @@ struct JitPointProcessor
     ComputeFunction func; 
 };
 
-void DummyValidator(Node::Ptr)
+static void DummyValidator(Node::Ptr)
 {
 }
 
 llvm::Value* JitTernary(llvm::IRBuilder<>& builder, const JitPoint& point)
 {
     assert(point.mParents.size() == 3);
-    llvm::Value* cmp = builder.CreateTrunc(point.mParents[0]->mValue, builder.getInt1Ty());
+    llvm::Value* cmp = point.mParents[0]->mValue;
+    if(cmp->getType() == builder.getDoubleTy())
+    {
+        llvm::Value* zero = llvm::ConstantFP::get(builder.getDoubleTy(), 0.0);
+        cmp = builder.CreateFCmpONE(point.mParents[0]->mValue, zero);
+    }
+
     return builder.CreateSelect(cmp,
             point.mParents[1]->mValue,
             point.mParents[2]->mValue);
@@ -80,7 +86,7 @@ DEFINE_LOOP_OPERATOR(JitDoubleNE,  CreateFCmpONE);
 DEFINE_LOOP_OPERATOR(JitDoubleAnd, CreateAnd);
 DEFINE_LOOP_OPERATOR(JitDoubleOr,  CreateOr);
 
-JitPointProcessor AVAILABLE_PROCS[] =
+static JitPointProcessor AVAILABLE_PROCS[] =
 {
     {{"?",    DummyValidator},  JitTernary},
     {{"+",    DummyValidator},  JitDoubleAdd},
@@ -112,14 +118,25 @@ Jitter::~Jitter()
 {
     if(mLlvmExecEngine)
     {
-        //delete mLlvmExecEngine;
-        llvm::llvm_shutdown();
+        // calling this on dealloc causes the next 
+        // instance to blow up
+        //llvm::llvm_shutdown();
     }
 }
 
 std::string Jitter::GetDOTGraph()
 {
     return "digraph " + mGraph->GetDOTGraph();
+}
+
+std::string Jitter::GetLlvmIR()
+{
+    std::string out;
+    llvm::raw_string_ostream rawout(out);
+
+    rawout << *mStabilizeFunc;
+
+    return rawout.str();
 }
 
 void Jitter::TraverseNodes(Node::Ptr node, uint64_t& height, std::set<Node::Ptr>& necessaryNodes)
@@ -168,12 +185,16 @@ llvm::Value* Jitter::JitNode(llvm::IRBuilder<>& builder, const JitPoint& jp)
     {
         assert(ret);
         assert(jp.mPoint);
+        if(ret->getType() != builder.getDoubleTy())
+        {
+            ret = builder.CreateUIToFP(ret, builder.getDoubleTy());
+        }
         builder.CreateStore(ret, GetPtrForPoint(*jp.mPoint));
     }
     return ret;
 }
 
-size_t FindNodeOffset(const std::set<Node::Ptr>& nodes, Node::Ptr node)
+static size_t FindNodeOffset(const std::set<Node::Ptr>& nodes, Node::Ptr node)
 {
     return std::distance(nodes.begin(), nodes.find(node));
 }
@@ -189,20 +210,40 @@ struct CmpJitPointPtr
 };
 
 void Jitter::CompleteBuild()
-
 {
     // Collect necessary nodes - nodes that are inputs to an observable
     // node. Also set the heights from observability
     std::set<Node::Ptr> necessaryNodes;
+    std::unordered_map<Node::Ptr, std::string> observers;
     for(auto ob : mGraph->GetObservers())
     {
         uint64_t height=0;
         TraverseNodes(ob.second, height, necessaryNodes);
+        observers[ob.second] = ob.first;
     }
 
     // Build flat graph
     std::vector<JitPoint> jitPoints;
     jitPoints.resize(necessaryNodes.size());
+    int incnt = 0;
+    int outcnt = 0;
+    for(auto node : necessaryNodes)
+    {
+        if(node->mKind == Node::KIND_INPUT)
+        {
+            ++incnt;
+        }
+        if(node->mIsObserver)
+        {
+            ++outcnt;
+        }
+    }
+
+    mInputPoints.resize(incnt);
+    mOutputPoints.resize(outcnt);
+
+    auto inpoint = mInputPoints.begin();
+    auto outpoint = mOutputPoints.begin();
 
     for(auto node : necessaryNodes)
     {
@@ -217,17 +258,18 @@ void Jitter::CompleteBuild()
             parent.mChildren.push_back(&jp);
         }
 
+        std::unordered_map<Node::Ptr, std::string>::iterator ob;
         if(node->mKind == Node::KIND_INPUT)
         {
-            mInputPoints.push_back(Point());
-            mInputs[node->mToken] = &mInputPoints.back();
-            jp.mPoint = &mInputPoints.back();
+            mInputs[node->mToken] = &(*inpoint);
+            jp.mPoint = &(*inpoint);
+            ++inpoint;
         }
-        if(node->mIsObserver)
+        if((ob = observers.find(node)) != observers.end())
         {
-            mOutputPoints.push_back(Point());
-            mObservers[node->mToken] = &mOutputPoints.back();
-            jp.mPoint = &mOutputPoints.back();
+            mObservers[ob->second] = &(*outpoint);
+            jp.mPoint = &(*outpoint);
+            ++outpoint;
         }
     }
     
@@ -278,8 +320,6 @@ void Jitter::CompleteBuild()
     }
     mRawStabilizeFunc = (void(*)()) mLlvmExecEngine->getPointerToFunction(mStabilizeFunc);
     mLlvmExecEngine->finalizeObject();
-
-    llvm::outs() << "We just constructed this LLVM module:\n\n" << *M;
 
     Stabilize();
 }
@@ -377,7 +417,7 @@ std::unordered_map<std::string, double> Jitter::DumpObservers()
     return ret;
 }
 
-std::unique_ptr<Graph> BuildAndLoadGraph()
+static std::unique_ptr<Graph> BuildAndLoadGraph()
 {
     auto graph = std::make_unique<Graph>();
     std::vector<Procedure> procedures;

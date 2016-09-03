@@ -104,6 +104,11 @@ inline std::tuple<bool, std::string, GraphState> Execute(IEngine& exysInstance, 
                     resultStr += "Value does not meet expectation - " + label + "!=" + sl[2] + " actual " + std::to_string(p.mD);
                 }
             }
+            else
+            {
+                ret &= false;
+                resultStr += "Does not have observer - " + label;
+            }
         }
     }
     if(ret)

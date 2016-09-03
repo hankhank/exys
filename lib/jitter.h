@@ -51,6 +51,7 @@ public:
     std::unordered_map<std::string, double> DumpObservers() override;
 
     std::string GetDOTGraph() override;
+    std::string GetLlvmIR();
 
     static std::unique_ptr<IEngine> Build(const std::string& text);
 

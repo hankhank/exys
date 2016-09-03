@@ -374,8 +374,8 @@ Node::Ptr Graph::Build(const Cell &cell)
 
                 // Add check that token already exists
                 // Add check that we aren't already ouputing to this observer
-                auto& varToken = cell.list[1];
-                auto& outputToken = cell.list[2].details.text;
+                auto& varToken = cell.list[2];
+                auto& outputToken = cell.list[1].details.text;
 
                 // Register Observer
                 auto varNode = Build(varToken);

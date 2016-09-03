@@ -83,11 +83,11 @@ void PairOperator(InterPoint& point)
     point = o(point.mParents[0]->mPoint.mD, point.mParents[1]->mPoint.mD);
 }
 
-void DummyValidator(Node::Ptr)
+static void DummyValidator(Node::Ptr)
 {
 }
 
-InterPointProcessor AVAILABLE_PROCS[] =
+static InterPointProcessor AVAILABLE_PROCS[] =
 {
     {{"?",    DummyValidator},  Ternary},
     {{"+",    DummyValidator},  LoopOperator<std::plus<double>>},
@@ -149,7 +149,7 @@ void Interpreter::TraverseNodes(Node::Ptr node, uint64_t& height, std::set<Node:
     }
 }
 
-size_t FindNodeOffset(const std::set<Node::Ptr>& nodes, Node::Ptr node)
+static size_t FindNodeOffset(const std::set<Node::Ptr>& nodes, Node::Ptr node)
 {
     return std::distance(nodes.begin(), nodes.find(node));
 }
@@ -162,10 +162,12 @@ void Interpreter::CompleteBuild()
     // Collect necessary nodes - nodes that are inputs to an observable
     // node. Also set the heights from observability
     std::set<Node::Ptr> necessaryNodes;
+    std::unordered_map<Node::Ptr, std::string> observers;
     for(auto ob : mGraph->GetObservers())
     {
         uint64_t height=0;
         TraverseNodes(ob.second, height, necessaryNodes);
+        observers[ob.second] = ob.first;
     }
 
     // For cache niceness
@@ -188,6 +190,7 @@ void Interpreter::CompleteBuild()
 
         point.mComputeFunction = LookupComputeFunction(node);
 
+        std::unordered_map<Node::Ptr, std::string>::iterator ob;
         if(node->mKind == Node::KIND_CONST)
         {
             point = std::stod(node->mToken);
@@ -196,9 +199,9 @@ void Interpreter::CompleteBuild()
         {
             mInputs[node->mToken] = &point;
         }
-        if(node->mIsObserver)
+        if((ob = observers.find(node)) != observers.end())
         {
-            mObservers[node->mToken] = &point;
+            mObservers[ob->second] = &point;
         }
 
         mRecomputeHeap.emplace(HeightPtrPair{point.mHeight, &point});
@@ -309,7 +312,7 @@ std::unordered_map<std::string, double> Interpreter::DumpObservers()
     return ret;
 }
 
-std::unique_ptr<Graph> BuildAndLoadGraph()
+static std::unique_ptr<Graph> BuildAndLoadGraph()
 {
     auto graph = std::make_unique<Graph>();
     std::vector<Procedure> procedures;
