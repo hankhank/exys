@@ -310,6 +310,7 @@ void Jitter::CompleteBuild()
     std::string error;
     mLlvmExecEngine = llvm::EngineBuilder(std::move(Owner))
                                 .setEngineKind(llvm::EngineKind::JIT)
+                                .setOptLevel(llvm::CodeGenOpt::Level::Aggressive)
                                 .setErrorStr(&error)
                                 .create();
     if(!mLlvmExecEngine)
