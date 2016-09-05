@@ -63,15 +63,16 @@ void BM_ExecuteGraph_DeepSum(benchmark::State& state)
 
     size_t cur = 0, max = inputs.size();
     auto& output = engine->LookupObserverPoint("out");
-
+    
+    double adder = 1.0;
     while (state.KeepRunning()) 
     {
         auto& point = *inputs[cur];
-        point = 1.0;
+        point = ++adder;
         engine->PointChanged(point);
         engine->Stabilize();
         cur = (++cur) % max;
-        assert(output == state.range(0));
+        assert(output == (state.range(0)+adder));
     }
 }
 
@@ -127,14 +128,15 @@ void BM_ExecuteGraph_FatSum(benchmark::State& state)
     size_t cur = 0, max = inputs.size();
     auto& output = engine->LookupObserverPoint("out");
 
+    double adder = 1.0;
     while (state.KeepRunning()) 
     {
         auto& point = *inputs[cur];
-        point = 1.0;
+        point = ++adder;
         engine->PointChanged(point);
         engine->Stabilize();
         cur = (++cur) % max;
-        assert(output == state.range(0));
+        assert(output == (state.range(0)+adder));
     }
 }
 
