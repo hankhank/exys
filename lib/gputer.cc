@@ -1,6 +1,7 @@
 
 #include "llvm/Support/TargetRegistry.h"
-#include "jitter.h"
+#include "llvm/IR/LegacyPassManager.h"
+#include "gputer.h"
 #include <iostream>
 #include <sstream>
 #include <cassert>
@@ -9,24 +10,24 @@
 namespace Exys
 {
 
-struct JitPoint
+struct GpuPoint
 {
     llvm::Value* mValue = nullptr;
     Point* mPoint = nullptr;
     Node::Ptr mNode = nullptr;
 
-    std::vector<JitPoint*> mParents;
-    std::vector<JitPoint*> mChildren;
+    std::vector<GpuPoint*> mParents;
+    std::vector<GpuPoint*> mChildren;
 
-    bool operator<(const JitPoint& rhs) const
+    bool operator<(const GpuPoint& rhs) const
     {
         return (mNode->mHeight > rhs.mNode->mHeight);
     }
 };
 
-typedef std::function<llvm::Value* (llvm::IRBuilder<>&, const JitPoint&)> ComputeFunction;
+typedef std::function<llvm::Value* (llvm::IRBuilder<>&, const GpuPoint&)> ComputeFunction;
 
-struct JitPointProcessor
+struct GpuPointProcessor
 {
     Procedure procedure;
     ComputeFunction func; 
@@ -36,7 +37,7 @@ static void DummyValidator(Node::Ptr)
 {
 }
 
-llvm::Value* JitTernary(llvm::IRBuilder<>& builder, const JitPoint& point)
+llvm::Value* JitTernary(llvm::IRBuilder<>& builder, const GpuPoint& point)
 {
     assert(point.mParents.size() == 3);
     llvm::Value* cmp = point.mParents[0]->mValue;
@@ -52,7 +53,7 @@ llvm::Value* JitTernary(llvm::IRBuilder<>& builder, const JitPoint& point)
 }
 
 #define DEFINE_LOOP_OPERATOR(__FUNCNAME, __MEMFUNC) \
-llvm::Value* __FUNCNAME(llvm::IRBuilder<>& builder, const JitPoint& point) \
+llvm::Value* __FUNCNAME(llvm::IRBuilder<>& builder, const GpuPoint& point) \
 { \
     assert(point.mParents.size() >= 2); \
     auto p = point.mParents.begin(); \
@@ -72,7 +73,7 @@ DEFINE_LOOP_OPERATOR(JitDoubleMul, CreateFMul);
 DEFINE_LOOP_OPERATOR(JitDoubleDiv, CreateFDiv);
 
 #define DEFINE_PAIR_OPERATOR(__FUNCNAME, __MEMFUNC) \
-llvm::Value* __FUNCNAME(llvm::IRBuilder<>& builder, const JitPoint& point) \
+llvm::Value* __FUNCNAME(llvm::IRBuilder<>& builder, const GpuPoint& point) \
 { \
     assert(point.mParents.size() == 2); \
     return builder.__MEMFUNC(point.mParents[0]->mValue, point.mParents[1]->mValue); \
@@ -87,7 +88,7 @@ DEFINE_LOOP_OPERATOR(JitDoubleNE,  CreateFCmpONE);
 DEFINE_LOOP_OPERATOR(JitDoubleAnd, CreateAnd);
 DEFINE_LOOP_OPERATOR(JitDoubleOr,  CreateOr);
 
-static JitPointProcessor AVAILABLE_PROCS[] =
+static GpuPointProcessor AVAILABLE_PROCS[] =
 {
     {{"?",    DummyValidator},  JitTernary},
     {{"+",    DummyValidator},  JitDoubleAdd},
@@ -110,12 +111,12 @@ static JitPointProcessor AVAILABLE_PROCS[] =
     //{{"not",  DummyValidator},  UnaryOperator<std::logical_not<double>>}
 };
 
-Jitter::Jitter(std::unique_ptr<Graph> graph)
+Gputer::Gputer(std::unique_ptr<Graph> graph)
 :mGraph(std::move(graph))
 {
 }
 
-Jitter::~Jitter()
+Gputer::~Gputer()
 {
     if(mLlvmExecEngine)
     {
@@ -125,12 +126,12 @@ Jitter::~Jitter()
     }
 }
 
-std::string Jitter::GetDOTGraph()
+std::string Gputer::GetDOTGraph()
 {
     return "digraph " + mGraph->GetDOTGraph();
 }
 
-std::string Jitter::GetLlvmIR()
+std::string Gputer::GetLlvmIR()
 {
     std::string out;
     llvm::raw_string_ostream rawout(out);
@@ -140,7 +141,7 @@ std::string Jitter::GetLlvmIR()
     return rawout.str();
 }
 
-void Jitter::TraverseNodes(Node::Ptr node, uint64_t& height, std::set<Node::Ptr>& necessaryNodes)
+void Gputer::TraverseNodes(Node::Ptr node, uint64_t& height, std::set<Node::Ptr>& necessaryNodes)
 {
     if (height > node->mHeight) node->mHeight = height;
     height++;
@@ -152,23 +153,24 @@ void Jitter::TraverseNodes(Node::Ptr node, uint64_t& height, std::set<Node::Ptr>
     }
 }
 
-llvm::Value* Jitter::GetPtrForPoint(Point& point)
+llvm::Value* Gputer::GetPtrForPoint(Point& point)
 {
     auto* ptrAsInt = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*mLlvmContext), (uintptr_t)&point.mD);
     return llvm::ConstantExpr::getIntToPtr(ptrAsInt, llvm::Type::getDoublePtrTy(*mLlvmContext));
 }
 
-llvm::Value* Jitter::JitNode(llvm::IRBuilder<>& builder, const JitPoint& jp)
+llvm::Value* Gputer::JitNode(llvm::IRBuilder<>& builder, const GpuPoint& jp)
 {
     llvm::Value* ret = nullptr;
     if(jp.mNode->mKind == Node::KIND_CONST)
     {
-      ret = llvm::ConstantFP::get(builder.getDoubleTy(), std::stod(jp.mNode->mToken));
+        ret = llvm::ConstantFP::get(builder.getDoubleTy(), std::stod(jp.mNode->mToken));
     }
     else if(jp.mNode->mKind == Node::KIND_INPUT)
     {
         assert(jp.mPoint);
-        ret = builder.CreateLoad(GetPtrForPoint(*jp.mPoint));
+        //ret = builder.CreateLoad(GetPtrForPoint(*jp.mPoint));
+        ret = llvm::ConstantFP::get(builder.getDoubleTy(), 0.0);
     }
     else if(jp.mNode->mKind == Node::KIND_PROC)
     {
@@ -190,7 +192,7 @@ llvm::Value* Jitter::JitNode(llvm::IRBuilder<>& builder, const JitPoint& jp)
         {
             ret = builder.CreateUIToFP(ret, builder.getDoubleTy());
         }
-        builder.CreateStore(ret, GetPtrForPoint(*jp.mPoint));
+        //builder.CreateStore(ret, GetPtrForPoint(*jp.mPoint));
     }
     return ret;
 }
@@ -200,9 +202,9 @@ static size_t FindNodeOffset(const std::set<Node::Ptr>& nodes, Node::Ptr node)
     return std::distance(nodes.begin(), nodes.find(node));
 }
 
-struct CmpJitPointPtr
+struct CmpGpuPointPtr
 {
-    bool operator()(const JitPoint* lhs, const JitPoint* rhs) const
+    bool operator()(const GpuPoint* lhs, const GpuPoint* rhs) const
     {
         const auto height = lhs->mNode->mHeight;
         const auto rhsHeight = rhs->mNode->mHeight;
@@ -210,7 +212,7 @@ struct CmpJitPointPtr
     }
 };
 
-void Jitter::CompleteBuild()
+void Gputer::CompleteBuild()
 {
     // Collect necessary nodes - nodes that are inputs to an observable
     // node. Also set the heights from observability
@@ -224,7 +226,7 @@ void Jitter::CompleteBuild()
     }
 
     // Build flat graph
-    std::vector<JitPoint> jitPoints;
+    std::vector<GpuPoint> jitPoints;
     jitPoints.resize(necessaryNodes.size());
     int incnt = 0;
     int outcnt = 0;
@@ -275,24 +277,37 @@ void Jitter::CompleteBuild()
     }
     
     // Copy into computed heap
-    std::set<JitPoint*, CmpJitPointPtr> jitHeap;
+    std::set<GpuPoint*, CmpGpuPointPtr> jitHeap;
     for(auto& jp : jitPoints)
     {
         jitHeap.insert(&jp);
     }
     
-    // JIT IT BABY
+    // Build some PTX yo
     mLlvmContext = new llvm::LLVMContext;
+
     LLVMInitializeNVPTXTarget();
     LLVMInitializeNVPTXAsmPrinter();
+    LLVMInitializeNVPTXTargetInfo();
+    LLVMInitializeNVPTXTargetMC();
 
     std::string Err;
-    const llvm::Target *Tgt = llvm::TargetRegistry::lookupTarget("nvptx64", Err);
-    if (Tgt) {
-      // nvptx target is available
-    } else {
-      // nvptx target is not available
+    const llvm::Target *ptxTarget = llvm::TargetRegistry::lookupTarget("nvptx", Err);
+    if (!ptxTarget) 
+    {
+        std::cout << Err;
+        assert(ptxTarget);
+      // no nvptx target is available
     }
+    if(!ptxTarget->hasTargetMachine())
+    {
+      // no backend for ptx gen available
+    }
+    
+    std::string PTXTriple("nvptx64-nvidia-cuda");
+    std::string PTXCPU = "sm_35";
+    llvm::TargetOptions PTXTargetOptions = llvm::TargetOptions();
+    auto* ptxTargetMachine = ptxTarget->createTargetMachine(PTXTriple, PTXCPU, "", PTXTargetOptions);
 
     auto Owner = std::make_unique<llvm::Module>("exys", *mLlvmContext);
     llvm::Module *M = Owner.get();
@@ -312,37 +327,50 @@ void Jitter::CompleteBuild()
 
     for(auto& jp : jitHeap)
     {
-        const_cast<JitPoint*>(jp)->mValue = JitNode(builder, *jp);
+        const_cast<GpuPoint*>(jp)->mValue = JitNode(builder, *jp);
     }
 
     builder.CreateRetVoid();
     std::string error;
-    mLlvmExecEngine = llvm::EngineBuilder(std::move(Owner))
-                                .setEngineKind(llvm::EngineKind::JIT)
-                                .setOptLevel(llvm::CodeGenOpt::Level::Aggressive)
-                                .setErrorStr(&error)
-                                .create();
-    // to target cuda need to specify target machine here
-    //ExecutionEngine *create(TargetMachine *TM);
-    if(!mLlvmExecEngine)
-    {
-        // throw here
-        std::cout << error;
-        assert(mLlvmExecEngine);
-    }
-    mRawStabilizeFunc = (void(*)()) mLlvmExecEngine->getPointerToFunction(mStabilizeFunc);
-    mLlvmExecEngine->finalizeObject();
 
-    Stabilize();
+    // Generate PTX assembly
+    std::string buffer;
+    llvm::raw_string_ostream OS(buffer);
+    {
+        // TODO: put these in the constructor
+        llvm::legacy::PassManager *PM2 = new llvm::legacy::PassManager();
+        llvm::buffer_ostream FOS(OS);
+        ptxTargetMachine->addPassesToEmitFile(*PM2, FOS, llvm::TargetMachine::CGFT_AssemblyFile);
+        PM2->run(*M);
+        delete PM2;
+    }
+    std::cout << OS.str();
+                         
+    //mLlvmExecEngine = llvm::EngineBuilder(std::move(Owner))
+    //                            .setEngineKind(llvm::EngineKind::JIT)
+    //                            .setOptLevel(llvm::CodeGenOpt::Level::Aggressive)
+    //                            .setErrorStr(&error)
+    //                            .create(ptxTargetMachine);
+    //if(!mLlvmExecEngine)
+    //{
+    //    // throw here
+    //    std::cout << error;
+    //    assert(mLlvmExecEngine);
+    //}
+    //mRawStabilizeFunc = (void(*)()) mLlvmExecEngine->getPointerToFunction(mStabilizeFunc);
+    //mLlvmExecEngine->finalizeObject();
+
+    //Stabilize();
 }
 
-bool Jitter::IsDirty()
+bool Gputer::IsDirty()
 {
     return mDirty;
 }
 
-void Jitter::Stabilize()
+void Gputer::Stabilize()
 {
+    return;
     if(mDirty)
     {
         if(mRawStabilizeFunc)
@@ -358,25 +386,25 @@ void Jitter::Stabilize()
     }
 }
 
-void Jitter::PointChanged(Point&)
+void Gputer::PointChanged(Point&)
 {
     mDirty = true;
 }
 
-bool Jitter::HasInputPoint(const std::string& label)
+bool Gputer::HasInputPoint(const std::string& label)
 {
     auto niter = mInputs.find(label);
     return niter != mInputs.end();
 }
 
-Point& Jitter::LookupInputPoint(const std::string& label)
+Point& Gputer::LookupInputPoint(const std::string& label)
 {
     assert(HasInputPoint(label));
     auto niter = mInputs.find(label);
     return *niter->second;
 }
 
-std::vector<std::string> Jitter::GetInputPointLabels()
+std::vector<std::string> Gputer::GetInputPointLabels()
 {
     std::vector<std::string> ret;
     for(const auto& ip : mInputs)
@@ -386,7 +414,7 @@ std::vector<std::string> Jitter::GetInputPointLabels()
     return ret;
 }
 
-std::unordered_map<std::string, double> Jitter::DumpInputs()
+std::unordered_map<std::string, double> Gputer::DumpInputs()
 {
     std::unordered_map<std::string, double> ret;
     for(const auto& ip : mInputs)
@@ -396,20 +424,20 @@ std::unordered_map<std::string, double> Jitter::DumpInputs()
     return ret;
 }
 
-bool Jitter::HasObserverPoint(const std::string& label)
+bool Gputer::HasObserverPoint(const std::string& label)
 {
     auto niter = mObservers.find(label);
     return niter != mObservers.end();
 }
 
-Point& Jitter::LookupObserverPoint(const std::string& label)
+Point& Gputer::LookupObserverPoint(const std::string& label)
 {
     assert(HasObserverPoint(label));
     auto niter = mObservers.find(label);
     return *niter->second;
 }
 
-std::vector<std::string> Jitter::GetObserverPointLabels()
+std::vector<std::string> Gputer::GetObserverPointLabels()
 {
     std::vector<std::string> ret;
     for(const auto& ip : mObservers)
@@ -419,7 +447,7 @@ std::vector<std::string> Jitter::GetObserverPointLabels()
     return ret;
 }
 
-std::unordered_map<std::string, double> Jitter::DumpObservers()
+std::unordered_map<std::string, double> Gputer::DumpObservers()
 {
     std::unordered_map<std::string, double> ret;
     for(const auto& ip : mObservers)
@@ -438,11 +466,11 @@ static std::unique_ptr<Graph> BuildAndLoadGraph()
     return graph;
 }
 
-std::unique_ptr<IEngine> Jitter::Build(const std::string& text)
+std::unique_ptr<IEngine> Gputer::Build(const std::string& text)
 {
     auto graph = BuildAndLoadGraph();
     graph->Build(Parse(text));
-    auto engine = std::make_unique<Jitter>(std::move(graph));
+    auto engine = std::make_unique<Gputer>(std::move(graph));
     engine->CompleteBuild();
     return std::unique_ptr<IEngine>(std::move(engine));
 }

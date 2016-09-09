@@ -7,6 +7,7 @@
 #include "executioner.h"
 #include "interpreter.h"
 #include "jitter.h"
+#include "gputer.h"
 
 int main(int argc, char* argv[])
 {
@@ -22,7 +23,8 @@ int main(int argc, char* argv[])
     
     try
     {
-        auto graph = Exys::Jitter::Build(buffer.str());
+        auto graph = Exys::Gputer::Build(buffer.str());
+        //auto graph = Exys::Jitter::Build(buffer.str());
         auto results = Exys::Execute(*graph, buffer.str());
         std::cout << std::get<1>(results) << "\n";
         return std::get<0>(results) ? 0 : -1;

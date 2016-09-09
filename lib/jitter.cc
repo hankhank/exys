@@ -322,6 +322,8 @@ void Jitter::CompleteBuild()
     mRawStabilizeFunc = (void(*)()) mLlvmExecEngine->getPointerToFunction(mStabilizeFunc);
     mLlvmExecEngine->finalizeObject();
 
+    std::cout << GetLlvmIR();
+
     Stabilize();
 }
 
