@@ -5,6 +5,7 @@
 #include <stdexcept>
 #include <string>
 #include <memory>
+#include <deque>
 #include <limits>
 #include <unordered_map>
 
@@ -103,6 +104,7 @@ private:
     void SetSymbol(const Cell& cell, Node::Ptr node);
     Node::Ptr BuildForProcedure(const Cell& token);
     Node::Type InputType2Enum(const std::string& token);
+    void BuildInputList(Node::Ptr child, std::string token, std::deque<int> dims);
     
     // Graph manipulation functions
     Node::Ptr Map(Node::Ptr node);

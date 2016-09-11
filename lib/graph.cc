@@ -267,6 +267,23 @@ void Graph::DefineNode(const std::string& token, Node::Ptr node)
     mVarNodes[token] = node;
 }
 
+void Graph::BuildInputList(Node::Ptr child, std::string token, std::deque<int> dims)
+{
+    if(dims.size() == 0) return;
+
+    int dim = dims.front();
+    dims.pop_front();
+
+    for(int i = 0; i < dim; i++)
+    {
+        auto interList = BuildNode(dims.empty() ? KIND_INPUT : KIND_LIST);
+        interList->mToken = token + "[" + std::to_string(i) + "]";
+        child->mParents.push_back(interList);
+        DefineNode(interList->mToken, interList);
+        BuildInputList(interList, interList->mToken, dims);
+    }
+}
+
 Node::Ptr Graph::Build(const Cell &cell)
 {
     Node::Ptr ret = nullptr;
@@ -347,24 +364,46 @@ Node::Ptr Graph::Build(const Cell &cell)
             {
                 ValidateListLength(cell, 3);
 
-                // Add check whether token in list send warn
-                auto& inputTypeToken = cell.list[1].details.text;
-
                 // Check valid type
-                auto inputType = InputType2Enum(inputTypeToken);
-        
-                // Add input node
-                for(auto iter = cell.list.begin()+2;
-                    iter != cell.list.end(); iter++)
+                auto& inputTypeToken = cell.list[1].details.text;
+                if(inputTypeToken.compare("list") == 0)
                 {
-                    auto& inputToken = iter->details.text;
+                    auto& listTypeToken = cell.list[2].details.text;
+                    auto listType = InputType2Enum(inputTypeToken);
 
                     // check input hasn't already been declared
-                    
-                    auto inputNode = BuildNode(KIND_INPUT);
-                    inputNode->mToken = inputToken;
+                    auto& inputToken  = cell.list[3].details.text;
+                    auto inputList = BuildNode(KIND_LIST);
+                    inputList->mToken = inputToken;
+                    DefineNode(inputToken, inputList);
 
-                    DefineNode(inputToken, inputNode);
+                    // Add dimensions
+                    std::deque<int> dims;
+                    for(auto iter = cell.list.begin()+4;
+                        iter != cell.list.end(); iter++)
+                    {
+                        dims.push_back(std::stoi(iter->details.text));
+                    }
+
+                    BuildInputList(inputList, inputToken, dims);
+                }
+                else
+                {
+                    auto inputType = InputType2Enum(inputTypeToken);
+            
+                    // Add input node
+                    for(auto iter = cell.list.begin()+2;
+                        iter != cell.list.end(); iter++)
+                    {
+                        auto& inputToken = iter->details.text;
+
+                        // check input hasn't already been declared
+                        
+                        auto inputNode = BuildNode(KIND_INPUT);
+                        inputNode->mToken = inputToken;
+
+                        DefineNode(inputToken, inputNode);
+                    }
                 }
             }
             else if(firstElem.details.text == "observe")
