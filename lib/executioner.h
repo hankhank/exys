@@ -72,7 +72,6 @@ inline std::tuple<bool, std::string, GraphState> Execute(IEngine& exysInstance, 
             {
                 auto& p = exysInstance.LookupInputPoint(label);
                 p = std::stod(sl[2]);
-                exysInstance.PointChanged(p);
             }
         }
         else if(sl.size() && sl[0] == "stabilize")
@@ -101,7 +100,7 @@ inline std::tuple<bool, std::string, GraphState> Execute(IEngine& exysInstance, 
                 if(p != std::stod(sl[2]))
                 {
                     ret &= false;
-                    resultStr += "Value does not meet expectation - " + label + "!=" + sl[2] + " actual " + std::to_string(p.mD);
+                    resultStr += "Value does not meet expectation - " + label + "!=" + sl[2] + " actual " + std::to_string(p.mVal);
                 }
             }
             else

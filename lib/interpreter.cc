@@ -21,7 +21,7 @@ void ConstDummy(InterPoint& /*point*/)
 void Ternary(InterPoint& point)
 {
     assert(point.mParents.size() == 3);
-    if(point.mParents[0]->mPoint.mD)
+    if(point.mParents[0]->mPoint.mVal)
     {
         point = *point.mParents[1];
     }
@@ -60,10 +60,10 @@ void LoopOperator(InterPoint& point)
     assert(point.mParents.size() >= 2);
     Op o;
     auto p = point.mParents.begin();
-    point = (*p)->mPoint.mD;
+    point = (*p)->mPoint.mVal;
     for(p++; p != point.mParents.end(); p++)
     {
-        point = o(point.mPoint.mD, (*p)->mPoint.mD);
+        point = o(point.mPoint.mVal, (*p)->mPoint.mVal);
     }
 }
 
@@ -72,7 +72,7 @@ void UnaryOperator(InterPoint& point)
 {
     assert(point.mParents.size() == 1);
     Op o;
-    point = o(point.mParents[0]->mPoint.mD);
+    point = o(point.mParents[0]->mPoint.mVal);
 }
 
 template<typename Op> 
@@ -80,7 +80,7 @@ void PairOperator(InterPoint& point)
 {
     assert(point.mParents.size() == 2);
     Op o;
-    point = o(point.mParents[0]->mPoint.mD, point.mParents[1]->mPoint.mD);
+    point = o(point.mParents[0]->mPoint.mVal, point.mParents[1]->mPoint.mVal);
 }
 
 static void DummyValidator(Node::Ptr)
@@ -122,15 +122,21 @@ std::string Interpreter::GetDOTGraph()
 
 ComputeFunction Interpreter::LookupComputeFunction(Node::Ptr node)
 {
-    if(node->mKind == Node::KIND_CONST || node->mKind == Node::KIND_INPUT)
+    switch(node->mKind)
     {
-        return ConstDummy;
-    }
-    for(auto& proc : AVAILABLE_PROCS)
-    {
-        if(node->mToken.compare(proc.procedure.id) == 0)
+        case Node::KIND_CONST:
+        case Node::KIND_INPUT:
+        case Node::KIND_LIST:
+            return ConstDummy;
+        default:
         {
-            return proc.func;
+            for(auto& proc : AVAILABLE_PROCS)
+            {
+                if(node->mToken.compare(proc.procedure.id) == 0)
+                {
+                    return proc.func;
+                }
+            }
         }
     }
     assert(false);
@@ -139,13 +145,31 @@ ComputeFunction Interpreter::LookupComputeFunction(Node::Ptr node)
 
 void Interpreter::TraverseNodes(Node::Ptr node, uint64_t& height, std::set<Node::Ptr>& necessaryNodes)
 {
-    if (height > node->mHeight) node->mHeight = height;
-    height++;
-
-    necessaryNodes.insert(node);
-    for(auto parent : node->mParents)
+    if (node->mKind == Node::KIND_LIST)
     {
-        TraverseNodes(parent, height, necessaryNodes);
+        for(auto parent : node->mParents)
+        {
+            if (height > parent->mHeight) parent->mHeight = height;
+            necessaryNodes.insert(parent);
+        }
+        height++;
+        for(auto parent : node->mParents)
+        {
+            for(auto gparent : parent->mParents)
+            {
+                TraverseNodes(gparent, height, necessaryNodes);
+            }
+        }
+    }
+    else
+    {
+        if (height > node->mHeight) node->mHeight = height;
+        necessaryNodes.insert(node);
+        height++;
+        for(auto parent : node->mParents)
+        {
+            TraverseNodes(parent, height, necessaryNodes);
+        }
     }
 }
 
@@ -211,11 +235,28 @@ void Interpreter::CompleteBuild()
 
 bool Interpreter::IsDirty()
 {
-    return !mRecomputeHeap.empty();
+    for(const auto& namep : mInputs)
+    {
+        auto& interpoint = *namep.second;
+        if(interpoint.mPoint.mDirty) return true;
+    }
+    return false;
 }
 
 void Interpreter::Stabilize()
 {
+    for(const auto& namep : mInputs)
+    {
+        auto& interpoint = *namep.second;
+        if(interpoint.mPoint.mDirty)
+        {
+            for(auto* child : interpoint.mChildren)
+            {
+                mRecomputeHeap.emplace(HeightPtrPair{child->mHeight, child});
+            }
+            interpoint.mPoint.mDirty = false;
+        }
+    }
     for(auto& hpp : mRecomputeHeap)
     {
         auto& point = *hpp.point;
@@ -225,25 +266,13 @@ void Interpreter::Stabilize()
 
         if(old != point)
         {
-            point.mChangeId = mStabilisationId;
             for(auto* child : point.mChildren)
             {
                 mRecomputeHeap.emplace(HeightPtrPair{child->mHeight, child});
             }
         }
-        point.mRecomputeId = mStabilisationId;
     }
-    mStabilisationId++;
     mRecomputeHeap.clear();
-}
-
-void Interpreter::PointChanged(Point& point)
-{
-    auto* interpoint = (InterPoint*) &point; // Ugly c hack 
-    for(auto* child : interpoint->mChildren)
-    {
-        mRecomputeHeap.emplace(HeightPtrPair{child->mHeight, child});
-    }
 }
 
 bool Interpreter::HasInputPoint(const std::string& label)
@@ -274,7 +303,7 @@ std::unordered_map<std::string, double> Interpreter::DumpInputs()
     std::unordered_map<std::string, double> ret;
     for(const auto& ip : mInputs)
     {
-        ret[ip.first] = ip.second->mPoint.mD;
+        ret[ip.first] = ip.second->mPoint.mVal;
     }
     return ret;
 }
@@ -307,7 +336,7 @@ std::unordered_map<std::string, double> Interpreter::DumpObservers()
     std::unordered_map<std::string, double> ret;
     for(const auto& ip : mObservers)
     {
-        ret[ip.first] = ip.second->mPoint.mD;
+        ret[ip.first] = ip.second->mPoint.mVal;
     }
     return ret;
 }

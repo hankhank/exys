@@ -153,7 +153,7 @@ void Jitter::TraverseNodes(Node::Ptr node, uint64_t& height, std::set<Node::Ptr>
 
 llvm::Value* Jitter::GetPtrForPoint(Point& point)
 {
-    auto* ptrAsInt = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*mLlvmContext), (uintptr_t)&point.mD);
+    auto* ptrAsInt = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*mLlvmContext), (uintptr_t)&point.mVal);
     return llvm::ConstantExpr::getIntToPtr(ptrAsInt, llvm::Type::getDoublePtrTy(*mLlvmContext));
 }
 
@@ -322,19 +322,20 @@ void Jitter::CompleteBuild()
     mRawStabilizeFunc = (void(*)()) mLlvmExecEngine->getPointerToFunction(mStabilizeFunc);
     mLlvmExecEngine->finalizeObject();
 
-    std::cout << GetLlvmIR();
+    //std::cout << GetLlvmIR();
 
     Stabilize();
 }
 
 bool Jitter::IsDirty()
 {
-    return mDirty;
+    for(const auto& p : mInputPoints) if(p.mDirty) return true;
+    return false;
 }
 
 void Jitter::Stabilize()
 {
-    if(mDirty)
+    if(IsDirty())
     {
         if(mRawStabilizeFunc)
         {
@@ -345,13 +346,8 @@ void Jitter::Stabilize()
             std::vector<llvm::GenericValue> noargs;
             mLlvmExecEngine->runFunction(mStabilizeFunc, noargs);
         }
-        mDirty = false;
+        for(auto& p : mInputPoints) p.mDirty = false;
     }
-}
-
-void Jitter::PointChanged(Point&)
-{
-    mDirty = true;
 }
 
 bool Jitter::HasInputPoint(const std::string& label)
@@ -382,7 +378,7 @@ std::unordered_map<std::string, double> Jitter::DumpInputs()
     std::unordered_map<std::string, double> ret;
     for(const auto& ip : mInputs)
     {
-        ret[ip.first] = ip.second->mD;
+        ret[ip.first] = ip.second->mVal;
     }
     return ret;
 }
@@ -415,7 +411,7 @@ std::unordered_map<std::string, double> Jitter::DumpObservers()
     std::unordered_map<std::string, double> ret;
     for(const auto& ip : mObservers)
     {
-        ret[ip.first] = ip.second->mD;
+        ret[ip.first] = ip.second->mVal;
     }
     return ret;
 }

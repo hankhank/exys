@@ -21,8 +21,6 @@ struct InterPoint
 {
     Point mPoint;
     uint64_t mHeight;
-    uint64_t mChangeId;
-    uint64_t mRecomputeId;
     std::vector<InterPoint*> mParents;
     std::vector<InterPoint*> mChildren;
     ComputeFunction mComputeFunction;
@@ -40,7 +38,6 @@ public:
 
     virtual ~Interpreter() {}
 
-    void PointChanged(Point& point) override;
     void Stabilize() override;
     bool IsDirty() override;
 
@@ -79,8 +76,6 @@ private:
         }
     };
     std::set<HeightPtrPair> mRecomputeHeap; // height -> Nodes
-    uint64_t mStabilisationId=1;
-
     std::unique_ptr<Graph> mGraph;
 };
 

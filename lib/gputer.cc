@@ -155,7 +155,7 @@ void Gputer::TraverseNodes(Node::Ptr node, uint64_t& height, std::set<Node::Ptr>
 
 llvm::Value* Gputer::GetPtrForPoint(Point& point)
 {
-    auto* ptrAsInt = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*mLlvmContext), (uintptr_t)&point.mD);
+    auto* ptrAsInt = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*mLlvmContext), (uintptr_t)&point.mVal);
     return llvm::ConstantExpr::getIntToPtr(ptrAsInt, llvm::Type::getDoublePtrTy(*mLlvmContext));
 }
 
@@ -386,11 +386,6 @@ void Gputer::Stabilize()
     }
 }
 
-void Gputer::PointChanged(Point&)
-{
-    mDirty = true;
-}
-
 bool Gputer::HasInputPoint(const std::string& label)
 {
     auto niter = mInputs.find(label);
@@ -419,7 +414,7 @@ std::unordered_map<std::string, double> Gputer::DumpInputs()
     std::unordered_map<std::string, double> ret;
     for(const auto& ip : mInputs)
     {
-        ret[ip.first] = ip.second->mD;
+        ret[ip.first] = ip.second->mVal;
     }
     return ret;
 }
@@ -452,7 +447,7 @@ std::unordered_map<std::string, double> Gputer::DumpObservers()
     std::unordered_map<std::string, double> ret;
     for(const auto& ip : mObservers)
     {
-        ret[ip.first] = ip.second->mD;
+        ret[ip.first] = ip.second->mVal;
     }
     return ret;
 }

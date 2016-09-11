@@ -36,7 +36,6 @@ public:
 
     virtual ~Jitter();
 
-    void PointChanged(Point& point) override;
     void Stabilize() override;
     bool IsDirty() override;
 
@@ -74,9 +73,6 @@ private:
     std::vector<Point> mOutputPoints;
     std::unordered_map<std::string, Point*> mObservers;
     std::unordered_map<std::string, Point*> mInputs;
-
-    uint64_t mStabilisationId=1;
-    bool mDirty = true;
 
     std::unique_ptr<Graph> mGraph;
 };

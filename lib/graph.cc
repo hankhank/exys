@@ -7,8 +7,7 @@
 #include "helpers.h"
 
 // Things to test
-// zipping lists together in mini lists - done
-// variable length lists
+// lists
 // memory - flipflop
 // timers/decay
 

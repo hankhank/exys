@@ -15,35 +15,18 @@ namespace Exys
 
 struct Point
 {
-    union
-    {
-        bool mB;
-        int mI;
-        unsigned int mU;
-        double mD;
-    };
+    double mVal = 0.0;
+    bool mDirty = false;
 
     bool operator!=(const Point& rhs)
     {
-        return mD != rhs.mD;
+        return mVal != rhs.mVal;
     }
 
-    Point& operator=(Point& p)       {mD = p.mD; return *this;}
-
-    Point& operator=(bool b)         {mB = b; return *this;}
-    Point& operator=(int i)          {mI = i; return *this;}
-    Point& operator=(unsigned int u) {mU = u; return *this;}
-    Point& operator=(double d)       {mD = d; return *this;}
-
-    bool operator==(bool b)         {return mB = b;}
-    bool operator==(int i)          {return mI = i;}
-    bool operator==(unsigned int u) {return mU = u;}
-    bool operator==(double d)       {return mD = d;}
-
-    bool operator!=(bool b)         {return mB != b;}
-    bool operator!=(int i)          {return mI != i;}
-    bool operator!=(unsigned int u) {return mU != u;}
-    bool operator!=(double d)       {return mD != d;}
+    Point& operator=(Point& p) {mDirty = mVal != p.mVal; mVal = p.mVal;  return *this;}
+    Point& operator=(double d) {mDirty = mVal != p.mVal; mVal = d; return *this;}
+    bool operator==(double d)  {return mVal = d;}
+    bool operator!=(double d)  {return mVal != d;}
 };
 
 class IEngine
@@ -51,7 +34,6 @@ class IEngine
 public:
     virtual ~IEngine() {}
 
-    virtual void PointChanged(Point& point) = 0;
     virtual void Stabilize() = 0;
     virtual bool IsDirty() = 0;
 

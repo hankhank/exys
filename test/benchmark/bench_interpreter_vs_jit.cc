@@ -57,7 +57,6 @@ void BM_ExecuteGraph_DeepSum(benchmark::State& state)
     for(auto* p : inputs)
     {
         *p = 1.0;
-        engine->PointChanged(*p);
         engine->Stabilize();
     }
 
@@ -69,7 +68,6 @@ void BM_ExecuteGraph_DeepSum(benchmark::State& state)
     {
         auto& point = *inputs[cur];
         point = ++adder;
-        engine->PointChanged(point);
         engine->Stabilize();
         cur = (++cur) % max;
         assert(output == (state.range(0)+adder));
@@ -121,7 +119,6 @@ void BM_ExecuteGraph_FatSum(benchmark::State& state)
     for(auto* p : inputs)
     {
         *p = 1.0;
-        engine->PointChanged(*p);
         engine->Stabilize();
     }
 
@@ -133,7 +130,6 @@ void BM_ExecuteGraph_FatSum(benchmark::State& state)
     {
         auto& point = *inputs[cur];
         point = ++adder;
-        engine->PointChanged(point);
         engine->Stabilize();
         cur = (++cur) % max;
         assert(output == (state.range(0)+adder));
