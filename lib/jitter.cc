@@ -164,7 +164,7 @@ llvm::Value* Jitter::JitNode(llvm::IRBuilder<>& builder, const JitPoint& jp)
     {
       ret = llvm::ConstantFP::get(builder.getDoubleTy(), std::stod(jp.mNode->mToken));
     }
-    else if(jp.mNode->mKind == Node::KIND_INPUT)
+    else if(jp.mNode->mIsInput)
     {
         assert(jp.mPoint);
         ret = builder.CreateLoad(GetPtrForPoint(*jp.mPoint));
@@ -229,7 +229,7 @@ void Jitter::CompleteBuild()
     int outcnt = 0;
     for(auto node : necessaryNodes)
     {
-        if(node->mKind == Node::KIND_INPUT)
+        if(node->mIsInput)
         {
             ++incnt;
         }
@@ -259,7 +259,7 @@ void Jitter::CompleteBuild()
         }
 
         std::unordered_map<Node::Ptr, std::string>::iterator ob;
-        if(node->mKind == Node::KIND_INPUT)
+        if(node->mIsInput)
         {
             mInputs[node->mToken] = &(*inpoint);
             jp.mPoint = &(*inpoint);

@@ -182,6 +182,11 @@ const std::unordered_map<std::string, Node::Ptr>& Graph::GetObservers()
     return mObservers;
 }
 
+const std::unordered_map<std::string, Node::Ptr>& Graph::GetInputs()
+{
+    return mInputs;
+}
+
 void Graph::SetSupportedProcedures(const std::vector<Procedure>& procs)
 {
     for(const auto& proc : procs) AddProcFactory(proc.id, DefaultFactory(proc));
@@ -276,7 +281,7 @@ void Graph::BuildInputList(Node::Ptr child, std::string token, std::deque<int> d
 
     for(int i = 0; i < dim; i++)
     {
-        auto interList = BuildNode(dims.empty() ? KIND_INPUT : KIND_LIST);
+        auto interList = BuildNode(dims.empty() ? KIND_VAR : KIND_LIST);
         interList->mToken = token + "[" + std::to_string(i) + "]";
         child->mParents.push_back(interList);
         DefineNode(interList->mToken, interList);
@@ -375,6 +380,9 @@ Node::Ptr Graph::Build(const Cell &cell)
                     auto& inputToken  = cell.list[3].details.text;
                     auto inputList = BuildNode(KIND_LIST);
                     inputList->mToken = inputToken;
+                    inputList->mIsInput = true;
+                    mInputs[inputToken] = inputList;
+
                     DefineNode(inputToken, inputList);
 
                     // Add dimensions
@@ -399,8 +407,10 @@ Node::Ptr Graph::Build(const Cell &cell)
 
                         // check input hasn't already been declared
                         
-                        auto inputNode = BuildNode(KIND_INPUT);
+                        auto inputNode = BuildNode(KIND_VAR);
                         inputNode->mToken = inputToken;
+                        inputNode->mIsInput = true;
+                        mInputs[inputToken] = inputNode;
 
                         DefineNode(inputToken, inputNode);
                     }
@@ -460,7 +470,7 @@ std::string Graph::GetDOTGraph()
         {
             default: break;
             case KIND_CONST:
-            case KIND_INPUT:
+            case KIND_VAR:
             case KIND_PROC:
             {
                 auto childLabel = NodeToPtrString(nodeptr);
@@ -492,7 +502,7 @@ std::string Graph::GetDOTGraph()
             default: break;
             case KIND_GRAPH:
             case KIND_CONST:
-            case KIND_INPUT:
+            case KIND_VAR:
             case KIND_PROC:
             ret += NodeToDotLabel(nodeptr) + "\n"; break;
         }

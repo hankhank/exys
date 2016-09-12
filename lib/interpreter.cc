@@ -2,6 +2,7 @@
 #include "interpreter.h"
 #include <iostream>
 #include <sstream>
+#include <algorithm>
 #include <cassert>
 #include <cmath>
 
@@ -125,7 +126,7 @@ ComputeFunction Interpreter::LookupComputeFunction(Node::Ptr node)
     switch(node->mKind)
     {
         case Node::KIND_CONST:
-        case Node::KIND_INPUT:
+        case Node::KIND_VAR:
         case Node::KIND_LIST:
             return ConstDummy;
         default:
@@ -145,44 +146,31 @@ ComputeFunction Interpreter::LookupComputeFunction(Node::Ptr node)
 
 void Interpreter::TraverseNodes(Node::Ptr node, uint64_t& height, std::set<Node::Ptr>& necessaryNodes)
 {
-    if (node->mKind == Node::KIND_LIST)
+    if (height > node->mHeight) node->mHeight = height;
+    necessaryNodes.insert(node);
+    height++;
+    for(auto parent : node->mParents)
     {
-        for(auto parent : node->mParents)
-        {
-            if (height > parent->mHeight) parent->mHeight = height;
-            necessaryNodes.insert(parent);
-        }
-        height++;
-        for(auto parent : node->mParents)
-        {
-            for(auto gparent : parent->mParents)
-            {
-                TraverseNodes(gparent, height, necessaryNodes);
-            }
-        }
-    }
-    else
-    {
-        if (height > node->mHeight) node->mHeight = height;
-        necessaryNodes.insert(node);
-        height++;
-        for(auto parent : node->mParents)
-        {
-            TraverseNodes(parent, height, necessaryNodes);
-        }
+        TraverseNodes(parent, height, necessaryNodes);
     }
 }
 
-static size_t FindNodeOffset(const std::set<Node::Ptr>& nodes, Node::Ptr node)
+static size_t FindNodeOffset(const std::vector<Node::Ptr>& nodes, Node::Ptr node)
 {
-    return std::distance(nodes.begin(), nodes.find(node));
+    return std::distance(nodes.begin(), std::find(std::begin(nodes), std::end(nodes), node));
+}
+
+void Interpreter::CollectNodes(Node::Ptr node, std::vector<Node::Ptr>& nodes)
+{
+    if(node->mKind == Node::KIND_VAR) nodes.push_back(node);
+    for(auto parent : node->mParents)
+    {
+        CollectNodes(parent, nodes);
+    }
 }
 
 void Interpreter::CompleteBuild()
 {
-    // First pass - Type checking and adding in casts
-    // TODO
-
     // Collect necessary nodes - nodes that are inputs to an observable
     // node. Also set the heights from observability
     std::set<Node::Ptr> necessaryNodes;
@@ -194,20 +182,43 @@ void Interpreter::CompleteBuild()
         observers[ob.second] = ob.first;
     }
 
+    // Look for input lists and check whether any nodes are
+    // actually used
+    std::vector<Node::Ptr> collectedInputs;
+    for(auto in : mGraph->GetInputs())
+    {
+        if(in.second->mIsInput && in.second->mKind == Node::KIND_LIST)
+        {
+            CollectNodes(in.second, collectedInputs);
+        }
+    }
+    
+    // Flatten
+    std::vector<Node::Ptr> nodeLayout;
+    for(auto in : collectedInputs)
+    {
+        nodeLayout.push_back(in);
+        necessaryNodes.erase(in);
+    }
+    for(auto n : necessaryNodes)
+    {
+        nodeLayout.push_back(n);
+    }
+
     // For cache niceness
-    mInterPointGraph.resize(necessaryNodes.size());
+    mInterPointGraph.resize(nodeLayout.size());
     
     // Second pass - set heights and add parents/children and collect inputs and observers
-    for(auto node : necessaryNodes)
+    for(auto node : nodeLayout)
     {
-        size_t offset = FindNodeOffset(necessaryNodes, node);
+        size_t offset = FindNodeOffset(nodeLayout, node);
         auto& point = mInterPointGraph[offset];
 
         point.mHeight = node->mHeight;
 
         for(auto pnode : node->mParents)
         {
-            auto& parent = mInterPointGraph[FindNodeOffset(necessaryNodes, pnode)];
+            auto& parent = mInterPointGraph[FindNodeOffset(nodeLayout, pnode)];
             point.mParents.push_back(&parent);
             parent.mChildren.push_back(&point);
         }
@@ -219,7 +230,7 @@ void Interpreter::CompleteBuild()
         {
             point = std::stod(node->mToken);
         }
-        else if(node->mKind == Node::KIND_INPUT)
+        else if(node->mIsInput)
         {
             mInputs[node->mToken] = &point;
         }

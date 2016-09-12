@@ -21,8 +21,8 @@ public:
     {
         KIND_UNKNOWN=0,
         KIND_CONST,
+        KIND_VAR,
         KIND_LIST,
-        KIND_INPUT,
         KIND_PROC,
         KIND_PROC_FACTORY,
         KIND_GRAPH
@@ -50,6 +50,7 @@ public:
     std::string mToken = "";
     std::vector<Ptr> mParents;
     bool mIsObserver = false;
+    bool mIsInput = false;
     
     // Not populated in graph.cc but for use by later stages
     uint64_t mHeight = 0;
@@ -91,6 +92,7 @@ public:
     void DefineNode(const std::string& token, Node::Ptr node);
 
     const std::unordered_map<std::string, Node::Ptr>& GetObservers();
+    const std::unordered_map<std::string, Node::Ptr>& GetInputs();
 
     void SetSupportedProcedures(const std::vector<Procedure>& procs);
     
@@ -121,6 +123,7 @@ private:
     std::vector<Node::Ptr> mAllNodes;
     std::unordered_map<std::string, Node::Ptr> mVarNodes;
     std::unordered_map<std::string, Node::Ptr> mObservers;
+    std::unordered_map<std::string, Node::Ptr> mInputs;
 
     Graph* mParent;
 };

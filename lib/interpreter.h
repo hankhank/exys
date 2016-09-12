@@ -58,10 +58,12 @@ public:
 private:
     void CompleteBuild();
     void TraverseNodes(Node::Ptr node, uint64_t& height, std::set<Node::Ptr>& necessaryNodes);
+    void CollectNodes(Node::Ptr node, std::vector<Node::Ptr>& nodes);
     ComputeFunction LookupComputeFunction(Node::Ptr node);
     
     std::unordered_map<std::string, InterPoint*> mObservers;
     std::unordered_map<std::string, InterPoint*> mInputs;
+
 
     std::vector<InterPoint> mInterPointGraph;
 
