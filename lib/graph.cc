@@ -44,12 +44,45 @@ void ValidateParamListLength(const std::vector<Cell> params1, const Node::Ptr no
     }
 }
 
+template <typename T, size_t N>
+void ValidateFunctionArgs(const std::string& name, const Node::Ptr node, const T (&args)[N])
+{
+    size_t argsize = node->mParents.size();
+    if(argsize < N)
+    {
+        std::stringstream err;
+        err << "Not enough items in list for function '" << name << 
+            "'. Expected at least " << N << " Got " << argsize;
+        throw GraphBuildException(err.str(), Cell());
+    }
+
+    if(argsize > N)
+    {
+        std::stringstream err;
+        err << "Too many items in list for function '" << name <<
+            "'. Expected at most " << N << " Got " << argsize;
+        throw GraphBuildException(err.str(), Cell());
+    }
+
+    int i = 0;
+    for(auto kind : args)
+    {
+        Node::Kind argKind = node->mParents[i]->mKind;
+        if(kind != Node::Kind::KIND_UNKNOWN && kind != argKind)
+        {
+            std::stringstream err;
+            err << "Incorrect argument " << i << " type for function '" << name <<
+                "'. Got " << argKind << ". Expected " << kind;
+            throw GraphBuildException(err.str(), Cell());
+        }
+        i++;
+    }
+}
+
 Node::Ptr Graph::ForEach(Node::Ptr node)
 {
-    //ValidateListLength(args, 3);
+    ValidateFunctionArgs("for-each", node, {KIND_PROC_FACTORY, KIND_LIST});
     auto args = node->mParents;
-    assert(args[0]->mKind == KIND_PROC_FACTORY);
-    assert(args[1]->mKind == KIND_LIST);
     auto func = std::static_pointer_cast<ProcNodeFactory>(args[0]);
     auto exps = std::static_pointer_cast<Node>(args[1]);
     for(auto exp : exps->mParents)
@@ -63,10 +96,8 @@ Node::Ptr Graph::ForEach(Node::Ptr node)
 
 Node::Ptr Graph::Map(Node::Ptr node)
 {
-    //ValidateListLength(args, 3);
+    ValidateFunctionArgs("map", node, {KIND_PROC_FACTORY, KIND_LIST});
     auto args = node->mParents;
-    assert(args[0]->mKind == KIND_PROC_FACTORY);
-    assert(args[1]->mKind == KIND_LIST);
     auto func = std::static_pointer_cast<ProcNodeFactory>(args[0]);
     auto exps = std::static_pointer_cast<Node>(args[1]);
     auto mapped = BuildNode(KIND_LIST);
@@ -81,10 +112,8 @@ Node::Ptr Graph::Map(Node::Ptr node)
 
 Node::Ptr Graph::Fold(Node::Ptr node)
 {
-    //ValidateListLength(args, 3);
+    ValidateFunctionArgs("fold", node, {KIND_PROC_FACTORY, KIND_UNKNOWN, KIND_LIST});
     auto args = node->mParents;
-    assert(args[0]->mKind == KIND_PROC_FACTORY);
-    assert(args[2]->mKind == KIND_LIST);
     auto func = std::static_pointer_cast<ProcNodeFactory>(args[0]);
     auto last = std::static_pointer_cast<Node>(args[1]);
     auto exps = std::static_pointer_cast<Node>(args[2]);
@@ -106,7 +135,7 @@ Node::Ptr Graph::List(Node::Ptr node)
 
 Node::Ptr Graph::Zip(Node::Ptr node)
 {
-    //ValidateListLength(args, 3);
+    ValidateFunctionArgs("zip", node, {KIND_LIST, KIND_LIST});
     // Validate all lists same length
     // Validate all parents are lists
     auto args = node->mParents;
@@ -130,18 +159,14 @@ Node::Ptr Graph::Zip(Node::Ptr node)
 
 Node::Ptr Graph::Car(Node::Ptr node)
 {
-    // Validate arg list is 1 long
-    // Validate node is list
-    // Validate list is at least 1 long
+    ValidateFunctionArgs("car", node, {KIND_LIST});
     auto arg = node->mParents[0];
     return arg->mParents[0];
 }
 
 Node::Ptr Graph::Cdr(Node::Ptr node)
 {
-    // Validate arg list is 1 long
-    // Validate node is list
-    // Validate list is at least 1 long
+    ValidateFunctionArgs("cdr", node, {KIND_LIST});
     auto arg = node->mParents[0];
     auto cdr = BuildNode(KIND_LIST);
     for(auto a = arg->mParents.begin() + 1; a != arg->mParents.end(); a++)

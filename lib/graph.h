@@ -19,13 +19,13 @@ class Node
 public:
     enum Kind
     {
-        KIND_UNKNOWN=0,
-        KIND_CONST,
-        KIND_VAR,
-        KIND_LIST,
-        KIND_PROC,
-        KIND_PROC_FACTORY,
-        KIND_GRAPH
+        KIND_UNKNOWN      = 1<<0,
+        KIND_CONST        = 1<<1,
+        KIND_VAR          = 1<<2,
+        KIND_LIST         = 1<<3,
+        KIND_PROC         = 1<<4,
+        KIND_PROC_FACTORY = 1<<5,
+        KIND_GRAPH        = 1<<6
     };
 
     enum Type

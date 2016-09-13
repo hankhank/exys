@@ -182,18 +182,21 @@ void Interpreter::CompleteBuild()
         observers[ob.second] = ob.first;
     }
 
-    // Look for input lists and check whether any nodes are
-    // actually used
+    // Look for input lists and capture them to make sure we 
+    // layout them out together
     std::vector<Node::Ptr> collectedInputs;
+    std::vector<std::pair<std::string, Node::Ptr>> listInputs;
     for(auto in : mGraph->GetInputs())
     {
         if(in.second->mIsInput && in.second->mKind == Node::KIND_LIST)
         {
+            auto numNodes = collectedInputs.size();
             CollectNodes(in.second, collectedInputs);
+            listInputs.push_back(std::make_pair(in.first, *(collectedInputs.begin()+numNodes)));
         }
     }
     
-    // Flatten
+    // Flatten collected nodes into continous block
     std::vector<Node::Ptr> nodeLayout;
     for(auto in : collectedInputs)
     {
@@ -207,8 +210,16 @@ void Interpreter::CompleteBuild()
 
     // For cache niceness
     mInterPointGraph.resize(nodeLayout.size());
+
+    // Add list input extra name to map - A rather than A[0]
+    for(auto li : listInputs)
+    {
+        size_t offset = FindNodeOffset(nodeLayout, li.second);
+        auto& point = mInterPointGraph[offset];
+        mInputs[li.first] = &point;
+    }
     
-    // Second pass - set heights and add parents/children and collect inputs and observers
+    // Finish adding bulk of logic
     for(auto node : nodeLayout)
     {
         size_t offset = FindNodeOffset(nodeLayout, node);
