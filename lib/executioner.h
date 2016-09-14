@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cassert>
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -61,11 +62,33 @@ struct GraphState
     std::map<std::string, std::vector<double>> observers;
 };
 
+
+void SetNode(const Cell& cell, Point& p)
+{
+    if(cell.type == Cell::Type::NUMBER)
+    {
+        p = std::stod(cell.details.text);
+        return;
+    }
+    else if(cell.type == Cell::Type::LIST)
+    {
+        int i = 0;
+        for(auto c : cell.list)
+        {
+            SetNode(c, p[i]);
+            ++i;
+        }
+        return;
+    }
+    assert(false);
+}
+
 inline std::tuple<bool, std::string, std::string> RunTest(IEngine& exysInstance, Cell test, GraphState& state)
 {
     bool ret = true;
     std::string testname = test.list[1].details.text;
     std::string resultStr;
+    assert(test.list.size() > 2);
     
     for(auto l = test.list.begin()+2; l != test.list.end(); ++l)
     {
@@ -76,7 +99,15 @@ inline std::tuple<bool, std::string, std::string> RunTest(IEngine& exysInstance,
             if(exysInstance.HasInputPoint(label))
             {
                 auto& p = exysInstance.LookupInputPoint(label);
-                p = std::stod(l->list[2].details.text);
+                auto val = l->list[2];
+                if(val.type == Cell::Type::NUMBER)
+                {
+                    p = std::stod(val.details.text);
+                }
+                else if(val.type == Cell::Type::LIST)
+                {
+                    SetNode(val, p);
+                }
             }
         }
         else if(firstElem.details.text == "stabilize")
