@@ -34,19 +34,25 @@ inline std::vector<std::string> SplitLine(const std::string& text)
     return ret;
 }
 
-inline std::vector<std::string> GetPotentialComputeLines(const std::string& text)
+inline std::vector<Cell> GetTests(const std::string& text)
 {
-    std::vector<std::string> ret;
-    std::istringstream f(text);
-    std::string s;    
-    while (getline(f, s)) 
+    auto cell = Parse(text);
+    std::vector<Cell> ret;
+    if(cell.type == Cell::Type::ROOT)
     {
-        if(s.size() > 1 && s[0] == ';')
+        if(cell.list.size() == 0)
         {
-            ret.push_back(s.substr(1));
+            return ret;
+        }
+        for(const auto& c : cell.list)
+        {
+            const auto& l = c.list;
+            if(l.size() > 1 && l[0].details.text == "test")
+            {
+                ret.push_back(c);
+            }
         }
     }
-    return ret;
 }
 
 struct GraphState
@@ -55,26 +61,25 @@ struct GraphState
     std::map<std::string, std::vector<double>> observers;
 };
 
-inline std::tuple<bool, std::string, GraphState> Execute(IEngine& exysInstance, const std::string& text)
+inline std::tuple<bool, std::string, std::string> RunTest(IEngine& exysInstance, Cell test, GraphState& state)
 {
     bool ret = true;
+    std::string testname = test.list[1].details.text;
     std::string resultStr;
-    GraphState state;
-
-    const auto potCompLines = GetPotentialComputeLines(text);
-    for(const auto pcl : potCompLines)
+    
+    for(auto l = test.list.begin()+2; l != test.list.end(); ++l)
     {
-        const auto sl = SplitLine(pcl);
-        if(sl.size() > 2 && sl[0] == "inject")
+        auto& firstElem = l->list.front();
+        if(firstElem.details.text == "inject")
         {
-            const auto& label = sl[1];
+            const auto& label = l->list[1].details.text;
             if(exysInstance.HasInputPoint(label))
             {
                 auto& p = exysInstance.LookupInputPoint(label);
-                p = std::stod(sl[2]);
+                p = std::stod(l->list[2].details.text);
             }
         }
-        else if(sl.size() && sl[0] == "stabilize")
+        else if(firstElem.details.text == "stabilize")
         {
             exysInstance.Stabilize();
             for(const auto& input : exysInstance.DumpInputs())
@@ -86,21 +91,21 @@ inline std::tuple<bool, std::string, GraphState> Execute(IEngine& exysInstance, 
                 state.observers[observer.first].push_back(observer.second);
             }
         }
-        else if(sl.size() > 2 && sl[0] == "expect")
+        else if(firstElem.details.text == "expect")
         {
-            const auto& label = sl[1];
+            const auto& label = l->list[1].details.text;
             if(exysInstance.IsDirty())
             {
-                resultStr += "Value checked before stabilization - " + label + "==" + sl[2];
+                resultStr += "Value checked before stabilization - " + label + "==" + l->list[2].details.text;
             }
 
             if(exysInstance.HasObserverPoint(label))
             {
                 auto& p = exysInstance.LookupObserverPoint(label);
-                if(p != std::stod(sl[2]))
+                if(p != std::stod(l->list[2].details.text))
                 {
                     ret &= false;
-                    resultStr += "Value does not meet expectation - " + label + "!=" + sl[2] + " actual " + std::to_string(p.mVal);
+                    resultStr += "Value does not meet expectation - " + label + "!=" + l->list[2].details.text + " actual " + std::to_string(p.mVal);
                 }
             }
             else
@@ -110,10 +115,33 @@ inline std::tuple<bool, std::string, GraphState> Execute(IEngine& exysInstance, 
             }
         }
     }
+    return std::make_tuple(ret, testname, resultStr);
+}
+
+inline std::tuple<bool, std::string, GraphState> Execute(IEngine& exysInstance, const std::string& text)
+{
+    bool ret = true;
+    std::string resultStr;
+    GraphState state;
+
+    const auto tests = GetTests(text);
+    for(const auto test : tests)
+    {
+        bool success = false;
+        std::string testname;
+        std::string details;
+        std::tie(success, testname, details) = RunTest(exysInstance, test, state);
+        if(!success)
+        {
+            ret = false;
+            resultStr += "[" + testname + "] " + details + "\n";
+        }
+    }
     if(ret)
     {
         resultStr = "All expectations met :)";
     }
     return std::make_tuple(ret, resultStr, state);
 }
+
 }

@@ -314,6 +314,27 @@ void Graph::BuildInputList(Node::Ptr child, std::string token, std::deque<int> d
     }
 }
 
+Node::Ptr Graph::Construct(const Cell &cell)
+{
+    Node::Ptr ret = nullptr;
+    if(cell.type == Cell::Type::ROOT)
+    {
+        if(cell.list.size() == 0)
+        {
+            return nullptr;
+        }
+        for(const auto& c : cell.list)
+        {
+            const auto& l = c.list;
+            if(l.size() > 1 && l[0].details.text == "begin")
+            {
+                return Build(c);
+            }
+        }
+    }
+    throw GraphBuildException("Construct not passed root cell from parser", cell);
+}
+
 Node::Ptr Graph::Build(const Cell &cell)
 {
     Node::Ptr ret = nullptr;
@@ -321,7 +342,7 @@ Node::Ptr Graph::Build(const Cell &cell)
     {
         ret = LookupSymbol(cell);
     }
-    if(cell.type == Cell::Type::NUMBER)
+    else if(cell.type == Cell::Type::NUMBER)
     {
         auto cnode = BuildNode(KIND_CONST);
         cnode->mToken = cell.details.text;

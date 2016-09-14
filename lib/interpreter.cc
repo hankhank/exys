@@ -375,7 +375,7 @@ static std::unique_ptr<Graph> BuildAndLoadGraph()
 std::unique_ptr<IEngine> Interpreter::Build(const std::string& text)
 {
     auto graph = BuildAndLoadGraph();
-    graph->Build(Parse(text));
+    graph->Construct(Parse(text));
     auto engine = std::make_unique<Interpreter>(std::move(graph));
     engine->CompleteBuild();
     return std::unique_ptr<IEngine>(std::move(engine));

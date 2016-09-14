@@ -3,7 +3,7 @@
     (observe out1 (car out))
     (observe out2 (car (cdr out))))
 
-; Test 1
-; stabilize
-; expect out1 1
-; expect out2 2
+(test Test-1
+    (stabilize)
+    (expect out1 1)
+    (expect out2 2))

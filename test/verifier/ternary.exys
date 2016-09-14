@@ -3,17 +3,18 @@
     (observe rawout (? in1 in2 in3))
     (observe cmpout (? (== in1 0) in2 in3)))
 
-; inject in2 2
-; inject in3 3
+(test Test-1
+    (inject in2 2)
+    (inject in3 3)
+    (inject in1 0)
+    (stabilize)
+    (expect rawout 3)
+    (expect cmpout 2))
 
-; Test 1
-; inject in1 0
-; stabilize
-; expect rawout 3
-; expect cmpout 2
-
-; Test 2
-; inject in1 1
-; stabilize
-; expect rawout 2
-; expect cmpout 3
+(test Test-2
+    (inject in2 2)
+    (inject in3 3)
+    (inject in1 1)
+    (stabilize)
+    (expect rawout 2)
+    (expect cmpout 3))

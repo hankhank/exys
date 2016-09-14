@@ -21,6 +21,7 @@ struct Cell
     enum Type 
     {
         NONE,
+        ROOT,
         LIST,
         SYMBOL,
         NUMBER
@@ -30,6 +31,13 @@ struct Cell
     TokenDetails details;
 
     std::vector<Cell> list;
+
+    static Cell Root() 
+    {
+        Cell c;
+        c.type = ROOT;
+        return c;
+    }
 
     static Cell Symbol(const TokenDetails& details) 
     {

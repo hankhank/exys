@@ -3,17 +3,17 @@
     (define out (fold + in1 (list 0 1 2 3)))
     (observe out out))
 
-; Test 1
-; inject in1 0
-; stabilize
-; expect out 6
+(test Test-1
+    (inject in1 0)
+    (stabilize)
+    (expect out 6))
 
-; Test 2
-; inject in1 -6
-; stabilize
-; expect out 0
+(test Test-2
+    (inject in1 -6)
+    (stabilize)
+    (expect out 0))
 
-; Test 3
-; inject in1 1
-; stabilize
-; expect out 7
+(test Test-3
+    (inject in1 1)
+    (stabilize)
+    (expect out 7))

@@ -289,7 +289,8 @@ TEST(ReadFromTokenDetails, empty)
 {
     std::list<TokenDetails> empty;
     auto cell = ReadFromTokenDetails(empty);
-    ASSERT_EQ(cell.type, Cell::NONE);
+    ASSERT_EQ(cell.type, Cell::ROOT);
+    ASSERT_EQ(cell.list.size(), 0);
 }
 
 TEST(ReadFromTokenDetails, Unbalanced_lhs_single)

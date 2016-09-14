@@ -87,7 +87,7 @@ class Graph : public Node
 public:
     Graph(Graph* parent=nullptr);
 
-    Node::Ptr Build(const Cell& cell);
+    Node::Ptr Construct(const Cell& cell);
     void DefineNode(const std::string& token, const Cell& cell);
     void DefineNode(const std::string& token, Node::Ptr node);
 
@@ -99,6 +99,7 @@ public:
     std::string GetDOTGraph();
 
 private:
+    Node::Ptr Build(const Cell& cell);
     ProcNodeFactoryFunc DefaultFactory(const Procedure& procedure);
     void AddProcFactory(const std::string id, ProcNodeFactoryFunc factory);
     Node::Ptr LookupSymbol(const Cell& cell);

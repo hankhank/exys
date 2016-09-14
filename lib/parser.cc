@@ -101,7 +101,7 @@ Cell Atom(TokenDetails token)
 // return the Lisp expression in the given tokens
 Cell ReadFromTokenDetails(const std::list<TokenDetails>& tokens)
 {
-    Cell root;
+    Cell root = Cell::Root();
     if(!tokens.size())
     {
         // nothing
@@ -113,6 +113,7 @@ Cell ReadFromTokenDetails(const std::list<TokenDetails>& tokens)
 
     for(auto token : tokens)
     {
+        assert(cellStack.size());
         auto* cell = cellStack.top();
         if(token.text == "(")
         {
@@ -142,7 +143,7 @@ Cell ReadFromTokenDetails(const std::list<TokenDetails>& tokens)
         throw ParseException("Opened parentheses not closed", cellStack.top()->details);
     }
 
-    return root.list.front();
+    return root;
 }
 
 Cell Parse(const std::string& val)

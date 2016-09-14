@@ -7,46 +7,46 @@
     (observe eq (== in1 in2))
     (observe ne (!= in1 in2)))
 
-; Test 1
-; inject in1 0
-; inject in2 0
-; stabilize
-; expect lt 0
-; expect le 1
-; expect gt 0
-; expect ge 1
-; expect eq 1
-; expect ne 0
+(test Test-1
+    (inject in1 0)
+    (inject in2 0)
+    (stabilize)
+    (expect lt 0)
+    (expect le 1)
+    (expect gt 0)
+    (expect ge 1)
+    (expect eq 1)
+    (expect ne 0))
 
-; Test 2
-; inject in1 1
-; inject in2 0
-; stabilize
-; expect lt 0
-; expect le 0
-; expect gt 1
-; expect ge 1
-; expect eq 0
-; expect ne 1
+(test Test-2
+    (inject in1 1)
+    (inject in2 0)
+    (stabilize)
+    (expect lt 0)
+    (expect le 0)
+    (expect gt 1)
+    (expect ge 1)
+    (expect eq 0)
+    (expect ne 1))
 
-; Test 3
-; inject in1 0
-; inject in2 1
-; stabilize
-; expect lt 1
-; expect le 1
-; expect gt 0
-; expect ge 0
-; expect eq 0
-; expect ne 1
+(test Test-3
+    (inject in1 0)
+    (inject in2 1)
+    (stabilize)
+    (expect lt 1)
+    (expect le 1)
+    (expect gt 0)
+    (expect ge 0)
+    (expect eq 0)
+    (expect ne 1))
 
-; Test 4
-; inject in1 5.5
-; inject in2 5.5
-; stabilize
-; expect lt 0
-; expect le 1
-; expect gt 0
-; expect ge 1
-; expect eq 1
-; expect ne 0
+(test Test-4
+    (inject in1 5.5)
+    (inject in2 5.5)
+    (stabilize)
+    (expect lt 0)
+    (expect le 1)
+    (expect gt 0)
+    (expect ge 1)
+    (expect eq 1)
+    (expect ne 0))

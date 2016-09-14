@@ -3,20 +3,21 @@
     (define out (+ in1 in2))
     (observe out out))
 
-; Test 1
-; inject in1 0
-; inject in2 0
-; stabilize
-; expect out 0
+; Test cases
+(test Zero
+    (inject in1 0)
+    (inject in2 0)
+    (stabilize)
+    (expect out 0))
 
-; Test 2
-; inject in1 1
-; inject in2 1
-; stabilize
-; expect out 2
+(test One+One
+    (inject in1 1)
+    (inject in2 1)
+    (stabilize)
+    (expect out 2))
 
-; Test 3
-; inject in1 1
-; inject in2 2
-; stabilize
-; expect out 3
+(test One+Two
+    (inject in1 1)
+    (inject in2 2)
+    (stabilize)
+    (expect out 3))

@@ -8,9 +8,9 @@
     (observe negone negone)
     (observe tendouble tendouble))
 
-; Test 1
-; stabilize
-; expect zero 0
-; expect one 1
-; expect negone -1
-; expect tendouble 10
+(test Test-1
+    (stabilize)
+    (expect zero 0)
+    (expect one 1)
+    (expect negone -1)
+    (expect tendouble 10))
