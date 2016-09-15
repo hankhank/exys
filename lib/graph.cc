@@ -307,6 +307,7 @@ void Graph::BuildInputList(Node::Ptr child, std::string token, std::deque<int> d
     for(int i = 0; i < dim; i++)
     {
         auto interList = BuildNode(dims.empty() ? KIND_VAR : KIND_LIST);
+        interList->mIsInput = dims.empty();
         interList->mToken = token + "[" + std::to_string(i) + "]";
         child->mParents.push_back(interList);
         DefineNode(interList->mToken, interList);

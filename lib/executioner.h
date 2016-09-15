@@ -62,21 +62,19 @@ struct GraphState
     std::map<std::string, std::vector<double>> observers;
 };
 
-
-void SetNode(const Cell& cell, Point& p)
+void SetNode(const Cell& cell, Point& p, int& i)
 {
     if(cell.type == Cell::Type::NUMBER)
     {
-        p = std::stod(cell.details.text);
+        p[i] = std::stod(cell.details.text);
+        ++i;
         return;
     }
     else if(cell.type == Cell::Type::LIST)
     {
-        int i = 0;
         for(auto c : cell.list)
         {
-            SetNode(c, p[i]);
-            ++i;
+            SetNode(c, p, i);
         }
         return;
     }
@@ -106,7 +104,8 @@ inline std::tuple<bool, std::string, std::string> RunTest(IEngine& exysInstance,
                 }
                 else if(val.type == Cell::Type::LIST)
                 {
-                    SetNode(val, p);
+                    int i = 0;
+                    SetNode(val, p, i);
                 }
             }
         }

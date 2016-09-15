@@ -23,7 +23,7 @@ struct Point
         return mVal != rhs.mVal;
     }
 
-    Point& operator[](size_t i)
+    virtual Point& operator[](size_t i)
     {
         return *(this+i);
     }

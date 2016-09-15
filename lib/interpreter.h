@@ -17,18 +17,22 @@ struct InterPoint;
 
 typedef std::function<void (InterPoint&)> ComputeFunction;
 
-struct InterPoint
+struct InterPoint : Point
 {
-    Point mPoint;
     uint64_t mHeight;
     std::vector<InterPoint*> mParents;
     std::vector<InterPoint*> mChildren;
     ComputeFunction mComputeFunction;
 
-    bool operator!=(const InterPoint& rhs) { return mPoint != rhs.mPoint; }
+    Point& operator[](size_t i) override
+    {
+        return *(this+i);
+    }
 
-    InterPoint& operator=(InterPoint ip) {mPoint = ip.mPoint; return *this;}
-    InterPoint& operator=(double d)      {mPoint = d; return *this;}
+    bool operator!=(const InterPoint& rhs) { return mVal != rhs.mVal; }
+
+    //InterPoint& operator=(InterPoint ip) {mVal = ip.mVal; return *this;}
+    InterPoint& operator=(double d)      {mDirty = mVal != d; mVal = d; return *this;}
 };
 
 class Interpreter : public IEngine

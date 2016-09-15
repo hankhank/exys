@@ -22,7 +22,7 @@ void ConstDummy(InterPoint& /*point*/)
 void Ternary(InterPoint& point)
 {
     assert(point.mParents.size() == 3);
-    if(point.mParents[0]->mPoint.mVal)
+    if(point.mParents[0]->mVal)
     {
         point = *point.mParents[1];
     }
@@ -61,10 +61,10 @@ void LoopOperator(InterPoint& point)
     assert(point.mParents.size() >= 2);
     Op o;
     auto p = point.mParents.begin();
-    point = (*p)->mPoint.mVal;
+    point = (*p)->mVal;
     for(p++; p != point.mParents.end(); p++)
     {
-        point = o(point.mPoint.mVal, (*p)->mPoint.mVal);
+        point = o(point.mVal, (*p)->mVal);
     }
 }
 
@@ -73,7 +73,7 @@ void UnaryOperator(InterPoint& point)
 {
     assert(point.mParents.size() == 1);
     Op o;
-    point = o(point.mParents[0]->mPoint.mVal);
+    point = o(point.mParents[0]->mVal);
 }
 
 template<typename Op> 
@@ -81,7 +81,7 @@ void PairOperator(InterPoint& point)
 {
     assert(point.mParents.size() == 2);
     Op o;
-    point = o(point.mParents[0]->mPoint.mVal, point.mParents[1]->mPoint.mVal);
+    point = o(point.mParents[0]->mVal, point.mParents[1]->mVal);
 }
 
 static void DummyValidator(Node::Ptr)
@@ -201,7 +201,7 @@ void Interpreter::CompleteBuild()
     for(auto in : collectedInputs)
     {
         nodeLayout.push_back(in);
-        necessaryNodes.erase(in);
+        size_t offset = FindNodeOffset(nodeLayout, *necessaryNodes.find(in));
     }
     for(auto n : necessaryNodes)
     {
@@ -260,7 +260,7 @@ bool Interpreter::IsDirty()
     for(const auto& namep : mInputs)
     {
         auto& interpoint = *namep.second;
-        if(interpoint.mPoint.mDirty) return true;
+        if(interpoint.mDirty) return true;
     }
     return false;
 }
@@ -270,13 +270,13 @@ void Interpreter::Stabilize()
     for(const auto& namep : mInputs)
     {
         auto& interpoint = *namep.second;
-        if(interpoint.mPoint.mDirty)
+        if(interpoint.mDirty)
         {
             for(auto* child : interpoint.mChildren)
             {
                 mRecomputeHeap.emplace(HeightPtrPair{child->mHeight, child});
             }
-            interpoint.mPoint.mDirty = false;
+            interpoint.mDirty = false;
         }
     }
     for(auto& hpp : mRecomputeHeap)
@@ -307,7 +307,7 @@ Point& Interpreter::LookupInputPoint(const std::string& label)
 {
     assert(HasInputPoint(label));
     auto niter = mInputs.find(label);
-    return niter->second->mPoint;
+    return *niter->second;
 }
 
 std::vector<std::string> Interpreter::GetInputPointLabels()
@@ -325,7 +325,7 @@ std::unordered_map<std::string, double> Interpreter::DumpInputs()
     std::unordered_map<std::string, double> ret;
     for(const auto& ip : mInputs)
     {
-        ret[ip.first] = ip.second->mPoint.mVal;
+        ret[ip.first] = ip.second->mVal;
     }
     return ret;
 }
@@ -340,7 +340,7 @@ Point& Interpreter::LookupObserverPoint(const std::string& label)
 {
     assert(HasObserverPoint(label));
     auto niter = mObservers.find(label);
-    return niter->second->mPoint;
+    return *niter->second;
 }
 
 std::vector<std::string> Interpreter::GetObserverPointLabels()
@@ -358,7 +358,7 @@ std::unordered_map<std::string, double> Interpreter::DumpObservers()
     std::unordered_map<std::string, double> ret;
     for(const auto& ip : mObservers)
     {
-        ret[ip.first] = ip.second->mPoint.mVal;
+        ret[ip.first] = ip.second->mVal;
     }
     return ret;
 }
