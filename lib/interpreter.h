@@ -31,8 +31,8 @@ struct InterPoint : Point
 
     bool operator!=(const InterPoint& rhs) { return mVal != rhs.mVal; }
 
-    //InterPoint& operator=(InterPoint ip) {mVal = ip.mVal; return *this;}
-    InterPoint& operator=(double d)      {mDirty = mVal != d; mVal = d; return *this;}
+    InterPoint& operator=(InterPoint ip) {mDirty = (mVal != ip.mVal); mVal = ip.mVal; return *this;}
+    InterPoint& operator=(double d)      {mDirty = (mVal != d); mVal = d; return *this;}
 };
 
 class Interpreter : public IEngine

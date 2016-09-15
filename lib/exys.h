@@ -28,8 +28,8 @@ struct Point
         return *(this+i);
     }
 
-    Point& operator=(Point& p) {mDirty = mVal != p.mVal; mVal = p.mVal;  return *this;}
-    Point& operator=(double d) {mDirty = mVal != d; mVal = d; return *this;}
+    Point& operator=(Point& p) {mDirty = (mVal != p.mVal); mVal = p.mVal;  return *this;}
+    Point& operator=(double d) {mDirty = (mVal != d); mVal = d; return *this;}
     bool operator==(double d)  {return mVal = d;}
     bool operator!=(double d)  {return mVal != d;}
 };
