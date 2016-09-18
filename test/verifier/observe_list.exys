@@ -6,7 +6,9 @@
     (observe degen degen)
     (observe onedim onedim)
     (observe twodim twodim)
-    (observe threedim threedim))
+    (observe threedim threedim)
+    (observe consts (list 99 98 97))
+    (observe maplist (map (lambda (x) (+ x 100)) (list 77 66 78))))
 
 (test Test-1
     (inject degen (1))
@@ -23,4 +25,6 @@
                     (3 4)))
     (expect threedim ((1 2 3)
                       (4 5 6)
-                      (7 8 9))))
+                      (7 8 9)))
+    (expect consts (99 98 97))
+    (expect maplist (177 166 178)))
