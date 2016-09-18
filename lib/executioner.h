@@ -62,19 +62,18 @@ struct GraphState
     std::map<std::string, std::vector<double>> observers;
 };
 
-void SetNode(const Cell& cell, Point& p, int& i)
+void GetNode(const Cell& cell, std::vector<double>& vals)
 {
     if(cell.type == Cell::Type::NUMBER)
     {
-        p[i] = std::stod(cell.details.text);
-        ++i;
+        vals.push_back(std::stod(cell.details.text));
         return;
     }
     else if(cell.type == Cell::Type::LIST)
     {
         for(auto c : cell.list)
         {
-            SetNode(c, p, i);
+            GetNode(c, vals);
         }
         return;
     }
@@ -104,8 +103,13 @@ inline std::tuple<bool, std::string, std::string> RunTest(IEngine& exysInstance,
                 }
                 else if(val.type == Cell::Type::LIST)
                 {
+                    std::vector<double> nodeVals;
+                    GetNode(val, nodeVals);
                     int i = 0;
-                    SetNode(val, p, i);
+                    for(auto v : nodeVals)
+                    {
+                        p[i++] = v;
+                    }
                 }
             }
         }
@@ -132,10 +136,31 @@ inline std::tuple<bool, std::string, std::string> RunTest(IEngine& exysInstance,
             if(exysInstance.HasObserverPoint(label))
             {
                 auto& p = exysInstance.LookupObserverPoint(label);
-                if(p != std::stod(l->list[2].details.text))
+                auto val = l->list[2];
+                if(val.type == Cell::Type::NUMBER)
                 {
-                    ret &= false;
-                    resultStr += "Value does not meet expectation - " + label + "!=" + l->list[2].details.text + " actual " + std::to_string(p.mVal);
+                    if(p != std::stod(val.details.text))
+                    {
+                        ret &= false;
+                        resultStr += "Value does not meet expectation - " + label + "!=" 
+                            + val.details.text + " actual " + std::to_string(p.mVal);
+                    }
+                }
+                else if(val.type == Cell::Type::LIST)
+                {
+                    std::vector<double> nodeVals;
+                    GetNode(val, nodeVals);
+                    int i = 0;
+                    for(auto v : nodeVals)
+                    {
+                        if(v != p[i].mVal)
+                        {
+                            ret &= false;
+                            resultStr += "Value does not meet expectation - " + label + "!=" 
+                                + std::to_string(v) + " actual " + std::to_string(p[i].mVal) + "\n";
+                        }
+                        ++i;
+                    }
                 }
             }
             else

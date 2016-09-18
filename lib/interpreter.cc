@@ -6,6 +6,18 @@
 #include <cassert>
 #include <cmath>
 
+// Notes
+// Handling list inputs and outputs is a bit of pain and not exactly symmetrical
+// Concerns
+// 1. To allow array like access we need to have all inputs and outputs
+//    next to one another not randomly placed through out the graph
+// 2. We need to add in extra mappings to the start of the arrays along from actual
+//    array member usage
+// 3. Observables need an extra copy incase list members exist in two output arrays.
+//    We could handle the two cases avoiding the extra copy but its annoying.
+// 4. We can't pass back Point to the user because they need special [] operators
+//    to take into account the special interpoint type we use internally
+
 namespace Exys
 {
 
@@ -17,6 +29,12 @@ struct InterPointProcessor
 
 void ConstDummy(InterPoint& /*point*/)
 {
+}
+
+void Copy(InterPoint& point)
+{
+    assert(point.mParents.size() == 1);
+    point = *point.mParents[0];
 }
 
 void Ternary(InterPoint& point)
@@ -162,7 +180,7 @@ static size_t FindNodeOffset(const std::vector<Node::Ptr>& nodes, Node::Ptr node
 
 void Interpreter::CollectNodes(Node::Ptr node, std::vector<Node::Ptr>& nodes)
 {
-    if(node->mKind == Node::KIND_VAR) nodes.push_back(node);
+    if(node->mKind != Node::KIND_LIST) nodes.push_back(node);
     for(auto parent : node->mParents)
     {
         CollectNodes(parent, nodes);
@@ -175,11 +193,22 @@ void Interpreter::CompleteBuild()
     // node. Also set the heights from observability
     std::set<Node::Ptr> necessaryNodes;
     std::unordered_map<Node::Ptr, std::string> observers;
+    std::vector<Node::Ptr> collectedObservers;
+    std::vector<std::pair<std::string, int>> listObservers;
     for(auto ob : mGraph->GetObservers())
     {
-        uint64_t height=0;
-        TraverseNodes(ob.second, height, necessaryNodes);
-        observers[ob.second] = ob.first;
+        if(ob.second->mKind == Node::KIND_LIST)
+        {
+            auto numNodes = collectedObservers.size();
+            CollectNodes(ob.second, collectedObservers);
+            listObservers.push_back(std::make_pair(ob.first, numNodes));
+        }
+        else
+        {
+            uint64_t height=0;
+            TraverseNodes(ob.second, height, necessaryNodes);
+            observers[ob.second] = ob.first;
+        }
     }
 
     // Look for input lists and capture them to make sure we 
@@ -188,7 +217,7 @@ void Interpreter::CompleteBuild()
     std::vector<std::pair<std::string, Node::Ptr>> listInputs;
     for(auto in : mGraph->GetInputs())
     {
-        if(in.second->mIsInput && in.second->mKind == Node::KIND_LIST)
+        if(in.second->mKind == Node::KIND_LIST)
         {
             auto numNodes = collectedInputs.size();
             CollectNodes(in.second, collectedInputs);
@@ -201,7 +230,7 @@ void Interpreter::CompleteBuild()
     for(auto in : collectedInputs)
     {
         nodeLayout.push_back(in);
-        size_t offset = FindNodeOffset(nodeLayout, *necessaryNodes.find(in));
+        necessaryNodes.erase(in);
     }
     for(auto n : necessaryNodes)
     {
@@ -209,7 +238,7 @@ void Interpreter::CompleteBuild()
     }
 
     // For cache niceness
-    mInterPointGraph.resize(nodeLayout.size());
+    mInterPointGraph.resize(nodeLayout.size()+collectedObservers.size());
 
     // Add list input extra name to map - A rather than A[0]
     for(auto li : listInputs)
@@ -252,6 +281,35 @@ void Interpreter::CompleteBuild()
 
         mRecomputeHeap.emplace(HeightPtrPair{point.mHeight, &point});
     }
+
+
+    // if we have list observers increase height for everyone 
+    // by one so we can have our observables copied
+    for(auto &point : mInterPointGraph)
+    {
+        ++point.mHeight;
+    }
+    
+    // Finish adding list observe copies
+    int i = 0;
+    for(auto node : collectedObservers)
+    {
+        auto& point = mInterPointGraph[nodeLayout.size()+i];
+        auto& parent = mInterPointGraph[FindNodeOffset(nodeLayout, node)];
+        point.mParents.push_back(&parent);
+        parent.mChildren.push_back(&point);
+        point.mHeight = 0;
+        point.mComputeFunction = &Copy;
+        i++;
+    }
+
+    // Add list observer extra name to map - A rather than A[0]
+    for(auto ob : listObservers)
+    {
+        auto& point = mInterPointGraph[nodeLayout.size()+ob.second];
+        mObservers[ob.first] = &point;
+    }
+
     Stabilize();
 }
 
