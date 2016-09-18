@@ -5,8 +5,7 @@
 #include <memory>
 #include <stdint.h>
 #include <unordered_map>
-#include <map>
-#include <set>
+#include <cassert>
 
 #include "graph.h"
 
@@ -17,6 +16,7 @@ struct Point
 {
     double mVal = 0.0;
     bool mDirty = false;
+    uint16_t mLength=1;
 
     bool operator!=(const Point& rhs)
     {
@@ -25,6 +25,7 @@ struct Point
 
     virtual Point& operator[](size_t i)
     {
+        assert(i < mLength);
         return *(this+i);
     }
 

@@ -165,7 +165,7 @@ ComputeFunction Interpreter::LookupComputeFunction(Node::Ptr node)
 void Interpreter::TraverseNodes(Node::Ptr node, uint64_t& height, std::set<Node::Ptr>& necessaryNodes)
 {
     if (height > node->mHeight) node->mHeight = height;
-    necessaryNodes.insert(node);
+    if(node->mKind != Node::KIND_LIST) necessaryNodes.insert(node);
     height++;
     for(auto parent : node->mParents)
     {
@@ -178,37 +178,35 @@ static size_t FindNodeOffset(const std::vector<Node::Ptr>& nodes, Node::Ptr node
     return std::distance(nodes.begin(), std::find(std::begin(nodes), std::end(nodes), node));
 }
 
-void Interpreter::CollectNodes(Node::Ptr node, std::vector<Node::Ptr>& nodes)
-{
-    if(node->mKind != Node::KIND_LIST) nodes.push_back(node);
-    for(auto parent : node->mParents)
-    {
-        CollectNodes(parent, nodes);
-    }
-}
-
 void Interpreter::CompleteBuild()
 {
+    struct ObserverInfo
+    {
+        std::string token;
+        uint16_t length;
+        Node::Ptr node;
+    };
+
     // Collect necessary nodes - nodes that are inputs to an observable
     // node. Also set the heights from observability
     std::set<Node::Ptr> necessaryNodes;
-    std::unordered_map<Node::Ptr, std::string> observers;
-    std::vector<Node::Ptr> collectedObservers;
-    std::vector<std::pair<std::string, int>> listObservers;
+    std::vector<ObserverInfo> observers;
+
     for(auto ob : mGraph->GetObservers())
     {
+        uint16_t length = 1;
         if(ob.second->mKind == Node::KIND_LIST)
         {
             auto numNodes = collectedObservers.size();
             CollectNodes(ob.second, collectedObservers);
-            listObservers.push_back(std::make_pair(ob.first, numNodes));
+            length = numNodes - collectedObservers.size();
         }
         else
         {
             uint64_t height=0;
             TraverseNodes(ob.second, height, necessaryNodes);
-            observers[ob.second] = ob.first;
         }
+        observers.push_back({ob.second, length, ob.first});
     }
 
     // Look for input lists and capture them to make sure we 
