@@ -165,7 +165,7 @@ ComputeFunction Interpreter::LookupComputeFunction(Node::Ptr node)
 void Interpreter::TraverseNodes(Node::Ptr node, uint64_t& height, std::set<Node::Ptr>& necessaryNodes)
 {
     if (height > node->mHeight) node->mHeight = height;
-    if(node->mKind != Node::KIND_LIST) necessaryNodes.insert(node);
+    necessaryNodes.insert(node);
     height++;
     for(auto parent : node->mParents)
     {
@@ -178,9 +178,22 @@ static size_t FindNodeOffset(const std::vector<Node::Ptr>& nodes, Node::Ptr node
     return std::distance(nodes.begin(), std::find(std::begin(nodes), std::end(nodes), node));
 }
 
+void Interpreter::CollectListMembers(Node::Ptr node, std::vector<Node::Ptr>& nodes)
+{
+    if(node->mKind != Node::KIND_LIST
+    {
+        nodes.push_back(node);
+        return;
+    }
+    for(auto parent : node->mParents)
+    {
+        CollectListMembers(parent, nodes);
+    }
+}
+
 void Interpreter::CompleteBuild()
 {
-    struct ObserverInfo
+    struct ListMemberInfo
     {
         std::string token;
         uint16_t length;
@@ -190,42 +203,41 @@ void Interpreter::CompleteBuild()
     // Collect necessary nodes - nodes that are inputs to an observable
     // node. Also set the heights from observability
     std::set<Node::Ptr> necessaryNodes;
-    std::vector<ObserverInfo> observers;
+    std::vector<ListMemberInfo> observers;
+    std::vector<Node::Ptr> observerListMembers;
 
     for(auto ob : mGraph->GetObservers())
     {
-        uint16_t length = 1;
-        if(ob.second->mKind == Node::KIND_LIST)
-        {
-            auto numNodes = collectedObservers.size();
-            CollectNodes(ob.second, collectedObservers);
-            length = numNodes - collectedObservers.size();
-        }
-        else
-        {
-            uint64_t height=0;
-            TraverseNodes(ob.second, height, necessaryNodes);
-        }
+        auto numNodes = observerListMembers.size();
+        CollectObserverList(ob.second, observerListMembers);
+        uint16_t length = numNodes - observerListMembers.size();
         observers.push_back({ob.second, length, ob.first});
+    }
+    
+    for(auto ob : observerListMembers)
+    {
+        uint64_t height=0;
+        TraverseNodes(ob.second, height, necessaryNodes);
     }
 
     // Look for input lists and capture them to make sure we 
     // layout them out together
-    std::vector<Node::Ptr> collectedInputs;
-    std::vector<std::pair<std::string, Node::Ptr>> listInputs;
+    std::vector<Node::Ptr> inputListMembers;
+    std::vector<ListMemberInfo> inputs;
     for(auto in : mGraph->GetInputs())
     {
         if(in.second->mKind == Node::KIND_LIST)
         {
-            auto numNodes = collectedInputs.size();
-            CollectNodes(in.second, collectedInputs);
-            listInputs.push_back(std::make_pair(in.first, *(collectedInputs.begin()+numNodes)));
+            auto numNodes = inputListMembers.size();
+            CollectListMembers(in.second, inputListMembers);
+            inputs.push_back({in.first, inputListMembers.size()-numNodes, 
+                *(inputListMembers.begin()+numNodes)});
         }
     }
     
     // Flatten collected nodes into continous block
     std::vector<Node::Ptr> nodeLayout;
-    for(auto in : collectedInputs)
+    for(auto in : inputListMembers)
     {
         nodeLayout.push_back(in);
         necessaryNodes.erase(in);
@@ -236,14 +248,14 @@ void Interpreter::CompleteBuild()
     }
 
     // For cache niceness
-    mInterPointGraph.resize(nodeLayout.size()+collectedObservers.size());
+    mInterPointGraph.resize(nodeLayout.size()+observerListMembers.size());
 
     // Add list input extra name to map - A rather than A[0]
-    for(auto li : listInputs)
+    for(auto li : inputs)
     {
-        size_t offset = FindNodeOffset(nodeLayout, li.second);
+        size_t offset = FindNodeOffset(nodeLayout, li.node);
         auto& point = mInterPointGraph[offset];
-        mInputs[li.first] = &point;
+        mInputs[li.token] = &point;
     }
     
     // Finish adding bulk of logic
@@ -290,7 +302,7 @@ void Interpreter::CompleteBuild()
     
     // Finish adding list observe copies
     int i = 0;
-    for(auto node : collectedObservers)
+    for(auto node : observerListMembers)
     {
         auto& point = mInterPointGraph[nodeLayout.size()+i];
         auto& parent = mInterPointGraph[FindNodeOffset(nodeLayout, node)];
@@ -302,10 +314,13 @@ void Interpreter::CompleteBuild()
     }
 
     // Add list observer extra name to map - A rather than A[0]
-    for(auto ob : listObservers)
+    i = 0;
+    for(auto ob : observers)
     {
-        auto& point = mInterPointGraph[nodeLayout.size()+ob.second];
-        mObservers[ob.first] = &point;
+        auto& point = mInterPointGraph[nodeLayout.size()+i];
+        point.mLength = length;
+        mObservers[ob.token] = &point;
+        i += ob.length;
     }
 
     Stabilize();
