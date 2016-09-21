@@ -180,7 +180,7 @@ static size_t FindNodeOffset(const std::vector<Node::Ptr>& nodes, Node::Ptr node
 
 void Interpreter::CollectListMembers(Node::Ptr node, std::vector<Node::Ptr>& nodes)
 {
-    if(node->mKind != Node::KIND_LIST
+    if(node->mKind != Node::KIND_LIST)
     {
         nodes.push_back(node);
         return;
@@ -193,54 +193,59 @@ void Interpreter::CollectListMembers(Node::Ptr node, std::vector<Node::Ptr>& nod
 
 void Interpreter::CompleteBuild()
 {
-    struct ListMemberInfo
+    struct NodeInfo
     {
         std::string token;
-        uint16_t length;
-        Node::Ptr node;
+        std::vector<Node::Ptr> nodes;
     };
 
     // Collect necessary nodes - nodes that are inputs to an observable
     // node. Also set the heights from observability
     std::set<Node::Ptr> necessaryNodes;
-    std::vector<ListMemberInfo> observers;
-    std::vector<Node::Ptr> observerListMembers;
+    std::vector<NodeInfo> observersInfo;
+    int numListObserverElements = 0;
 
     for(auto ob : mGraph->GetObservers())
     {
-        auto numNodes = observerListMembers.size();
-        CollectObserverList(ob.second, observerListMembers);
-        uint16_t length = numNodes - observerListMembers.size();
-        observers.push_back({ob.second, length, ob.first});
+        NodeInfo ni; 
+        ni.token = ob.first;
+        CollectListMembers(ob.second, ni.nodes);
+        observersInfo.push_back(ni);
+        numListObserverElements += ni.nodes.size();
     }
     
-    for(auto ob : observerListMembers)
+    for(auto ob : observersInfo)
     {
-        uint64_t height=0;
-        TraverseNodes(ob.second, height, necessaryNodes);
+        for(auto node : ob.nodes)
+        {
+            uint64_t height=0;
+            TraverseNodes(node, height, necessaryNodes);
+        }
     }
 
     // Look for input lists and capture them to make sure we 
     // layout them out together
-    std::vector<Node::Ptr> inputListMembers;
-    std::vector<ListMemberInfo> inputs;
+    std::vector<NodeInfo> inputsInfo;
     for(auto in : mGraph->GetInputs())
     {
-        if(in.second->mKind == Node::KIND_LIST)
-        {
-            auto numNodes = inputListMembers.size();
-            CollectListMembers(in.second, inputListMembers);
-            inputs.push_back({in.first, inputListMembers.size()-numNodes, 
-                *(inputListMembers.begin()+numNodes)});
-        }
+        NodeInfo ni; 
+        ni.token = in.first;
+        CollectListMembers(in.second, ni.nodes);
+        inputsInfo.push_back(ni);
     }
     
     // Flatten collected nodes into continous block
     std::vector<Node::Ptr> nodeLayout;
-    for(auto in : inputListMembers)
+    for(auto ii : inputsInfo)
     {
-        nodeLayout.push_back(in);
-        necessaryNodes.erase(in);
+        // Lazy here - rather than only layout input
+        // lists in continous memory we group all 
+        // inputs together
+        for(auto in : ii.nodes)
+        {
+            nodeLayout.push_back(in);
+            necessaryNodes.erase(in);
+        }
     }
     for(auto n : necessaryNodes)
     {
@@ -248,14 +253,17 @@ void Interpreter::CompleteBuild()
     }
 
     // For cache niceness
-    mInterPointGraph.resize(nodeLayout.size()+observerListMembers.size());
+    mInterPointGraph.resize(nodeLayout.size()+numListObserverElements);
 
     // Add list input extra name to map - A rather than A[0]
-    for(auto li : inputs)
+    for(auto ii : inputsInfo)
     {
-        size_t offset = FindNodeOffset(nodeLayout, li.node);
-        auto& point = mInterPointGraph[offset];
-        mInputs[li.token] = &point;
+        if(ii.nodes.size())
+        {
+            size_t offset = FindNodeOffset(nodeLayout, ii.nodes.front());
+            auto& point = mInterPointGraph[offset];
+            mInputs[ii.token] = &point;
+        }
     }
     
     // Finish adding bulk of logic
@@ -284,14 +292,9 @@ void Interpreter::CompleteBuild()
         {
             mInputs[node->mToken] = &point;
         }
-        if((ob = observers.find(node)) != observers.end())
-        {
-            mObservers[ob->second] = &point;
-        }
 
         mRecomputeHeap.emplace(HeightPtrPair{point.mHeight, &point});
     }
-
 
     // if we have list observers increase height for everyone 
     // by one so we can have our observables copied
@@ -302,25 +305,31 @@ void Interpreter::CompleteBuild()
     
     // Finish adding list observe copies
     int i = 0;
-    for(auto node : observerListMembers)
+    for(auto oi : observersInfo)
     {
-        auto& point = mInterPointGraph[nodeLayout.size()+i];
-        auto& parent = mInterPointGraph[FindNodeOffset(nodeLayout, node)];
-        point.mParents.push_back(&parent);
-        parent.mChildren.push_back(&point);
-        point.mHeight = 0;
-        point.mComputeFunction = &Copy;
-        i++;
-    }
-
-    // Add list observer extra name to map - A rather than A[0]
-    i = 0;
-    for(auto ob : observers)
-    {
-        auto& point = mInterPointGraph[nodeLayout.size()+i];
-        point.mLength = length;
-        mObservers[ob.token] = &point;
-        i += ob.length;
+        if(oi.nodes.size() > 1)
+        {
+            // Add list observer extra name to map - A rather than A[0]
+            mObservers[oi.token] = &mInterPointGraph[nodeLayout.size()+i];
+            for(auto node : oi.nodes)
+            {
+                // Copies 
+                auto& point = mInterPointGraph[nodeLayout.size()+i];
+                auto& parent = mInterPointGraph[FindNodeOffset(nodeLayout, node)];
+                point.mParents.push_back(&parent);
+                parent.mChildren.push_back(&point);
+                point.mHeight = 0;
+                point.mComputeFunction = &Copy;
+                mRecomputeHeap.emplace(HeightPtrPair{point.mHeight, &point});
+                i++;
+            }
+        }
+        else if(oi.nodes.size())
+        {
+            // add in reference for single observe
+            auto& point = mInterPointGraph[FindNodeOffset(nodeLayout, oi.nodes.front())];
+            mObservers[oi.token] = &point;
+        }
     }
 
     Stabilize();
