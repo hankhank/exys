@@ -19,7 +19,7 @@ typedef std::function<void (InterPoint&)> ComputeFunction;
 
 struct InterPoint : Point
 {
-    uint64_t mHeight;
+    int64_t mHeight;
     std::vector<InterPoint*> mParents;
     std::vector<InterPoint*> mChildren;
     ComputeFunction mComputeFunction;
@@ -68,17 +68,16 @@ private:
     std::unordered_map<std::string, InterPoint*> mObservers;
     std::unordered_map<std::string, InterPoint*> mInputs;
 
-
     std::vector<InterPoint> mInterPointGraph;
 
     struct HeightPtrPair
     {
-        uint64_t height;
+        int64_t height;
         InterPoint* point;
 
         bool operator<(const HeightPtrPair& rhs) const
         {
-            return (height > rhs.height) || ((height == rhs.height) && (point > rhs.point));
+            return ((height > rhs.height) || ((height == rhs.height) && (point > rhs.point)));
         }
     };
     std::set<HeightPtrPair> mRecomputeHeap; // height -> Nodes

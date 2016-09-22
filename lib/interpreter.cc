@@ -218,7 +218,8 @@ void Interpreter::CompleteBuild()
     {
         for(auto node : ob.nodes)
         {
-            uint64_t height=0;
+            // Start from one so observer nodes can slot in beneath
+            uint64_t height=1;
             TraverseNodes(node, height, necessaryNodes);
         }
     }
@@ -292,7 +293,6 @@ void Interpreter::CompleteBuild()
         {
             mInputs[node->mToken] = &point;
         }
-
         mRecomputeHeap.emplace(HeightPtrPair{point.mHeight, &point});
     }
 
