@@ -65,7 +65,7 @@ Agraph_t *agmemread2(const char *cp)
 QtGvScene::QtGvScene(const QString &name, QObject *parent) 
 : QGraphicsScene(parent)
 {
-#ifdef WIN32
+#ifdef _WIN32
 	mContext = gvContextPlugins(lt_preloaded_symbols, true);
 #else
     mContext = gvContext();

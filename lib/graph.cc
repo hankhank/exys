@@ -143,7 +143,7 @@ Node::Ptr Graph::Zip(Node::Ptr node)
     auto& zparents = zipped->mParents;
     for(auto arg : args)
     {
-        int i = 0;
+        unsigned int i = 0;
         for(auto a : arg->mParents)
         {   
             if(i >= zparents.size())

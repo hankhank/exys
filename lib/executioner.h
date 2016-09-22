@@ -55,6 +55,7 @@ inline std::vector<Cell> GetTests(const std::string& text)
             }
         }
     }
+    return ret;
 }
 
 struct GraphState

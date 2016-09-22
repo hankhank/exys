@@ -1,3 +1,4 @@
+#ifndef _WIN32
 #pragma once
 
 #include <exception>
@@ -78,3 +79,4 @@ private:
 };
 
 };
+#endif

@@ -5,7 +5,6 @@
 #include "exys.h"
 #include "executioner.h"
 #include "interpreter.h"
-#include "jitter.h"
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -28,7 +27,7 @@ MainWindow::MainWindow(QWidget *parent)
     splitter->addWidget(hsplit);
 
     setCentralWidget(splitter);
-    setWindowTitle(tr("Exys Editor"));
+    setWindowTitle(tr("B-Side"));
 
     connect(editor, SIGNAL(textChanged()), SLOT(textChanged()));
 
@@ -44,7 +43,7 @@ MainWindow::MainWindow(QWidget *parent)
 
 void MainWindow::about()
 {
-    QMessageBox::about(this, tr("About Exys Editor"),
+    QMessageBox::about(this, tr("About B-Side"),
                 tr("<p><b>Exys Editor</b> allows you to express your valuations"));
 }
 

@@ -1,3 +1,4 @@
+#ifndef _WIN32
 
 #include "jitter.h"
 #include <iostream>
@@ -436,3 +437,4 @@ std::unique_ptr<IEngine> Jitter::Build(const std::string& text)
 
 }
 
+#endif

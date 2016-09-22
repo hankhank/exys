@@ -1,4 +1,6 @@
 
+#ifndef _WIN32
+
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "gputer.h"
@@ -472,3 +474,4 @@ std::unique_ptr<IEngine> Gputer::Build(const std::string& text)
 
 }
 
+#endif
