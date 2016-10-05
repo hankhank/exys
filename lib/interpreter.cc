@@ -445,7 +445,7 @@ std::unordered_map<std::string, double> Interpreter::DumpObservers()
 
 static std::unique_ptr<Graph> BuildAndLoadGraph()
 {
-    auto graph = std::make_unique<Graph>();
+    auto graph = std::unique_ptr<Graph>(new Graph);
     std::vector<Procedure> procedures;
     for(const auto &proc : AVAILABLE_PROCS) procedures.push_back(proc.procedure);
     graph->SetSupportedProcedures(procedures);
@@ -456,7 +456,7 @@ std::unique_ptr<IEngine> Interpreter::Build(const std::string& text)
 {
     auto graph = BuildAndLoadGraph();
     graph->Construct(Parse(text));
-    auto engine = std::make_unique<Interpreter>(std::move(graph));
+    auto engine = std::unique_ptr<Interpreter>(new Interpreter(std::move(graph)));
     engine->CompleteBuild();
     return std::unique_ptr<IEngine>(std::move(engine));
 }
