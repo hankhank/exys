@@ -4,7 +4,7 @@ target_include_directories (exys PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} )
 
 if (JIT)
 
-add_library(exys STATIC jitter.cc)
+target_sources(exys PRIVATE jitter.cc)
 
 find_package(LLVM REQUIRED CONFIG)
 
