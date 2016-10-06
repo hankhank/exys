@@ -68,7 +68,7 @@ void ValidateFunctionArgs(const std::string& name, const Node::Ptr node, const T
     for(auto kind : args)
     {
         Node::Kind argKind = node->mParents[i]->mKind;
-        if(kind != Node::Kind::KIND_UNKNOWN && kind != argKind)
+        if(kind != Node::Kind::KIND_UNKNOWN && !(kind & argKind))
         {
             std::stringstream err;
             err << "Incorrect argument " << i << " type for function '" << name <<
@@ -176,6 +176,14 @@ Node::Ptr Graph::Cdr(Node::Ptr node)
     return cdr;
 }
 
+Node::Ptr Graph::FlipFlop(Node::Ptr node)
+{
+    ValidateFunctionArgs("flip-flop", node, {KIND_CONST|KIND_VAR});
+    auto out = BuildNode(KIND_VAR);
+    out->mParents.push_back(node);
+    return out;
+}
+
 #define WRAP(__FUNC) \
     [this](Node::Ptr ptr) -> Node::Ptr{return this->__FUNC(ptr);}
 
@@ -183,15 +191,16 @@ Graph::Graph(Graph* parent)
 : Node(KIND_GRAPH) 
 , mParent(parent)
 {
-    AddProcFactory("for-each", WRAP(ForEach));
-    AddProcFactory("map",      WRAP(Map));
-    AddProcFactory("fold",     WRAP(Fold));
-    AddProcFactory("list",     WRAP(List));
-    AddProcFactory("zip",      WRAP(Zip));
-    AddProcFactory("car",      WRAP(Car));
-    AddProcFactory("cdr",      WRAP(Cdr));
-    AddProcFactory("head",     WRAP(Car));
-    AddProcFactory("rest",     WRAP(Cdr));
+    AddProcFactory("for-each",  WRAP(ForEach));
+    AddProcFactory("map",       WRAP(Map));
+    AddProcFactory("fold",      WRAP(Fold));
+    AddProcFactory("list",      WRAP(List));
+    AddProcFactory("zip",       WRAP(Zip));
+    AddProcFactory("car",       WRAP(Car));
+    AddProcFactory("cdr",       WRAP(Cdr));
+    AddProcFactory("head",      WRAP(Car));
+    AddProcFactory("rest",      WRAP(Cdr));
+    AddProcFactory("flip-flop", WRAP(FlipFlop));
 }
 
 template<typename T, typename... Args>

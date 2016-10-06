@@ -9,33 +9,6 @@
 namespace Exys
 {
 
-inline std::vector<std::string> SplitLine(const std::string& text)
-{
-    std::vector<std::string> ret;
-    std::string tok;
-    for(auto s = text.begin(); s != text.end(); ++s)
-    {
-        if(!iswspace(*s))
-        {
-            tok.append(1, *s);
-        }
-        else
-        {
-            if(tok.size())
-            {
-                ret.push_back(tok);
-                tok.clear();
-            }
-        }
-    }
-    if(tok.size())
-    {
-        ret.push_back(tok);
-        tok.clear();
-    }
-    return ret;
-}
-
 inline std::vector<Cell> GetTests(const std::string& text)
 {
     auto cell = Parse(text);
