@@ -8,7 +8,6 @@
 #include "executioner.h"
 #include "interpreter.h"
 #include "jitter.h"
-#include "gputer.h"
 
 int main(int argc, char* argv[])
 {

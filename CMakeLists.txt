@@ -10,6 +10,11 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 # Tell CMake to create the helloworld executable
 set (CMAKE_CXX_STANDARD 14)
 
+option(JIT "JIT" ON)
+if (NOT JIT)
+   add_definitions(-DNO_JIT)
+endif()
+
 add_subdirectory(lib)
 add_subdirectory(editor)
 add_subdirectory(test)

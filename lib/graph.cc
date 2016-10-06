@@ -429,8 +429,8 @@ Node::Ptr Graph::Build(const Cell &cell)
                 auto& inputTypeToken = cell.list[1].details.text;
                 if(inputTypeToken.compare("list") == 0)
                 {
-                    auto& listTypeToken = cell.list[2].details.text;
-                    auto listType = InputType2Enum(inputTypeToken);
+                    //auto& listTypeToken = cell.list[2].details.text;
+                    //auto listType = InputType2Enum(inputTypeToken);
 
                     // check input hasn't already been declared
                     auto& inputToken  = cell.list[3].details.text;
@@ -453,7 +453,7 @@ Node::Ptr Graph::Build(const Cell &cell)
                 }
                 else
                 {
-                    auto inputType = InputType2Enum(inputTypeToken);
+                    //auto inputType = InputType2Enum(inputTypeToken);
             
                     // Add input node
                     for(auto iter = cell.list.begin()+2;
