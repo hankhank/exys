@@ -1,0 +1,27 @@
+(begin
+    (input double in gate)
+    (observe out 
+        (flip-flop gate 
+            (flip-flop (not gate)
+                (flip-flop gate in)))))
+
+(test Gate-Off
+    (inject in 1)
+    (inject gate 0)
+    (stabilize)
+    (expect out 0))
+
+(test Gate-On
+
+    (inject gate 1)
+    (inject in 1)
+    (stabilize)
+    (expect out 0)
+
+    (inject gate 0)
+    (stabilize)
+    (expect out 0)
+
+    (inject gate 1)
+    (stabilize)
+    (expect out 1))

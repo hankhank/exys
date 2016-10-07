@@ -1,0 +1,14 @@
+(begin
+    (observe one       (iota 1 0 1))
+    (observe two       (iota 2 0 1))
+    (observe two_two   (iota 2 0 2))
+    (observe neg       (iota 2 0 -1))
+    (observe blastoff  (iota 10 10 -1)))
+
+(test Test-1
+    (stabilize)
+    (expect one     (0))
+    (expect two     (0 1))
+    (expect two_two (0 2))
+    (expect neg     (0 -1))
+    (expect blastoff (10 9 8 7 6 5 4 3 2 1)))

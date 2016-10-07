@@ -176,12 +176,20 @@ Node::Ptr Graph::Cdr(Node::Ptr node)
     return cdr;
 }
 
-Node::Ptr Graph::FlipFlop(Node::Ptr node)
+Node::Ptr Graph::Iota(Node::Ptr node)
 {
-    ValidateFunctionArgs("flip-flop", node, {KIND_CONST|KIND_VAR});
-    auto out = BuildNode(KIND_VAR);
-    out->mParents.push_back(node);
-    return out;
+    ValidateFunctionArgs("iota", node, {KIND_CONST, KIND_CONST, KIND_CONST});
+    auto count = std::stod(node->mParents[0]->mToken);
+    auto start = std::stod(node->mParents[1]->mToken);
+    auto step = std::stod(node->mParents[2]->mToken);
+    auto range = BuildNode(KIND_LIST);
+    for(int i = 0; i < count; i++)
+    {
+        auto item = BuildNode(KIND_CONST);
+        item->mToken = std::to_string(start+i*step);
+        range->mParents.push_back(item);
+    }
+    return range;
 }
 
 #define WRAP(__FUNC) \
@@ -200,7 +208,7 @@ Graph::Graph(Graph* parent)
     AddProcFactory("cdr",       WRAP(Cdr));
     AddProcFactory("head",      WRAP(Car));
     AddProcFactory("rest",      WRAP(Cdr));
-    AddProcFactory("flip-flop", WRAP(FlipFlop));
+    AddProcFactory("iota",      WRAP(Iota));
 }
 
 template<typename T, typename... Args>

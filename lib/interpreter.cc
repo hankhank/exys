@@ -37,6 +37,15 @@ void Copy(InterPoint& point)
     point = *point.mParents[0];
 }
 
+void FlipFlop(InterPoint& point)
+{
+    assert(point.mParents.size() == 2);
+    if (point.mParents[0]->mVal)
+    {
+        point = *point.mParents[1];
+    }
+}
+
 void Ternary(InterPoint& point)
 {
     assert(point.mParents.size() == 3);
@@ -108,25 +117,26 @@ static void DummyValidator(Node::Ptr)
 
 static InterPointProcessor AVAILABLE_PROCS[] =
 {
-    {{"?",    DummyValidator},  Ternary},
-    {{"+",    DummyValidator},  LoopOperator<std::plus<double>>},
-    {{"-",    DummyValidator},  LoopOperator<std::minus<double>>},
-    {{"/",    DummyValidator},  LoopOperator<std::divides<double>>},
-    {{"*",    DummyValidator},  LoopOperator<std::multiplies<double>>},
-    //{{"%",    DummyValidator},  LoopOperator<std::modulus<double>>},
-    {{"<",    DummyValidator},  PairOperator<std::less<double>>},
-    {{"<=",   DummyValidator},  PairOperator<std::less_equal<double>>},
-    {{">",    DummyValidator},  PairOperator<std::greater<double>>},
-    {{">=",   DummyValidator},  PairOperator<std::greater_equal<double>>},
-    {{"==",   DummyValidator},  PairOperator<std::equal_to<double>>},
-    {{"!=",   DummyValidator},  PairOperator<std::not_equal_to<double>>},
-    {{"&&",   DummyValidator},  PairOperator<std::logical_and<double>>},
-    {{"||",   DummyValidator},  PairOperator<std::logical_or<double>>},
-    {{"min",  DummyValidator},  LoopOperator<MinFunc>},
-    {{"max",  DummyValidator},  LoopOperator<MaxFunc>},
-    {{"exp",  DummyValidator},  UnaryOperator<ExpFunc>},
-    {{"ln",   DummyValidator},  UnaryOperator<LogFunc>},
-    {{"not",  DummyValidator},  UnaryOperator<std::logical_not<double>>}
+    {{"?",          DummyValidator},  Ternary},
+    {{"+",          DummyValidator},  LoopOperator<std::plus<double>>},
+    {{"-",          DummyValidator},  LoopOperator<std::minus<double>>},
+    {{"/",          DummyValidator},  LoopOperator<std::divides<double>>},
+    {{"*",          DummyValidator},  LoopOperator<std::multiplies<double>>},
+    //{{"%",          DummyValidator},  LoopOperator<std::modulus<double>>},
+    {{"<",          DummyValidator},  PairOperator<std::less<double>>},
+    {{"<=",         DummyValidator},  PairOperator<std::less_equal<double>>},
+    {{">",          DummyValidator},  PairOperator<std::greater<double>>},
+    {{">=",         DummyValidator},  PairOperator<std::greater_equal<double>>},
+    {{"==",         DummyValidator},  PairOperator<std::equal_to<double>>},
+    {{"!=",         DummyValidator},  PairOperator<std::not_equal_to<double>>},
+    {{"&&",         DummyValidator},  PairOperator<std::logical_and<double>>},
+    {{"||",         DummyValidator},  PairOperator<std::logical_or<double>>},
+    {{"min",        DummyValidator},  LoopOperator<MinFunc>},
+    {{"max",        DummyValidator},  LoopOperator<MaxFunc>},
+    {{"exp",        DummyValidator},  UnaryOperator<ExpFunc>},
+    {{"ln",         DummyValidator},  UnaryOperator<LogFunc>},
+    {{"not",        DummyValidator},  UnaryOperator<std::logical_not<double>>},
+    {{"flip-flop",  DummyValidator},  FlipFlop}
 };
 
 Interpreter::Interpreter(std::unique_ptr<Graph> graph)
