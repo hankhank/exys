@@ -29,10 +29,30 @@ struct InterPoint : Point
         return *(this+i);
     }
 
-    bool operator!=(const InterPoint& rhs) { return mVal != rhs.mVal; }
+    bool IsDirty() const { return mDirty; };
+    void Clean() { mDirty = false; };
+    bool operator!=(const InterPoint& rhs) const { return mVal != rhs.mVal; }
 
-    InterPoint& operator=(InterPoint ip) {mDirty = (mVal != ip.mVal); mVal = ip.mVal; return *this;}
-    InterPoint& operator=(double d)      {mDirty = (mVal != d); mVal = d; return *this;}
+    InterPoint& operator=(const InterPoint& p) 
+    {
+        mDirty = (mDirty || (mVal != p.mVal));
+        mVal = p.mVal;
+        return *this;
+    }
+
+    InterPoint& operator=(const Point& p)       
+    {
+        mDirty = (mDirty || (mVal != p.mVal));
+        mVal = p.mVal;
+        return *this;
+    }
+
+    InterPoint& operator=(double d)       
+    {
+        mDirty = (mDirty || (mVal != d));
+        mVal = d;
+        return *this;
+    }
 };
 
 class Interpreter : public IEngine

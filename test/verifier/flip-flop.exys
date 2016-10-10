@@ -1,27 +1,51 @@
 (begin
     (input double in gate)
-    (observe out 
-        (flip-flop gate 
-            (flip-flop (not gate)
-                (flip-flop gate in)))))
+
+    (define step1 (flip-flop gate in))
+    (define step2 (flip-flop gate step1))
+    (define step3 (flip-flop gate step2))
+    (observe step1 step1)
+    (observe step2 step2)
+    (observe step3 step3))
 
 (test Gate-Off
     (inject in 1)
     (inject gate 0)
     (stabilize)
-    (expect out 0))
+    (expect step1 0)
+    (expect step2 0)
+    (expect step3 0)
+
+    (inject in 2)
+    (stabilize)
+    (expect step1 0)
+    (expect step2 0)
+    (expect step3 0))
 
 (test Gate-On
 
     (inject gate 1)
     (inject in 1)
     (stabilize)
-    (expect out 0)
+    (expect step1 0)
+    (expect step2 0)
+    (expect step3 0)
 
-    (inject gate 0)
+    (inject gate 2)
+    (inject in 0)
     (stabilize)
-    (expect out 0)
+    (expect step1 1)
+    (expect step2 0)
+    (expect step3 0)
 
-    (inject gate 1)
+    (inject gate 3)
     (stabilize)
-    (expect out 1))
+    (expect step1 0)
+    (expect step2 1)
+    (expect step3 0)
+
+    (inject gate 4)
+    (stabilize)
+    (expect step1 0)
+    (expect step2 0)
+    (expect step3 1))

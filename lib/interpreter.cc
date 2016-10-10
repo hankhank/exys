@@ -24,7 +24,7 @@ namespace Exys
 struct InterPointProcessor
 {
     Procedure procedure;
-    ComputeFunction func; 
+    std::function<ComputeFunction ()> func;
 };
 
 void ConstDummy(InterPoint& /*point*/)
@@ -37,13 +37,18 @@ void Copy(InterPoint& point)
     point = *point.mParents[0];
 }
 
-void FlipFlop(InterPoint& point)
+ComputeFunction FlipFlop()
 {
-    assert(point.mParents.size() == 2);
-    if (point.mParents[0]->mVal)
+    Point lastPoint;
+    return [lastPoint](InterPoint& point) mutable
     {
-        point = *point.mParents[1];
-    }
+        assert(point.mParents.size() == 2);
+        if (point.mParents[0]->mVal)
+        {
+            point = lastPoint;
+            lastPoint = *point.mParents[1];
+        }
+    };
 }
 
 void Ternary(InterPoint& point)
@@ -88,7 +93,7 @@ void LoopOperator(InterPoint& point)
     assert(point.mParents.size() >= 2);
     Op o;
     auto p = point.mParents.begin();
-    point = (*p)->mVal;
+    point = *(*p);
     for(p++; p != point.mParents.end(); p++)
     {
         point = o(point.mVal, (*p)->mVal);
@@ -111,31 +116,36 @@ void PairOperator(InterPoint& point)
     point = o(point.mParents[0]->mVal, point.mParents[1]->mVal);
 }
 
+std::function<ComputeFunction ()> Wrap(ComputeFunction func)
+{
+    return [func]() -> ComputeFunction {return func;};
+}
+
 static void DummyValidator(Node::Ptr)
 {
 }
 
 static InterPointProcessor AVAILABLE_PROCS[] =
 {
-    {{"?",          DummyValidator},  Ternary},
-    {{"+",          DummyValidator},  LoopOperator<std::plus<double>>},
-    {{"-",          DummyValidator},  LoopOperator<std::minus<double>>},
-    {{"/",          DummyValidator},  LoopOperator<std::divides<double>>},
-    {{"*",          DummyValidator},  LoopOperator<std::multiplies<double>>},
-    //{{"%",          DummyValidator},  LoopOperator<std::modulus<double>>},
-    {{"<",          DummyValidator},  PairOperator<std::less<double>>},
-    {{"<=",         DummyValidator},  PairOperator<std::less_equal<double>>},
-    {{">",          DummyValidator},  PairOperator<std::greater<double>>},
-    {{">=",         DummyValidator},  PairOperator<std::greater_equal<double>>},
-    {{"==",         DummyValidator},  PairOperator<std::equal_to<double>>},
-    {{"!=",         DummyValidator},  PairOperator<std::not_equal_to<double>>},
-    {{"&&",         DummyValidator},  PairOperator<std::logical_and<double>>},
-    {{"||",         DummyValidator},  PairOperator<std::logical_or<double>>},
-    {{"min",        DummyValidator},  LoopOperator<MinFunc>},
-    {{"max",        DummyValidator},  LoopOperator<MaxFunc>},
-    {{"exp",        DummyValidator},  UnaryOperator<ExpFunc>},
-    {{"ln",         DummyValidator},  UnaryOperator<LogFunc>},
-    {{"not",        DummyValidator},  UnaryOperator<std::logical_not<double>>},
+    {{"?",          DummyValidator},  Wrap(Ternary)},
+    {{"+",          DummyValidator},  Wrap(LoopOperator<std::plus<double>>)},
+    {{"-",          DummyValidator},  Wrap(LoopOperator<std::minus<double>>)},
+    {{"/",          DummyValidator},  Wrap(LoopOperator<std::divides<double>>)},
+    {{"*",          DummyValidator},  Wrap(LoopOperator<std::multiplies<double>>)},
+    //{{"%",          DummyValidator},Wrap(  LoopOperator<std::modulus<double>>)},
+    {{"<",          DummyValidator},  Wrap(PairOperator<std::less<double>>)},
+    {{"<=",         DummyValidator},  Wrap(PairOperator<std::less_equal<double>>)},
+    {{">",          DummyValidator},  Wrap(PairOperator<std::greater<double>>)},
+    {{">=",         DummyValidator},  Wrap(PairOperator<std::greater_equal<double>>)},
+    {{"==",         DummyValidator},  Wrap(PairOperator<std::equal_to<double>>)},
+    {{"!=",         DummyValidator},  Wrap(PairOperator<std::not_equal_to<double>>)},
+    {{"&&",         DummyValidator},  Wrap(PairOperator<std::logical_and<double>>)},
+    {{"||",         DummyValidator},  Wrap(PairOperator<std::logical_or<double>>)},
+    {{"min",        DummyValidator},  Wrap(LoopOperator<MinFunc>)},
+    {{"max",        DummyValidator},  Wrap(LoopOperator<MaxFunc>)},
+    {{"exp",        DummyValidator},  Wrap(UnaryOperator<ExpFunc>)},
+    {{"ln",         DummyValidator},  Wrap(UnaryOperator<LogFunc>)},
+    {{"not",        DummyValidator},  Wrap(UnaryOperator<std::logical_not<double>>)},
     {{"flip-flop",  DummyValidator},  FlipFlop}
 };
 
@@ -163,7 +173,7 @@ ComputeFunction Interpreter::LookupComputeFunction(Node::Ptr node)
             {
                 if(node->mToken.compare(proc.procedure.id) == 0)
                 {
-                    return proc.func;
+                    return proc.func();
                 }
             }
         }
@@ -350,7 +360,7 @@ bool Interpreter::IsDirty()
     for(const auto& namep : mInputs)
     {
         auto& interpoint = *namep.second;
-        if(interpoint.mDirty) return true;
+        if(interpoint.IsDirty()) return true;
     }
     return false;
 }
@@ -360,28 +370,26 @@ void Interpreter::Stabilize()
     for(const auto& namep : mInputs)
     {
         auto& interpoint = *namep.second;
-        if(interpoint.mDirty)
+        if(interpoint.IsDirty())
         {
             for(auto* child : interpoint.mChildren)
             {
                 mRecomputeHeap.emplace(HeightPtrPair{child->mHeight, child});
             }
-            interpoint.mDirty = false;
+            interpoint.Clean();
         }
     }
     for(auto& hpp : mRecomputeHeap)
     {
         auto& point = *hpp.point;
-
-        InterPoint old = point;
         point.mComputeFunction(point);
-
-        if(old != point)
+        if(point.IsDirty())
         {
             for(auto* child : point.mChildren)
             {
                 mRecomputeHeap.emplace(HeightPtrPair{child->mHeight, child});
             }
+            point.Clean();
         }
     }
     mRecomputeHeap.clear();

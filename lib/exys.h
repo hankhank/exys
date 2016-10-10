@@ -29,10 +29,21 @@ struct Point
         return *(this+i);
     }
 
-    Point& operator=(Point& p) {mDirty = (mVal != p.mVal); mVal = p.mVal;  return *this;}
-    Point& operator=(double d) {mDirty = (mVal != d); mVal = d; return *this;}
-    bool operator==(double d)  {return mVal == d;}
-    bool operator!=(double d)  {return mVal != d;}
+    Point& operator=(const Point& p) 
+    {
+            mDirty = (mDirty || (mVal != p.mVal));
+            mVal = p.mVal;
+            return *this;
+    }
+
+    Point& operator=(double d)       
+    {
+        mDirty = (mDirty || (mVal != d));
+        mVal = d;
+        return *this;
+    }
+    bool operator==(double d) const  {return mVal == d;}
+    bool operator!=(double d) const  {return mVal != d;}
 };
 
 class IEngine
