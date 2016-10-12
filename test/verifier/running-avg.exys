@@ -1,0 +1,57 @@
+(begin
+    (input double incomingval)
+    (input double latch)
+    (define running-avg
+        (lambda (size latch incomingval)
+            (begin
+                (define avg 0)
+                (fold 
+                    (lambda (last new) 
+                        (begin
+                            (set! avg (+ avg last))
+                            (flip-flop latch last)))
+                incomingval (iota size 0 1))
+            (/ avg size))))
+    (observe out (running-avg 10 latch incomingval)))
+
+(test test-1
+    (inject latch 1)
+    (inject incomingval 1)
+    (stabilize)
+    (expect out 0.1)
+
+    (inject latch 2)
+    (stabilize)
+    (expect out 0.2)
+
+    (inject latch 3)
+    (stabilize)
+    (expect out 0.3)
+
+    (inject latch 4)
+    (stabilize)
+    (expect out 0.4)
+
+    (inject latch 5)
+    (stabilize)
+    (expect out 0.5)
+
+    (inject latch 6)
+    (stabilize)
+    (expect out 0.6)
+
+    (inject latch 7)
+    (stabilize)
+    (expect out 0.7)
+
+    (inject latch 8)
+    (stabilize)
+    (expect out 0.8)
+
+    (inject latch 9)
+    (stabilize)
+    (expect out 0.9)
+
+    (inject latch 10)
+    (stabilize)
+    (expect out 1.0))

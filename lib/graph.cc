@@ -7,9 +7,8 @@
 #include "helpers.h"
 
 // Things to test
-// lists
-// memory - flipflop
 // timers/decay
+// imports
 
 namespace Exys
 {
@@ -491,6 +490,10 @@ Node::Ptr Graph::Build(const Cell &cell)
 
                 // Register Observer
                 auto varNode = Build(varToken);
+                if(!varNode)
+                {
+                    throw GraphBuildException("Node isn't observerable", cell);
+                }
                 varNode->mIsObserver = true;
                 mObservers[outputToken] = varNode;
             }
