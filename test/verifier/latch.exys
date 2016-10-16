@@ -1,0 +1,19 @@
+(begin
+    (input double in)
+    (input double gate)
+    (observe out (latch gate in)))
+
+(test test-1
+    (inject in 1)
+    (inject gate 1)
+    (stabilize)
+    (expect out 1)
+
+    (inject in 2)
+    (inject gate 0)
+    (stabilize)
+    (expect out 1)
+
+    (inject gate 1)
+    (stabilize)
+    (expect out 2))

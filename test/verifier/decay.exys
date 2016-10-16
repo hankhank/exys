@@ -1,0 +1,30 @@
+(begin
+    (input double naturalhalflife)
+    (input double gate)
+    (input double input)
+    (input double time)
+
+    ; N0 * e ^ - t/T
+    (define half-life-decay
+        (lambda (naturalhalflife gate input time)
+            (begin
+                (define gatetime (latch gate time))
+                (define N0 (latch gate input))
+                (define t_T (/ (- time gatetime)
+                                naturalhalflife))
+                (* N0 (exp (- 0 t_T))))))
+    (observe out 
+        (half-life-decay naturalhalflife gate input time)))
+
+(test test-1
+    (inject naturalhalflife 5)
+    (inject gate 1)
+    (inject input 100)
+    (inject time 0)
+    (stabilize)
+
+    (inject gate 0)
+    (inject time 1)
+    (stabilize)
+    (inject time 100)
+    (stabilize))
