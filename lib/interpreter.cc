@@ -37,6 +37,20 @@ void Copy(InterPoint& point)
     point = *point.mParents[0];
 }
 
+ComputeFunction Latch()
+{
+    Point lastPoint;
+    return [lastPoint](InterPoint& point) mutable
+    {
+        assert(point.mParents.size() == 2);
+        if (point.mParents[0]->mVal)
+        {
+            lastPoint = *point.mParents[1];
+            point = lastPoint;
+        }
+    };
+}
+
 ComputeFunction FlipFlop()
 {
     Point lastPoint;
@@ -125,28 +139,64 @@ static void DummyValidator(Node::Ptr)
 {
 }
 
+template<size_t N>
+void MinCountValueValidator(Node::Ptr point)
+{
+    if(point->mParents.size() < N)
+    {
+        Cell cell;
+        std::stringstream err;
+        err << "Not enough items in list for function. Expected at least "
+            << N << " Got " << point->mParents.size();
+        throw GraphBuildException(err.str(), cell);
+    }
+}
+
+template<size_t N1, size_t N2>
+void CountValueValidator(Node::Ptr point)
+{
+    if(point->mParents.size() < N1)
+    {
+        Cell cell;
+        std::stringstream err;
+        err << "Not enough items in list for function. Expected at least "
+            << N1 << " Got " << point->mParents.size();
+        throw GraphBuildException(err.str(), cell);
+    }
+
+    if(point->mParents.size() > N2)
+    {
+        Cell cell;
+        std::stringstream err;
+        err << "Too many items in list for function. Expected at most "
+            << N2 << " Got " << point->mParents.size();
+        throw GraphBuildException(err.str(), cell);
+    }
+}
+
 static InterPointProcessor AVAILABLE_PROCS[] =
 {
-    {{"?",          DummyValidator},  Wrap(Ternary)},
-    {{"+",          DummyValidator},  Wrap(LoopOperator<std::plus<double>>)},
-    {{"-",          DummyValidator},  Wrap(LoopOperator<std::minus<double>>)},
-    {{"/",          DummyValidator},  Wrap(LoopOperator<std::divides<double>>)},
-    {{"*",          DummyValidator},  Wrap(LoopOperator<std::multiplies<double>>)},
+    {{"?",          CountValueValidator<3, 3>},  Wrap(Ternary)},
+    {{"+",          MinCountValueValidator<2>},  Wrap(LoopOperator<std::plus<double>>)},
+    {{"-",          MinCountValueValidator<2>},  Wrap(LoopOperator<std::minus<double>>)},
+    {{"/",          MinCountValueValidator<2>},  Wrap(LoopOperator<std::divides<double>>)},
+    {{"*",          MinCountValueValidator<2>},  Wrap(LoopOperator<std::multiplies<double>>)},
     //{{"%",          DummyValidator},Wrap(  LoopOperator<std::modulus<double>>)},
-    {{"<",          DummyValidator},  Wrap(PairOperator<std::less<double>>)},
-    {{"<=",         DummyValidator},  Wrap(PairOperator<std::less_equal<double>>)},
-    {{">",          DummyValidator},  Wrap(PairOperator<std::greater<double>>)},
-    {{">=",         DummyValidator},  Wrap(PairOperator<std::greater_equal<double>>)},
-    {{"==",         DummyValidator},  Wrap(PairOperator<std::equal_to<double>>)},
-    {{"!=",         DummyValidator},  Wrap(PairOperator<std::not_equal_to<double>>)},
-    {{"&&",         DummyValidator},  Wrap(PairOperator<std::logical_and<double>>)},
-    {{"||",         DummyValidator},  Wrap(PairOperator<std::logical_or<double>>)},
-    {{"min",        DummyValidator},  Wrap(LoopOperator<MinFunc>)},
-    {{"max",        DummyValidator},  Wrap(LoopOperator<MaxFunc>)},
-    {{"exp",        DummyValidator},  Wrap(UnaryOperator<ExpFunc>)},
-    {{"ln",         DummyValidator},  Wrap(UnaryOperator<LogFunc>)},
-    {{"not",        DummyValidator},  Wrap(UnaryOperator<std::logical_not<double>>)},
-    {{"flip-flop",  DummyValidator},  FlipFlop}
+    {{"<",          CountValueValidator<2,2>},  Wrap(PairOperator<std::less<double>>)},
+    {{"<=",         CountValueValidator<2,2>},  Wrap(PairOperator<std::less_equal<double>>)},
+    {{">",          CountValueValidator<2,2>},  Wrap(PairOperator<std::greater<double>>)},
+    {{">=",         CountValueValidator<2,2>},  Wrap(PairOperator<std::greater_equal<double>>)},
+    {{"==",         CountValueValidator<2,2>},  Wrap(PairOperator<std::equal_to<double>>)},
+    {{"!=",         CountValueValidator<2,2>},  Wrap(PairOperator<std::not_equal_to<double>>)},
+    {{"&&",         CountValueValidator<2,2>},  Wrap(PairOperator<std::logical_and<double>>)},
+    {{"||",         CountValueValidator<2,2>},  Wrap(PairOperator<std::logical_or<double>>)},
+    {{"min",        MinCountValueValidator<2>},  Wrap(LoopOperator<MinFunc>)},
+    {{"max",        MinCountValueValidator<2>},  Wrap(LoopOperator<MaxFunc>)},
+    {{"exp",        CountValueValidator<1,1>},  Wrap(UnaryOperator<ExpFunc>)},
+    {{"ln",         CountValueValidator<1,1>},  Wrap(UnaryOperator<LogFunc>)},
+    {{"not",        CountValueValidator<1,1>},  Wrap(UnaryOperator<std::logical_not<double>>)},
+    {{"latch",      CountValueValidator<2,2>},  Latch},
+    {{"flip-flop",  CountValueValidator<2,2>},  FlipFlop}
 };
 
 Interpreter::Interpreter(std::unique_ptr<Graph> graph)
