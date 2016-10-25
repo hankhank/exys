@@ -65,6 +65,15 @@ ComputeFunction FlipFlop()
     };
 }
 
+ComputeFunction Tick()
+{
+    uint64_t tick=0;
+    return [tick](InterPoint& point) mutable
+    {
+        point = ++tick;
+    };
+}
+
 void Ternary(InterPoint& point)
 {
     assert(point.mParents.size() == 3);
@@ -176,7 +185,7 @@ void CountValueValidator(Node::Ptr point)
 
 static InterPointProcessor AVAILABLE_PROCS[] =
 {
-    {{"?",          CountValueValidator<3, 3>},  Wrap(Ternary)},
+    {{"?",          CountValueValidator<3,3>},  Wrap(Ternary)},
     {{"+",          MinCountValueValidator<2>},  Wrap(LoopOperator<std::plus<double>>)},
     {{"-",          MinCountValueValidator<2>},  Wrap(LoopOperator<std::minus<double>>)},
     {{"/",          MinCountValueValidator<2>},  Wrap(LoopOperator<std::divides<double>>)},
@@ -196,7 +205,10 @@ static InterPointProcessor AVAILABLE_PROCS[] =
     {{"ln",         CountValueValidator<1,1>},  Wrap(UnaryOperator<LogFunc>)},
     {{"not",        CountValueValidator<1,1>},  Wrap(UnaryOperator<std::logical_not<double>>)},
     {{"latch",      CountValueValidator<2,2>},  Latch},
-    {{"flip-flop",  CountValueValidator<2,2>},  FlipFlop}
+    {{"flip-flop",  CountValueValidator<2,2>},  FlipFlop},
+    {{"tick",       MinCountValueValidator<0>}, Tick},
+    {{"sort",       DummyValidator}, Tick},
+    {{"combine-by-key",       DummyValidator}, Tick}
 };
 
 Interpreter::Interpreter(std::unique_ptr<Graph> graph)

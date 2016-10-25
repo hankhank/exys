@@ -70,7 +70,7 @@ void BM_ExecuteGraph_DeepSum(benchmark::State& state)
         point = ++adder;
         engine->Stabilize();
         cur = (++cur) % max;
-        assert(output == (state.range(0)+adder));
+        //assert(output == (state.range(0)+adder));
     }
 }
 
@@ -132,7 +132,7 @@ void BM_ExecuteGraph_FatSum(benchmark::State& state)
         point = ++adder;
         engine->Stabilize();
         cur = (++cur) % max;
-        assert(output == (state.range(0)+adder));
+        //assert(output == (std::accumulate(&inputs[0], &inputs[max-1], 0)));
     }
 }
 

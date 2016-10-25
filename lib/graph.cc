@@ -6,8 +6,6 @@
 #include "graph.h"
 #include "helpers.h"
 
-// Things to test
-// timers/decay
 // imports
 
 namespace Exys
@@ -191,6 +189,67 @@ Node::Ptr Graph::Iota(Node::Ptr node)
     return range;
 }
 
+Node::Ptr Graph::Apply(Node::Ptr node)
+{
+    //ValidateFunctionArgs("apply", node, 2);
+    auto args = node->mParents;
+    auto func = std::static_pointer_cast<ProcNodeFactory>(args[0]);
+
+    auto nodes = BuildNode(KIND_LIST);
+    for(auto arg = args.begin()+1;
+            arg != args.end(); arg++)
+    {
+        auto& a = (*arg);
+        if(a->mKind == Node::Kind::KIND_LIST)
+        {
+            for(auto n : a->mParents)
+            {
+                nodes->mParents.push_back(n);
+            }
+        }
+        else
+        {
+            nodes->mParents.push_back(a);
+        }
+    }
+
+    return func->mFactory(nodes);
+}
+
+Node::Ptr Graph::Append(Node::Ptr node)
+{
+    //ValidateFunctionArgs("apply", node, 2);
+    auto args = node->mParents;
+
+    auto nodes = BuildNode(KIND_LIST);
+    for(auto arg = args.begin();
+            arg != args.end(); arg++)
+    {
+        auto& a = (*arg);
+        if(a->mKind == Node::Kind::KIND_LIST)
+        {
+            for(auto n : a->mParents)
+            {
+                nodes->mParents.push_back(n);
+            }
+        }
+        else
+        {
+            nodes->mParents.push_back(a);
+        }
+    }
+
+    return nodes;
+}
+
+Node::Ptr Graph::Import(Node::Ptr node)
+{
+    // Get library path
+    // Search library paths
+    // Build
+}
+
+
 #define WRAP(__FUNC) \
     [this](Node::Ptr ptr) -> Node::Ptr{return this->__FUNC(ptr);}
 
@@ -208,6 +267,9 @@ Graph::Graph(Graph* parent)
     AddProcFactory("head",      WRAP(Car));
     AddProcFactory("rest",      WRAP(Cdr));
     AddProcFactory("iota",      WRAP(Iota));
+    AddProcFactory("import",    WRAP(Import));
+    AddProcFactory("apply",     WRAP(Apply));
+    AddProcFactory("append",    WRAP(Append));
 }
 
 template<typename T, typename... Args>
