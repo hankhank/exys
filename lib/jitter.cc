@@ -4,7 +4,8 @@
 #include <iostream>
 #include <sstream>
 #include <cassert>
-#include <cmath>
+
+#include "llvm/IR/Intrinsics.h"
 
 namespace Exys
 {
@@ -24,7 +25,7 @@ struct JitPoint
     }
 };
 
-typedef std::function<llvm::Value* (llvm::IRBuilder<>&, const JitPoint&)> ComputeFunction;
+typedef std::function<llvm::Value* (llvm::Module*, llvm::IRBuilder<>&, const JitPoint&)> ComputeFunction;
 
 struct JitPointProcessor
 {
@@ -36,7 +37,7 @@ static void DummyValidator(Node::Ptr)
 {
 }
 
-llvm::Value* JitTernary(llvm::IRBuilder<>& builder, const JitPoint& point)
+llvm::Value* JitTernary(llvm::Module*, llvm::IRBuilder<>& builder, const JitPoint& point)
 {
     assert(point.mParents.size() == 3);
     llvm::Value* cmp = point.mParents[0]->mValue;
@@ -51,8 +52,25 @@ llvm::Value* JitTernary(llvm::IRBuilder<>& builder, const JitPoint& point)
             point.mParents[2]->mValue);
 }
 
+#define DEFINE_INTRINSICS_LOOP_OPERATOR(__FUNCNAME, __INFUNC) \
+llvm::Value* __FUNCNAME(llvm::Module *M, llvm::IRBuilder<>& builder, const JitPoint& point) \
+{ \
+    std::vector<llvm::Type*> argTypes; \
+    std::vector<llvm::Value*> argValues; \
+    for(auto p = point.mParents.begin();  p != point.mParents.end(); p++) \
+    { \
+        assert((*p)->mValue); \
+        argTypes.push_back(builder.getDoubleTy()); \
+        argValues.push_back((*p)->mValue); \
+    } \
+    llvm::Function *fun = llvm::Intrinsic::getDeclaration(M, llvm::Intrinsic::__INFUNC, argTypes); \
+    return builder.CreateCall(fun, argValues); \
+}
+
+DEFINE_INTRINSICS_LOOP_OPERATOR(JitDoubleExp, exp);
+
 #define DEFINE_LOOP_OPERATOR(__FUNCNAME, __MEMFUNC) \
-llvm::Value* __FUNCNAME(llvm::IRBuilder<>& builder, const JitPoint& point) \
+llvm::Value* __FUNCNAME(llvm::Module*, llvm::IRBuilder<>& builder, const JitPoint& point) \
 { \
     assert(point.mParents.size() >= 2); \
     auto p = point.mParents.begin(); \
@@ -72,7 +90,7 @@ DEFINE_LOOP_OPERATOR(JitDoubleMul, CreateFMul);
 DEFINE_LOOP_OPERATOR(JitDoubleDiv, CreateFDiv);
 
 #define DEFINE_PAIR_OPERATOR(__FUNCNAME, __MEMFUNC) \
-llvm::Value* __FUNCNAME(llvm::IRBuilder<>& builder, const JitPoint& point) \
+llvm::Value* __FUNCNAME(llvm::Module*, llvm::IRBuilder<>& builder, const JitPoint& point) \
 { \
     assert(point.mParents.size() == 2); \
     return builder.__MEMFUNC(point.mParents[0]->mValue, point.mParents[1]->mValue); \
@@ -105,7 +123,7 @@ static JitPointProcessor AVAILABLE_PROCS[] =
     {{"||",   DummyValidator},  JitDoubleOr},
     //{{"min",  DummyValidator},  LoopOperator<MinFunc>},
     //{{"max",  DummyValidator},  LoopOperator<MaxFunc>},
-    //{{"exp",  DummyValidator},  UnaryOperator<ExpFunc>},
+    {{"exp",  DummyValidator},  JitDoubleExp},
     //{{"ln",   DummyValidator},  UnaryOperator<LogFunc>},
     //{{"not",  DummyValidator},  UnaryOperator<std::logical_not<double>>}
 };
@@ -158,7 +176,7 @@ llvm::Value* Jitter::GetPtrForPoint(Point& point)
     return llvm::ConstantExpr::getIntToPtr(ptrAsInt, llvm::Type::getDoublePtrTy(*mLlvmContext));
 }
 
-llvm::Value* Jitter::JitNode(llvm::IRBuilder<>& builder, const JitPoint& jp)
+llvm::Value* Jitter::JitNode(llvm::Module* M, llvm::IRBuilder<>& builder, const JitPoint& jp)
 {
     llvm::Value* ret = nullptr;
     if(jp.mNode->mKind == Node::KIND_CONST)
@@ -176,7 +194,7 @@ llvm::Value* Jitter::JitNode(llvm::IRBuilder<>& builder, const JitPoint& jp)
         {
             if(jp.mNode->mToken.compare(proc.procedure.id) == 0)
             {
-                ret = proc.func(builder, jp);
+                ret = proc.func(M, builder, jp);
             }
         }
         assert(ret);
@@ -304,7 +322,7 @@ void Jitter::CompleteBuild()
 
     for(auto& jp : jitHeap)
     {
-        const_cast<JitPoint*>(jp)->mValue = JitNode(builder, *jp);
+        const_cast<JitPoint*>(jp)->mValue = JitNode(M, builder, *jp);
     }
 
     builder.CreateRetVoid();

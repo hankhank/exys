@@ -1,0 +1,10 @@
+(begin
+    (input double in)
+    (observe out (exp in)))
+
+(test test-1
+    (inject in 1)
+    (stabilize)
+    (expect out 2.718282)
+)
+    
