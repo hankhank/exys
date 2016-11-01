@@ -52,22 +52,41 @@ llvm::Value* JitTernary(llvm::Module*, llvm::IRBuilder<>& builder, const JitPoin
             point.mParents[2]->mValue);
 }
 
-#define DEFINE_INTRINSICS_LOOP_OPERATOR(__FUNCNAME, __INFUNC) \
+#define DEFINE_INTRINSICS_UNARY_OPERATOR(__FUNCNAME, __INFUNC) \
 llvm::Value* __FUNCNAME(llvm::Module *M, llvm::IRBuilder<>& builder, const JitPoint& point) \
 { \
     std::vector<llvm::Type*> argTypes; \
     std::vector<llvm::Value*> argValues; \
-    for(auto p = point.mParents.begin();  p != point.mParents.end(); p++) \
-    { \
-        assert((*p)->mValue); \
-        argTypes.push_back(builder.getDoubleTy()); \
-        argValues.push_back((*p)->mValue); \
-    } \
+    auto p = point.mParents.begin(); \
+    argTypes.push_back(builder.getDoubleTy()); \
+    argValues.push_back((*p)->mValue); \
     llvm::Function *fun = llvm::Intrinsic::getDeclaration(M, llvm::Intrinsic::__INFUNC, argTypes); \
     return builder.CreateCall(fun, argValues); \
 }
 
-DEFINE_INTRINSICS_LOOP_OPERATOR(JitDoubleExp, exp);
+DEFINE_INTRINSICS_UNARY_OPERATOR(JitDoubleExp, exp);
+DEFINE_INTRINSICS_UNARY_OPERATOR(JitDoubleLn, log);
+
+#define DEFINE_INTRINSICS_LOOP_OPERATOR(__FUNCNAME, __INFUNC) \
+llvm::Value* __FUNCNAME(llvm::Module *M, llvm::IRBuilder<>& builder, const JitPoint& point) \
+{ \
+    auto p = point.mParents.begin(); \
+    llvm::Value *val = (*p)->mValue; \
+    for(++p; p != point.mParents.end(); p++) \
+    { \
+        assert((*p)->mValue); \
+        std::vector<llvm::Type*> argTypes; \
+        std::vector<llvm::Value*> argValues; \
+        argTypes.push_back(builder.getDoubleTy()); \
+        argValues.push_back((*p)->mValue); \
+        llvm::Function *fun = llvm::Intrinsic::getDeclaration(M, llvm::Intrinsic::__INFUNC, argTypes); \
+        val = builder.CreateCall(fun, argValues); \
+    } \
+    return val; \
+}
+
+DEFINE_INTRINSICS_LOOP_OPERATOR(JitDoubleMin, minnum);
+DEFINE_INTRINSICS_LOOP_OPERATOR(JitDoubleMax, maxnum);
 
 #define DEFINE_LOOP_OPERATOR(__FUNCNAME, __MEMFUNC) \
 llvm::Value* __FUNCNAME(llvm::Module*, llvm::IRBuilder<>& builder, const JitPoint& point) \
@@ -75,7 +94,7 @@ llvm::Value* __FUNCNAME(llvm::Module*, llvm::IRBuilder<>& builder, const JitPoin
     assert(point.mParents.size() >= 2); \
     auto p = point.mParents.begin(); \
     llvm::Value *val = (*p)->mValue; \
-    for(p++; p != point.mParents.end(); p++) \
+    for(++p; p != point.mParents.end(); ++p) \
     { \
         assert(val); \
         assert((*p)->mValue); \
@@ -88,14 +107,6 @@ DEFINE_LOOP_OPERATOR(JitDoubleAdd, CreateFAdd);
 DEFINE_LOOP_OPERATOR(JitDoubleSub, CreateFSub);
 DEFINE_LOOP_OPERATOR(JitDoubleMul, CreateFMul);
 DEFINE_LOOP_OPERATOR(JitDoubleDiv, CreateFDiv);
-
-#define DEFINE_PAIR_OPERATOR(__FUNCNAME, __MEMFUNC) \
-llvm::Value* __FUNCNAME(llvm::Module*, llvm::IRBuilder<>& builder, const JitPoint& point) \
-{ \
-    assert(point.mParents.size() == 2); \
-    return builder.__MEMFUNC(point.mParents[0]->mValue, point.mParents[1]->mValue); \
-}
-
 DEFINE_LOOP_OPERATOR(JitDoubleLT,  CreateFCmpOLT);
 DEFINE_LOOP_OPERATOR(JitDoubleLE,  CreateFCmpOLE);
 DEFINE_LOOP_OPERATOR(JitDoubleGT,  CreateFCmpOGT);
@@ -104,6 +115,14 @@ DEFINE_LOOP_OPERATOR(JitDoubleEQ,  CreateFCmpOEQ);
 DEFINE_LOOP_OPERATOR(JitDoubleNE,  CreateFCmpONE);
 DEFINE_LOOP_OPERATOR(JitDoubleAnd, CreateAnd);
 DEFINE_LOOP_OPERATOR(JitDoubleOr,  CreateOr);
+
+#define DEFINE_PAIR_OPERATOR(__FUNCNAME, __MEMFUNC) \
+llvm::Value* __FUNCNAME(llvm::Module*, llvm::IRBuilder<>& builder, const JitPoint& point) \
+{ \
+    assert(point.mParents.size() == 2); \
+    return builder.__MEMFUNC(point.mParents[0]->mValue, point.mParents[1]->mValue); \
+}
+
 
 static JitPointProcessor AVAILABLE_PROCS[] =
 {
@@ -121,11 +140,11 @@ static JitPointProcessor AVAILABLE_PROCS[] =
     {{"!=",   DummyValidator},  JitDoubleNE},
     {{"&&",   DummyValidator},  JitDoubleAnd},
     {{"||",   DummyValidator},  JitDoubleOr},
-    //{{"min",  DummyValidator},  LoopOperator<MinFunc>},
-    //{{"max",  DummyValidator},  LoopOperator<MaxFunc>},
+    {{"min",  DummyValidator},  JitDoubleMin},
+    {{"max",  DummyValidator},  JitDoubleMax},
     {{"exp",  DummyValidator},  JitDoubleExp},
-    //{{"ln",   DummyValidator},  UnaryOperator<LogFunc>},
-    //{{"not",  DummyValidator},  UnaryOperator<std::logical_not<double>>}
+    {{"ln",   DummyValidator},  JitDoubleLn},
+    //{{"not",  DummyValidator},  JitDoubleNot}
 };
 
 Jitter::Jitter(std::unique_ptr<Graph> graph)
