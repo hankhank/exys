@@ -6,21 +6,24 @@
 #include <stdint.h>
 #include <unordered_map>
 #include <cassert>
+#include <cmath>
 
 #include "graph.h"
 
 namespace Exys
 {
 
+
 struct Point
 {
+    static constexpr double POINT_EPSILON = 0.000001;
     double mVal = 0.0;
     bool mDirty = false;
     uint16_t mLength=1;
 
     bool operator!=(const Point& rhs)
     {
-        return mVal != rhs.mVal;
+        return std::abs(mVal - rhs.mVal) > POINT_EPSILON;
     }
 
     virtual Point& operator[](size_t i)
@@ -31,9 +34,9 @@ struct Point
 
     Point& operator=(const Point& p) 
     {
-            mDirty = (mDirty || (mVal != p.mVal));
-            mVal = p.mVal;
-            return *this;
+        mDirty = (mDirty || (mVal != p.mVal));
+        mVal = p.mVal;
+        return *this;
     }
 
     Point& operator=(double d)       

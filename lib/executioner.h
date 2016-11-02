@@ -118,7 +118,7 @@ inline std::tuple<bool, std::string, std::string> RunTest(IEngine& exysInstance,
                     {
                         ret &= false;
                         resultStr += "Value does not meet expectation - " + label + "!=" 
-                            + val.details.text + " actual " + std::to_string(p.mVal);
+                            + val.details.text + " actual " + std::to_string(p.mVal) + "\n";
                     }
                 }
                 else if(val.type == Cell::Type::LIST)

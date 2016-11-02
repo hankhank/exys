@@ -66,18 +66,21 @@ llvm::Value* __FUNCNAME(llvm::Module *M, llvm::IRBuilder<>& builder, const JitPo
 
 DEFINE_INTRINSICS_UNARY_OPERATOR(JitDoubleExp, exp);
 DEFINE_INTRINSICS_UNARY_OPERATOR(JitDoubleLn, log);
+//DEFINE_INTRINSICS_UNARY_OPERATOR(JitDoubleNot, not);
 
 #define DEFINE_INTRINSICS_LOOP_OPERATOR(__FUNCNAME, __INFUNC) \
 llvm::Value* __FUNCNAME(llvm::Module *M, llvm::IRBuilder<>& builder, const JitPoint& point) \
 { \
     auto p = point.mParents.begin(); \
     llvm::Value *val = (*p)->mValue; \
-    for(++p; p != point.mParents.end(); p++) \
+    for(++p; p != point.mParents.end(); ++p) \
     { \
         assert((*p)->mValue); \
         std::vector<llvm::Type*> argTypes; \
         std::vector<llvm::Value*> argValues; \
         argTypes.push_back(builder.getDoubleTy()); \
+        argTypes.push_back(builder.getDoubleTy()); \
+        argValues.push_back(val); \
         argValues.push_back((*p)->mValue); \
         llvm::Function *fun = llvm::Intrinsic::getDeclaration(M, llvm::Intrinsic::__INFUNC, argTypes); \
         val = builder.CreateCall(fun, argValues); \

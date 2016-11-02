@@ -5,6 +5,7 @@
 (test test-1
     (inject in 1)
     (stabilize)
-    (expect out 2.718282)
+    (expect out 2.7182818284590451)
+
 )
     
