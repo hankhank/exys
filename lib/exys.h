@@ -54,7 +54,7 @@ class IEngine
 public:
     virtual ~IEngine() {}
 
-    virtual void Stabilize() = 0;
+    virtual void Stabilize(bool force=false) = 0;
     virtual bool IsDirty() = 0;
 
     virtual bool HasInputPoint(const std::string& label) = 0;

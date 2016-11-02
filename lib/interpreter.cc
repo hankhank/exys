@@ -427,12 +427,12 @@ bool Interpreter::IsDirty()
     return false;
 }
 
-void Interpreter::Stabilize()
+void Interpreter::Stabilize(bool force)
 {
     for(const auto& namep : mInputs)
     {
         auto& interpoint = *namep.second;
-        if(interpoint.IsDirty())
+        if(force || interpoint.IsDirty())
         {
             for(auto* child : interpoint.mChildren)
             {

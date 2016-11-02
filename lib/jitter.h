@@ -37,7 +37,7 @@ public:
 
     virtual ~Jitter();
 
-    void Stabilize() override;
+    void Stabilize(bool force=false) override;
     bool IsDirty() override;
 
     bool HasInputPoint(const std::string& label) override;

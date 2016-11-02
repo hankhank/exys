@@ -52,6 +52,20 @@ llvm::Value* JitTernary(llvm::Module*, llvm::IRBuilder<>& builder, const JitPoin
             point.mParents[2]->mValue);
 }
 
+llvm::Value* JitDoubleNot(llvm::Module*, llvm::IRBuilder<>& builder, const JitPoint& point)
+{
+    assert(point.mParents.size() == 1);
+    llvm::Value* cmp = point.mParents[0]->mValue;
+    llvm::Value* zero = llvm::ConstantFP::get(builder.getDoubleTy(), 0.0);
+    llvm::Value* one = llvm::ConstantFP::get(builder.getDoubleTy(), 1.0);
+    if(cmp->getType() == builder.getDoubleTy())
+    {
+        cmp = builder.CreateFCmpONE(point.mParents[0]->mValue, zero);
+    }
+
+    return builder.CreateSelect(cmp, zero, one);
+}
+
 #define DEFINE_INTRINSICS_UNARY_OPERATOR(__FUNCNAME, __INFUNC) \
 llvm::Value* __FUNCNAME(llvm::Module *M, llvm::IRBuilder<>& builder, const JitPoint& point) \
 { \
@@ -66,7 +80,6 @@ llvm::Value* __FUNCNAME(llvm::Module *M, llvm::IRBuilder<>& builder, const JitPo
 
 DEFINE_INTRINSICS_UNARY_OPERATOR(JitDoubleExp, exp);
 DEFINE_INTRINSICS_UNARY_OPERATOR(JitDoubleLn, log);
-//DEFINE_INTRINSICS_UNARY_OPERATOR(JitDoubleNot, not);
 
 #define DEFINE_INTRINSICS_LOOP_OPERATOR(__FUNCNAME, __INFUNC) \
 llvm::Value* __FUNCNAME(llvm::Module *M, llvm::IRBuilder<>& builder, const JitPoint& point) \
@@ -147,7 +160,7 @@ static JitPointProcessor AVAILABLE_PROCS[] =
     {{"max",  DummyValidator},  JitDoubleMax},
     {{"exp",  DummyValidator},  JitDoubleExp},
     {{"ln",   DummyValidator},  JitDoubleLn},
-    //{{"not",  DummyValidator},  JitDoubleNot}
+    {{"not",  DummyValidator},  JitDoubleNot}
 };
 
 Jitter::Jitter(std::unique_ptr<Graph> graph)
@@ -365,7 +378,7 @@ void Jitter::CompleteBuild()
 
     //std::cout << GetLlvmIR();
 
-    Stabilize();
+    Stabilize(true);
 }
 
 bool Jitter::IsDirty()
@@ -374,9 +387,9 @@ bool Jitter::IsDirty()
     return false;
 }
 
-void Jitter::Stabilize()
+void Jitter::Stabilize(bool force)
 {
-    if(IsDirty())
+    if(force || IsDirty())
     {
         if(mRawStabilizeFunc)
         {
