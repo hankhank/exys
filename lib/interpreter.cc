@@ -206,9 +206,7 @@ static InterPointProcessor AVAILABLE_PROCS[] =
     {{"not",        CountValueValidator<1,1>},  Wrap(UnaryOperator<std::logical_not<double>>)},
     {{"latch",      CountValueValidator<2,2>},  Latch},
     {{"flip-flop",  CountValueValidator<2,2>},  FlipFlop},
-    {{"tick",       MinCountValueValidator<0>}, Tick},
-    {{"sort",       DummyValidator}, Tick},
-    {{"combine-by-key",       DummyValidator}, Tick}
+    {{"tick",       MinCountValueValidator<0>}, Tick}
 };
 
 Interpreter::Interpreter(std::unique_ptr<Graph> graph)

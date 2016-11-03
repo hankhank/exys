@@ -3,8 +3,6 @@
     (observe min2 (min 5 4 3 2 1))
     (observe min3 (min -1 -2 -3 -4 -5)))
 
-
-
 (test test-1
     (stabilize)
     (expect min1 1)

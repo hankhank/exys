@@ -66,6 +66,61 @@ llvm::Value* JitDoubleNot(llvm::Module*, llvm::IRBuilder<>& builder, const JitPo
     return builder.CreateSelect(cmp, zero, one);
 }
 
+llvm::Value* JitLatch(llvm::Module* M, llvm::IRBuilder<>& builder, const JitPoint& point)
+{
+    assert(point.mParents.size() == 2);
+
+    auto* gv = new llvm::GlobalVariable(*M, builder.getDoubleTy(), false, llvm::GlobalValue::CommonLinkage,
+                     llvm::ConstantFP::get(builder.getDoubleTy(), 0.0));
+
+    llvm::Value* cmp = point.mParents[0]->mValue;
+    llvm::Value* zero = llvm::ConstantFP::get(builder.getDoubleTy(), 0.0);
+    if(cmp->getType() == builder.getDoubleTy())
+    {
+        cmp = builder.CreateFCmpONE(point.mParents[0]->mValue, zero);
+    }
+    
+    auto* loadGv = builder.CreateLoad(gv);
+    auto* ret = builder.CreateSelect(cmp, point.mParents[1]->mValue, loadGv);
+    builder.CreateStore(ret, gv);
+    return ret;
+}
+
+llvm::Value* JitFlipFlop(llvm::Module* M, llvm::IRBuilder<>& builder, const JitPoint& point)
+{
+    assert(point.mParents.size() == 2);
+
+    auto* gv = new llvm::GlobalVariable(*M, builder.getDoubleTy(), false, llvm::GlobalValue::CommonLinkage,
+                     llvm::ConstantFP::get(builder.getDoubleTy(), 0.0));
+
+    llvm::Value* cmp = point.mParents[0]->mValue;
+    llvm::Value* zero = llvm::ConstantFP::get(builder.getDoubleTy(), 0.0);
+    if(cmp->getType() == builder.getDoubleTy())
+    {
+        cmp = builder.CreateFCmpONE(point.mParents[0]->mValue, zero);
+    }
+    
+    auto* loadGv = builder.CreateLoad(gv);
+    auto* ret = builder.CreateSelect(cmp, point.mParents[1]->mValue, loadGv);
+    builder.CreateStore(ret, gv);
+    return loadGv;
+}
+
+llvm::Value* JitTick(llvm::Module* M, llvm::IRBuilder<>& builder, const JitPoint& point)
+{
+    assert(point.mParents.size() == 2);
+
+    auto* gv = new llvm::GlobalVariable(*M, builder.getDoubleTy(), false, llvm::GlobalValue::CommonLinkage,
+                     llvm::ConstantFP::get(builder.getDoubleTy(), 0.0));
+
+    llvm::Value* one = llvm::ConstantFP::get(builder.getDoubleTy(), 1.0);
+
+    auto* loadGv = builder.CreateLoad(gv);
+    auto* ret = builder.CreateFAdd(loadGv, one);
+    builder.CreateStore(ret, gv);
+    return ret;
+}
+
 #define DEFINE_INTRINSICS_UNARY_OPERATOR(__FUNCNAME, __INFUNC) \
 llvm::Value* __FUNCNAME(llvm::Module *M, llvm::IRBuilder<>& builder, const JitPoint& point) \
 { \
@@ -132,35 +187,37 @@ DEFINE_LOOP_OPERATOR(JitDoubleNE,  CreateFCmpONE);
 DEFINE_LOOP_OPERATOR(JitDoubleAnd, CreateAnd);
 DEFINE_LOOP_OPERATOR(JitDoubleOr,  CreateOr);
 
-#define DEFINE_PAIR_OPERATOR(__FUNCNAME, __MEMFUNC) \
+#define DEFINE_UNARY_OPERATOR(__FUNCNAME, __MEMFUNC) \
 llvm::Value* __FUNCNAME(llvm::Module*, llvm::IRBuilder<>& builder, const JitPoint& point) \
 { \
-    assert(point.mParents.size() == 2); \
-    return builder.__MEMFUNC(point.mParents[0]->mValue, point.mParents[1]->mValue); \
+    assert(point.mParents.size() == 1); \
+    return builder.__MEMFUNC(point.mParents[0]->mValue); \
 }
-
 
 static JitPointProcessor AVAILABLE_PROCS[] =
 {
-    {{"?",    DummyValidator},  JitTernary},
-    {{"+",    DummyValidator},  JitDoubleAdd},
-    {{"-",    DummyValidator},  JitDoubleSub},
-    {{"/",    DummyValidator},  JitDoubleDiv},
-    {{"*",    DummyValidator},  JitDoubleMul},
+    {{"?",          DummyValidator},  JitTernary},
+    {{"+",          DummyValidator},  JitDoubleAdd},
+    {{"-",          DummyValidator},  JitDoubleSub},
+    {{"/",          DummyValidator},  JitDoubleDiv},
+    {{"*",          DummyValidator},  JitDoubleMul},
     ////{{"%",    DummyValidator},  LoopOperator<std::modulus<double>>},
-    {{"<",    DummyValidator},  JitDoubleLT},
-    {{"<=",   DummyValidator},  JitDoubleLE},
-    {{">",    DummyValidator},  JitDoubleGT},
-    {{">=",   DummyValidator},  JitDoubleGE},
-    {{"==",   DummyValidator},  JitDoubleEQ},
-    {{"!=",   DummyValidator},  JitDoubleNE},
-    {{"&&",   DummyValidator},  JitDoubleAnd},
-    {{"||",   DummyValidator},  JitDoubleOr},
-    {{"min",  DummyValidator},  JitDoubleMin},
-    {{"max",  DummyValidator},  JitDoubleMax},
-    {{"exp",  DummyValidator},  JitDoubleExp},
-    {{"ln",   DummyValidator},  JitDoubleLn},
-    {{"not",  DummyValidator},  JitDoubleNot}
+    {{"<",          DummyValidator},  JitDoubleLT},
+    {{"<=",         DummyValidator},  JitDoubleLE},
+    {{">",          DummyValidator},  JitDoubleGT},
+    {{">=",         DummyValidator},  JitDoubleGE},
+    {{"==",         DummyValidator},  JitDoubleEQ},
+    {{"!=",         DummyValidator},  JitDoubleNE},
+    {{"&&",         DummyValidator},  JitDoubleAnd},
+    {{"||",         DummyValidator},  JitDoubleOr},
+    {{"min",        DummyValidator},  JitDoubleMin},
+    {{"max",        DummyValidator},  JitDoubleMax},
+    {{"exp",        DummyValidator},  JitDoubleExp},
+    {{"ln",         DummyValidator},  JitDoubleLn},
+    {{"not",        DummyValidator},  JitDoubleNot},
+    {{"latch",      DummyValidator},  JitLatch},
+    {{"flip-flop",  DummyValidator},  JitFlipFlop},
+    {{"tick",       DummyValidator}, JitTick}
 };
 
 Jitter::Jitter(std::unique_ptr<Graph> graph)

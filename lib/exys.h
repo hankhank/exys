@@ -13,7 +13,6 @@
 namespace Exys
 {
 
-
 struct Point
 {
     static constexpr double POINT_EPSILON = 0.000001;
