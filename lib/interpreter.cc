@@ -1,10 +1,12 @@
 
-#include "interpreter.h"
 #include <iostream>
 #include <sstream>
 #include <algorithm>
 #include <cassert>
 #include <cmath>
+
+#include "interpreter.h"
+#include "helpers.h"
 
 // Notes
 // Handling list inputs and outputs is a bit of pain and not exactly symmetrical
@@ -144,45 +146,6 @@ std::function<ComputeFunction ()> Wrap(ComputeFunction func)
     return [func]() -> ComputeFunction {return func;};
 }
 
-static void DummyValidator(Node::Ptr)
-{
-}
-
-template<size_t N>
-void MinCountValueValidator(Node::Ptr point)
-{
-    if(point->mParents.size() < N)
-    {
-        Cell cell;
-        std::stringstream err;
-        err << "Not enough items in list for function. Expected at least "
-            << N << " Got " << point->mParents.size();
-        throw GraphBuildException(err.str(), cell);
-    }
-}
-
-template<size_t N1, size_t N2>
-void CountValueValidator(Node::Ptr point)
-{
-    if(point->mParents.size() < N1)
-    {
-        Cell cell;
-        std::stringstream err;
-        err << "Not enough items in list for function. Expected at least "
-            << N1 << " Got " << point->mParents.size();
-        throw GraphBuildException(err.str(), cell);
-    }
-
-    if(point->mParents.size() > N2)
-    {
-        Cell cell;
-        std::stringstream err;
-        err << "Too many items in list for function. Expected at most "
-            << N2 << " Got " << point->mParents.size();
-        throw GraphBuildException(err.str(), cell);
-    }
-}
-
 static InterPointProcessor AVAILABLE_PROCS[] =
 {
     {{"?",          CountValueValidator<3,3>},  Wrap(Ternary)},
@@ -206,7 +169,7 @@ static InterPointProcessor AVAILABLE_PROCS[] =
     {{"not",        CountValueValidator<1,1>},  Wrap(UnaryOperator<std::logical_not<double>>)},
     {{"latch",      CountValueValidator<2,2>},  Latch},
     {{"flip-flop",  CountValueValidator<2,2>},  FlipFlop},
-    {{"tick",       MinCountValueValidator<0>}, Tick}
+    {{"tick",       MinCountValueValidator<0>}, Tick},
 };
 
 Interpreter::Interpreter(std::unique_ptr<Graph> graph)

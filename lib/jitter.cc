@@ -1,11 +1,13 @@
 #ifndef _WIN32
 
-#include "jitter.h"
 #include <iostream>
 #include <sstream>
 #include <cassert>
 
 #include "llvm/IR/Intrinsics.h"
+
+#include "jitter.h"
+#include "helpers.h"
 
 namespace Exys
 {
@@ -32,10 +34,6 @@ struct JitPointProcessor
     Procedure procedure;
     ComputeFunction func; 
 };
-
-static void DummyValidator(Node::Ptr)
-{
-}
 
 llvm::Value* JitTernary(llvm::Module*, llvm::IRBuilder<>& builder, const JitPoint& point)
 {
@@ -196,28 +194,28 @@ llvm::Value* __FUNCNAME(llvm::Module*, llvm::IRBuilder<>& builder, const JitPoin
 
 static JitPointProcessor AVAILABLE_PROCS[] =
 {
-    {{"?",          DummyValidator},  JitTernary},
-    {{"+",          DummyValidator},  JitDoubleAdd},
-    {{"-",          DummyValidator},  JitDoubleSub},
-    {{"/",          DummyValidator},  JitDoubleDiv},
-    {{"*",          DummyValidator},  JitDoubleMul},
-    ////{{"%",    DummyValidator},  LoopOperator<std::modulus<double>>},
-    {{"<",          DummyValidator},  JitDoubleLT},
-    {{"<=",         DummyValidator},  JitDoubleLE},
-    {{">",          DummyValidator},  JitDoubleGT},
-    {{">=",         DummyValidator},  JitDoubleGE},
-    {{"==",         DummyValidator},  JitDoubleEQ},
-    {{"!=",         DummyValidator},  JitDoubleNE},
-    {{"&&",         DummyValidator},  JitDoubleAnd},
-    {{"||",         DummyValidator},  JitDoubleOr},
-    {{"min",        DummyValidator},  JitDoubleMin},
-    {{"max",        DummyValidator},  JitDoubleMax},
-    {{"exp",        DummyValidator},  JitDoubleExp},
-    {{"ln",         DummyValidator},  JitDoubleLn},
-    {{"not",        DummyValidator},  JitDoubleNot},
-    {{"latch",      DummyValidator},  JitLatch},
-    {{"flip-flop",  DummyValidator},  JitFlipFlop},
-    {{"tick",       DummyValidator}, JitTick}
+    {{"?",         CountValueValidator<3,3>},   JitTernary},
+    {{"+",         MinCountValueValidator<2>},  JitDoubleAdd},
+    {{"-",         MinCountValueValidator<2>},  JitDoubleSub},
+    {{"/",         MinCountValueValidator<2>},  JitDoubleDiv},
+    {{"*",         MinCountValueValidator<2>},  JitDoubleMul},
+    ////{{"%",       DummyValidator},Wrap(  LoLoopOperator<std::modulus<double>>},
+    {{"<",         CountValueValidator<2,2>},   JitDoubleLT},
+    {{"<=",        CountValueValidator<2,2>},   JitDoubleLE},
+    {{">",         CountValueValidator<2,2>},   JitDoubleGT},
+    {{">=",        CountValueValidator<2,2>},   JitDoubleGE},
+    {{"==",        CountValueValidator<2,2>},   JitDoubleEQ},
+    {{"!=",        CountValueValidator<2,2>},   JitDoubleNE},
+    {{"&&",        CountValueValidator<2,2>},   JitDoubleAnd},
+    {{"||",        CountValueValidator<2,2>},   JitDoubleOr},
+    {{"min",       MinCountValueValidator<2>},  JitDoubleMin},
+    {{"max",       MinCountValueValidator<2>},  JitDoubleMax},
+    {{"exp",       CountValueValidator<1,1>},   JitDoubleExp},
+    {{"ln",        CountValueValidator<1,1>},   JitDoubleLn},
+    {{"not",       CountValueValidator<1,1>},   JitDoubleNot},
+    {{"latch",     CountValueValidator<2,2>},   JitLatch},
+    {{"flip-flop", CountValueValidator<2,2>},   JitFlipFlop},
+    {{"tick",      MinCountValueValidator<0>}, JitTick}
 };
 
 Jitter::Jitter(std::unique_ptr<Graph> graph)
