@@ -67,26 +67,37 @@ inline std::tuple<bool, std::string, std::string> RunTest(IEngine& exysInstance,
         auto& firstElem = l->list.front();
         if(firstElem.details.text == "inject")
         {
-            const auto& label = l->list[1].details.text;
-            if(exysInstance.HasInputPoint(label))
+            if(l->list.size() < 3)
             {
-                auto& p = exysInstance.LookupInputPoint(label);
-                auto val = l->list[2];
-                if(val.type == Cell::Type::NUMBER)
-                {
-                    p = std::stod(val.details.text);
-                }
-                else if(val.type == Cell::Type::LIST)
-                {
-                    std::vector<double> nodeVals;
-                    GetNode(val, nodeVals);
-                    int i = 0;
-                    for(auto v : nodeVals)
-                    {
-                        p[i++] = v;
-                    }
-                }
-            }
+				ret &= false;
+				resultStr += "Not enough arguments for inject\n";
+				break;
+			}
+
+            const auto& label = l->list[1].details.text;
+            if(!exysInstance.HasInputPoint(label))
+            {
+				ret &= false;
+				resultStr += "Unrecognised input";
+				break;
+			}
+
+			auto& p = exysInstance.LookupInputPoint(label);
+			auto val = l->list[2];
+			if(val.type == Cell::Type::NUMBER)
+			{
+				p = std::stod(val.details.text);
+			}
+			else if(val.type == Cell::Type::LIST)
+			{
+				std::vector<double> nodeVals;
+				GetNode(val, nodeVals);
+				int i = 0;
+				for(auto v : nodeVals)
+				{
+					p[i++] = v;
+				}
+			}
         }
         else if(firstElem.details.text == "stabilize")
         {
