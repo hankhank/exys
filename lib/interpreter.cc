@@ -300,6 +300,7 @@ void Interpreter::CompleteBuild()
     mInterPointGraph.resize(nodeLayout.size()+numListObserverElements);
 
     // Add list input extra name to map - A rather than A[0]
+    // Add list input max length
     for(auto ii : inputsInfo)
     {
         if(ii.nodes.size())
@@ -307,6 +308,7 @@ void Interpreter::CompleteBuild()
             size_t offset = FindNodeOffset(nodeLayout, ii.nodes.front());
             auto& point = mInterPointGraph[offset];
             mInputs[ii.token] = &point;
+            point.mLength = ii.nodes.size();
         }
     }
     
@@ -354,6 +356,8 @@ void Interpreter::CompleteBuild()
         {
             // Add list observer extra name to map - A rather than A[0]
             mObservers[oi.token] = &mInterPointGraph[nodeLayout.size()+i];
+            mObservers[oi.token]->mLength = oi.nodes.size();
+            int k = 0;
             for(auto node : oi.nodes)
             {
                 // Copies 
@@ -363,8 +367,10 @@ void Interpreter::CompleteBuild()
                 parent.mChildren.push_back(&point);
                 point.mHeight = 0;
                 point.mComputeFunction = &Copy;
+                mObservers[oi.token + "[" + std::to_string(k) + "]"] = &point;
                 mRecomputeHeap.emplace(HeightPtrPair{point.mHeight, &point});
-                i++;
+                ++i;
+                ++k;
             }
         }
         else if(oi.nodes.size())

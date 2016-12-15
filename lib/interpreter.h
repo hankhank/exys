@@ -26,6 +26,8 @@ struct InterPoint : Point
 
     Point& operator[](size_t i) override
     {
+        assert(i < mLength);
+        i = i < mLength ? i : 0;
         return *(this+i);
     }
 

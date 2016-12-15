@@ -28,6 +28,7 @@ struct Point
     virtual Point& operator[](size_t i)
     {
         assert(i < mLength);
+        i = i < mLength ? i : 0;
         return *(this+i);
     }
 

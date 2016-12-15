@@ -28,3 +28,11 @@
                       (-7 -18 -9)))
     (expect consts (99 98 97))
     (expect maplist (177 166 178)))
+
+(test Test-2
+    (inject onedim (100 200))
+
+    (stabilize)
+    (expect onedim[0] 100)
+    (expect onedim[1] 200))
+

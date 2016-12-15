@@ -152,7 +152,7 @@ inline std::tuple<bool, std::string, std::string> RunTest(IEngine& exysInstance,
             else
             {
                 ret &= false;
-                resultStr += "Does not have observer - " + label;
+                resultStr += "Does not have observer - " + label + "\n";
             }
         }
     }
@@ -175,7 +175,7 @@ inline std::tuple<bool, std::string, GraphState> Execute(IEngine& exysInstance, 
         if(!success)
         {
             ret = false;
-            resultStr += "[" + testname + "] " + details + "\n";
+            resultStr += "[" + testname + "]\n" + details + "\n";
         }
     }
     if(ret)
