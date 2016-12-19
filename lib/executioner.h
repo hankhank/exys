@@ -78,7 +78,7 @@ inline std::tuple<bool, std::string, std::string> RunTest(IEngine& exysInstance,
             if(!exysInstance.HasInputPoint(label))
             {
 				ret &= false;
-				resultStr += "Unrecognised input";
+				resultStr += "Unrecognised input - " + label;
 				break;
 			}
 

@@ -148,28 +148,29 @@ std::function<ComputeFunction ()> Wrap(ComputeFunction func)
 
 static InterPointProcessor AVAILABLE_PROCS[] =
 {
-    {{"?",          CountValueValidator<3,3>},  Wrap(Ternary)},
+    {{"?",          CountValueValidator<3,3>},   Wrap(Ternary)},
     {{"+",          MinCountValueValidator<2>},  Wrap(LoopOperator<std::plus<double>>)},
     {{"-",          MinCountValueValidator<2>},  Wrap(LoopOperator<std::minus<double>>)},
     {{"/",          MinCountValueValidator<2>},  Wrap(LoopOperator<std::divides<double>>)},
     {{"*",          MinCountValueValidator<2>},  Wrap(LoopOperator<std::multiplies<double>>)},
     //{{"%",          DummyValidator},Wrap(  LoopOperator<std::modulus<double>>)},
-    {{"<",          CountValueValidator<2,2>},  Wrap(PairOperator<std::less<double>>)},
-    {{"<=",         CountValueValidator<2,2>},  Wrap(PairOperator<std::less_equal<double>>)},
-    {{">",          CountValueValidator<2,2>},  Wrap(PairOperator<std::greater<double>>)},
-    {{">=",         CountValueValidator<2,2>},  Wrap(PairOperator<std::greater_equal<double>>)},
-    {{"==",         CountValueValidator<2,2>},  Wrap(PairOperator<std::equal_to<double>>)},
-    {{"!=",         CountValueValidator<2,2>},  Wrap(PairOperator<std::not_equal_to<double>>)},
-    {{"&&",         CountValueValidator<2,2>},  Wrap(PairOperator<std::logical_and<double>>)},
-    {{"||",         CountValueValidator<2,2>},  Wrap(PairOperator<std::logical_or<double>>)},
+    {{"<",          CountValueValidator<2,2>},   Wrap(PairOperator<std::less<double>>)},
+    {{"<=",         CountValueValidator<2,2>},   Wrap(PairOperator<std::less_equal<double>>)},
+    {{">",          CountValueValidator<2,2>},   Wrap(PairOperator<std::greater<double>>)},
+    {{">=",         CountValueValidator<2,2>},   Wrap(PairOperator<std::greater_equal<double>>)},
+    {{"==",         CountValueValidator<2,2>},   Wrap(PairOperator<std::equal_to<double>>)},
+    {{"!=",         CountValueValidator<2,2>},   Wrap(PairOperator<std::not_equal_to<double>>)},
+    {{"&&",         CountValueValidator<2,2>},   Wrap(PairOperator<std::logical_and<double>>)},
+    {{"||",         CountValueValidator<2,2>},   Wrap(PairOperator<std::logical_or<double>>)},
     {{"min",        MinCountValueValidator<2>},  Wrap(LoopOperator<MinFunc>)},
     {{"max",        MinCountValueValidator<2>},  Wrap(LoopOperator<MaxFunc>)},
-    {{"exp",        CountValueValidator<1,1>},  Wrap(UnaryOperator<ExpFunc>)},
-    {{"ln",         CountValueValidator<1,1>},  Wrap(UnaryOperator<LogFunc>)},
-    {{"not",        CountValueValidator<1,1>},  Wrap(UnaryOperator<std::logical_not<double>>)},
-    {{"latch",      CountValueValidator<2,2>},  Latch},
-    {{"flip-flop",  CountValueValidator<2,2>},  FlipFlop},
-    {{"tick",       MinCountValueValidator<0>}, Tick},
+    {{"exp",        CountValueValidator<1,1>},   Wrap(UnaryOperator<ExpFunc>)},
+    {{"ln",         CountValueValidator<1,1>},   Wrap(UnaryOperator<LogFunc>)},
+    {{"not",        CountValueValidator<1,1>},   Wrap(UnaryOperator<std::logical_not<double>>)},
+    {{"latch",      CountValueValidator<2,2>},   Latch},
+    {{"flip-flop",  CountValueValidator<2,2>},   FlipFlop},
+    {{"tick",       MinCountValueValidator<0>},  Tick},
+    {{"copy",       MinCountValueValidator<1>},  Wrap(Copy)},
 };
 
 Interpreter::Interpreter(std::unique_ptr<Graph> graph)
@@ -205,113 +206,31 @@ ComputeFunction Interpreter::LookupComputeFunction(Node::Ptr node)
     return nullptr;
 }
 
-void Interpreter::TraverseNodes(Node::Ptr node, uint64_t& height, std::set<Node::Ptr>& necessaryNodes)
-{
-    if (height > node->mHeight) node->mHeight = height;
-    necessaryNodes.insert(node);
-    height++;
-    for(auto parent : node->mParents)
-    {
-        TraverseNodes(parent, height, necessaryNodes);
-    }
-}
-
 static size_t FindNodeOffset(const std::vector<Node::Ptr>& nodes, Node::Ptr node)
 {
     return std::distance(nodes.begin(), std::find(std::begin(nodes), std::end(nodes), node));
 }
 
-void Interpreter::CollectListMembers(Node::Ptr node, std::vector<Node::Ptr>& nodes)
+void CalculateNodeLength(Node::Ptr node, uint16_t& length)
 {
     if(node->mKind != Node::KIND_LIST)
     {
-        nodes.push_back(node);
+        ++length;
         return;
     }
     for(auto parent : node->mParents)
     {
-        CollectListMembers(parent, nodes);
+        CalculateNodeLength(parent, length);
     }
 }
 
 void Interpreter::CompleteBuild()
 {
-    struct NodeInfo
-    {
-        std::string token;
-        std::vector<Node::Ptr> nodes;
-    };
-
-    // Collect necessary nodes - nodes that are inputs to an observable
-    // node. Also set the heights from observability
-    std::set<Node::Ptr> necessaryNodes;
-    std::vector<NodeInfo> observersInfo;
-    int numListObserverElements = 0;
-
-    for(auto ob : mGraph->GetObservers())
-    {
-        NodeInfo ni; 
-        ni.token = ob.first;
-        CollectListMembers(ob.second, ni.nodes);
-        observersInfo.push_back(ni);
-        numListObserverElements += ni.nodes.size();
-    }
-    
-    for(auto ob : observersInfo)
-    {
-        for(auto node : ob.nodes)
-        {
-            // Start from one so observer nodes can slot in beneath
-            uint64_t height=1;
-            TraverseNodes(node, height, necessaryNodes);
-        }
-    }
-
-    // Look for input lists and capture them to make sure we 
-    // layout them out together
-    std::vector<NodeInfo> inputsInfo;
-    for(auto in : mGraph->GetInputs())
-    {
-        NodeInfo ni; 
-        ni.token = in.first;
-        CollectListMembers(in.second, ni.nodes);
-        inputsInfo.push_back(ni);
-    }
-    
-    // Flatten collected nodes into continous block
-    std::vector<Node::Ptr> nodeLayout;
-    for(auto ii : inputsInfo)
-    {
-        // Lazy here - rather than only layout input
-        // lists in continous memory we group all 
-        // inputs together
-        for(auto in : ii.nodes)
-        {
-            nodeLayout.push_back(in);
-            necessaryNodes.erase(in);
-        }
-    }
-    for(auto n : necessaryNodes)
-    {
-        nodeLayout.push_back(n);
-    }
+    auto nodeLayout = mGraph->GetStandardLayout();
 
     // For cache niceness
-    mInterPointGraph.resize(nodeLayout.size()+numListObserverElements);
+    mInterPointGraph.resize(nodeLayout.size());
 
-    // Add list input extra name to map - A rather than A[0]
-    // Add list input max length
-    for(auto ii : inputsInfo)
-    {
-        if(ii.nodes.size())
-        {
-            size_t offset = FindNodeOffset(nodeLayout, ii.nodes.front());
-            auto& point = mInterPointGraph[offset];
-            mInputs[ii.token] = &point;
-            point.mLength = ii.nodes.size();
-        }
-    }
-    
     // Finish adding bulk of logic
     for(auto node : nodeLayout)
     {
@@ -337,48 +256,17 @@ void Interpreter::CompleteBuild()
         else if(node->mIsInput)
         {
             mInputs[node->mToken] = &point;
+            CalculateNodeLength(node, point.mLength);
+        }
+        else if(node->mIsObserver)
+        {
+            for(const auto& label : node->mObserverLabels)
+            {
+                mObservers[label] = &point;
+            }
+            CalculateNodeLength(node, point.mLength);
         }
         mRecomputeHeap.emplace(HeightPtrPair{point.mHeight, &point});
-    }
-
-    // if we have list observers increase height for everyone 
-    // by one so we can have our observables copied
-    for(auto &point : mInterPointGraph)
-    {
-        ++point.mHeight;
-    }
-    
-    // Finish adding list observe copies
-    int i = 0;
-    for(auto oi : observersInfo)
-    {
-        if(oi.nodes.size() > 1)
-        {
-            // Add list observer extra name to map - A rather than A[0]
-            mObservers[oi.token] = &mInterPointGraph[nodeLayout.size()+i];
-            mObservers[oi.token]->mLength = oi.nodes.size();
-            int k = 0;
-            for(auto node : oi.nodes)
-            {
-                // Copies 
-                auto& point = mInterPointGraph[nodeLayout.size()+i];
-                auto& parent = mInterPointGraph[FindNodeOffset(nodeLayout, node)];
-                point.mParents.push_back(&parent);
-                parent.mChildren.push_back(&point);
-                point.mHeight = 0;
-                point.mComputeFunction = &Copy;
-                mObservers[oi.token + "[" + std::to_string(k) + "]"] = &point;
-                mRecomputeHeap.emplace(HeightPtrPair{point.mHeight, &point});
-                ++i;
-                ++k;
-            }
-        }
-        else if(oi.nodes.size())
-        {
-            // add in reference for single observe
-            auto& point = mInterPointGraph[FindNodeOffset(nodeLayout, oi.nodes.front())];
-            mObservers[oi.token] = &point;
-        }
     }
 
     Stabilize();

@@ -49,6 +49,7 @@ public:
 
     std::string mToken = "";
     std::vector<Ptr> mParents;
+    std::vector<std::string> mObserverLabels;
     bool mIsObserver = false;
     bool mIsInput = false;
     
@@ -98,6 +99,8 @@ public:
     
     std::string GetDOTGraph();
 
+    std::vector<Node::Ptr> GetStandardLayout();
+
 private:
     Node::Ptr Build(const Cell& cell);
     ProcNodeFactoryFunc DefaultFactory(const Procedure& procedure);
@@ -108,6 +111,7 @@ private:
     Node::Ptr BuildForProcedure(const Cell& token);
     Node::Type InputType2Enum(const std::string& token);
     void BuildInputList(Node::Ptr child, std::string token, std::deque<int> dims);
+    void LabelObserver(Node::Ptr observer, std::string token);
     
     // Graph manipulation functions
     Node::Ptr Map(Node::Ptr node);
@@ -132,6 +136,7 @@ private:
 
     Graph* mParent;
 };
+
 
 class GraphBuildException : public std::exception
 {

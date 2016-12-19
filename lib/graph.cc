@@ -393,6 +393,21 @@ void Graph::BuildInputList(Node::Ptr child, std::string token, std::deque<int> d
     }
 }
 
+void Graph::LabelObserver(Node::Ptr observer, std::string token)
+{
+    observer->mObserverLabels.push_back(token);
+
+    if(observer->mKind == KIND_LIST)
+    {
+        int i = 0;
+        for(auto parent : observer->mParents)
+        {
+            std::string label = token + "[" + std::to_string(i++) + "]";
+            LabelObserver(parent, label);
+        }
+    }
+}
+
 Node::Ptr Graph::Construct(const Cell &cell)
 {
     Node::Ptr ret = nullptr;
@@ -557,6 +572,7 @@ Node::Ptr Graph::Build(const Cell &cell)
                     throw GraphBuildException("Node isn't observerable", cell);
                 }
                 varNode->mIsObserver = true;
+                LabelObserver(varNode, outputToken);
                 mObservers[outputToken] = varNode;
             }
             else // procedure call
@@ -617,10 +633,13 @@ std::string Graph::GetDOTGraph()
     int i = 0;
     for(auto tokennode : mObservers)
     {
-        ret += NodeToPtrString(tokennode.second) + " -> " 
-            + std::to_string(i) + "\n" 
-            + std::to_string(i) + " [label=" + tokennode.first 
-            + "]\n";
+        for(const auto& label : tokennode.second->mObserverLabels)
+        {
+            ret += NodeToPtrString(tokennode.second) + " -> " 
+                + std::to_string(i) + "\n" 
+                + std::to_string(i) + " [label=" + label
+                + "]\n";
+        }
         ++i;
     }
 
@@ -639,6 +658,92 @@ std::string Graph::GetDOTGraph()
 
     ret += "}";
     return ret;
+}
+
+void TraverseNodes(Node::Ptr node, uint64_t& height, std::set<Node::Ptr>& necessaryNodes)
+{
+    if (height > node->mHeight) node->mHeight = height;
+    necessaryNodes.insert(node);
+    height++;
+    for(auto parent : node->mParents)
+    {
+        TraverseNodes(parent, height, necessaryNodes);
+    }
+}
+
+void CollectListMembers(Node::Ptr node, std::vector<Node::Ptr>& nodes)
+{
+    if(node->mKind != Node::KIND_LIST)
+    {
+        nodes.push_back(node);
+        return;
+    }
+    for(auto parent : node->mParents)
+    {
+        CollectListMembers(parent, nodes);
+    }
+}
+
+std::vector<Node::Ptr> Graph::GetStandardLayout()
+{
+    // Collect observers including one level deep for list members
+    std::vector<std::vector<Node::Ptr>> observers;
+    for(auto ob : GetObservers())
+    {
+        std::vector<Node::Ptr> nodes;
+        CollectListMembers(ob.second, nodes);
+        observers.push_back(nodes);
+    }
+    
+    // Find the necessary nodes - nodes connected to an observer
+    std::set<Node::Ptr> necessaryNodes;
+    for(auto ob : observers)
+    {
+        for(auto node : ob)
+        {
+            // Start from one so list observer node copies can slot in beneath
+            uint64_t height=1;
+            TraverseNodes(node, height, necessaryNodes);
+        }
+    }
+
+    // Flatten collected nodes into continous block
+    // Step 1 - Add inputs
+    std::vector<Node::Ptr> nodeLayout;
+    for(auto in : GetInputs())
+    {
+        CollectListMembers(in.second, nodeLayout);
+    }
+    
+    // Step 2 - Add necessary nodes
+    for(auto n : necessaryNodes)
+    {
+        nodeLayout.push_back(n);
+    }
+
+    // Step 3 - Add observer if necessary copies
+    int i = 0;
+    for(auto oi : observers)
+    {
+        if(oi.size() == 1)
+        {
+            nodeLayout.push_back(oi[0]);
+        }
+        else
+        {
+            for(auto node : oi)
+            {
+                auto nodeCopy = BuildNode(Node::KIND_PROC);
+                nodeCopy->mHeight = 0;
+                nodeCopy->mToken = "copy";
+                nodeCopy->mIsObserver = true;
+                nodeCopy->mObserverLabels = node->mObserverLabels;
+                nodeCopy->mParents.push_back(node);
+                nodeLayout.push_back(nodeCopy);
+            }
+        }
+    }
+    return nodeLayout;
 }
 
 GraphBuildException::GraphBuildException(const std::string& error, Cell cell)
