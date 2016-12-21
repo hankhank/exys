@@ -280,16 +280,6 @@ std::shared_ptr<T> Graph::BuildNode(Args... as)
     return ret;
 }
 
-const std::unordered_map<std::string, Node::Ptr>& Graph::GetObservers()
-{
-    return mObservers;
-}
-
-const std::unordered_map<std::string, Node::Ptr>& Graph::GetInputs()
-{
-    return mInputs;
-}
-
 void Graph::SetSupportedProcedures(const std::vector<Procedure>& procs)
 {
     for(const auto& proc : procs) AddProcFactory(proc.id, DefaultFactory(proc));
@@ -385,44 +375,85 @@ void Graph::BuildInputList(Node::Ptr child, std::string token, std::deque<int> d
     for(int i = 0; i < dim; i++)
     {
         auto interList = BuildNode(dims.empty() ? KIND_VAR : KIND_LIST);
-        interList->mIsInput = dims.empty();
+
         interList->mToken = token + "[" + std::to_string(i) + "]";
+        interList->mInputLabels.push_back(interList->mToken);
+
         child->mParents.push_back(interList);
         DefineNode(interList->mToken, interList);
         BuildInputList(interList, interList->mToken, dims);
     }
 }
 
-void Graph::LabelObserver(Node::Ptr observer, std::string token)
+void LabelObserver(Node::Ptr observer, std::string token)
 {
-    observer->mObserverLabels.push_back(token);
-
-    if(observer->mKind == KIND_LIST)
+    if(observer->mKind != Node::KIND_LIST)
     {
-        int i = 0;
-        for(auto parent : observer->mParents)
-        {
-            std::string label = token + "[" + std::to_string(i++) + "]";
-            LabelObserver(parent, label);
-        }
+        observer->mObserverLabels.push_back(token);
+        return;
+    }
+
+    int i = 0;
+    for(auto parent : observer->mParents)
+    {
+        std::string label = token + "[" + std::to_string(i++) + "]";
+        LabelObserver(parent, label);
     }
 }
 
-Node::Ptr Graph::Construct(const Cell &cell)
+uint16_t GetListLength(Node::Ptr node)
+{
+    if(node->mKind != Node::KIND_LIST)
+    {
+        return 1;
+    }
+
+    uint16_t ret = 0;
+    for(auto parent : node->mParents)
+    {
+        ret += GetListLength(parent);
+    }
+    return ret;
+}
+
+void Graph::LabelListRoot(Node::Ptr node, std::string label, uint16_t length, bool inputLabel)
+{
+    if(node->mKind != Node::KIND_LIST)
+    {
+        if(inputLabel)
+        {
+            node->mInputLabels.push_back(label);
+        }
+        else
+        {
+            node->mObserverLabels.push_back(label);
+        }
+        node->mLength = length;
+        return;
+    }
+    if(node->mParents.size())
+    {
+        LabelListRoot(node->mParents[0], label, length, inputLabel);
+    }
+}
+
+void Graph::Construct(const Cell &cell)
 {
     Node::Ptr ret = nullptr;
     if(cell.type == Cell::Type::ROOT)
     {
         if(cell.list.size() == 0)
         {
-            return nullptr;
+            return;
         }
         for(const auto& c : cell.list)
         {
             const auto& l = c.list;
             if(l.size() > 1 && l[0].details.text == "begin")
             {
-                return Build(c);
+                Build(c);
+                BuildLayout();
+                return;
             }
         }
     }
@@ -520,20 +551,23 @@ Node::Ptr Graph::Build(const Cell &cell)
                     auto& inputToken  = cell.list[3].details.text;
                     auto inputList = BuildNode(KIND_LIST);
                     inputList->mToken = inputToken;
-                    inputList->mIsInput = true;
-                    mInputs[inputToken] = inputList;
 
                     DefineNode(inputToken, inputList);
 
                     // Add dimensions
                     std::deque<int> dims;
+                    uint16_t length=1;
                     for(auto iter = cell.list.begin()+4;
                         iter != cell.list.end(); iter++)
                     {
-                        dims.push_back(std::stoi(iter->details.text));
+                        const auto dim = std::stoi(iter->details.text);
+                        dims.push_back(dim);
+                        length *= dim;
                     }
 
                     BuildInputList(inputList, inputToken, dims);
+                    LabelListRoot(inputList, inputToken, length, true);
+                    inputList->mIsInput = true;
                 }
                 else
                 {
@@ -550,7 +584,6 @@ Node::Ptr Graph::Build(const Cell &cell)
                         auto inputNode = BuildNode(KIND_VAR);
                         inputNode->mToken = inputToken;
                         inputNode->mIsInput = true;
-                        mInputs[inputToken] = inputNode;
 
                         DefineNode(inputToken, inputNode);
                     }
@@ -571,9 +604,9 @@ Node::Ptr Graph::Build(const Cell &cell)
                 {
                     throw GraphBuildException("Node isn't observerable", cell);
                 }
-                varNode->mIsObserver = true;
                 LabelObserver(varNode, outputToken);
-                mObservers[outputToken] = varNode;
+                LabelListRoot(varNode, outputToken, GetListLength(varNode), false);
+                varNode->mIsObserver = true;
             }
             else // procedure call
             {
@@ -603,10 +636,11 @@ std::string NodeToDotLabel(Node::Ptr node)
         + "[label=\"" + node->Label() + "\"];";
 }
 
-std::string Graph::GetDOTGraph()
+std::string Graph::GetDOTGraph() const
 {
     std::set<Node::Ptr> nodes;
 
+    int i = 0;
     std::string ret = "{\n";
     for(auto nodeptr : mAllNodes)
     {
@@ -628,19 +662,18 @@ std::string Graph::GetDOTGraph()
             }
             break;
         }
-    }
-
-    int i = 0;
-    for(auto tokennode : mObservers)
-    {
-        for(const auto& label : tokennode.second->mObserverLabels)
+        if(nodeptr->mIsObserver)
         {
-            ret += NodeToPtrString(tokennode.second) + " -> " 
-                + std::to_string(i) + "\n" 
-                + std::to_string(i) + " [label=" + label
-                + "]\n";
+            for(const auto& label : nodeptr->mObserverLabels)
+            {
+                ret += NodeToPtrString(nodeptr) + " -> " 
+
+                    + std::to_string(i) + "\n" 
+                    + std::to_string(i) + " [label=" + label
+                    + "]\n";
+            }
+            ++i;
         }
-        ++i;
     }
 
     for(auto nodeptr : nodes)
@@ -684,15 +717,18 @@ void CollectListMembers(Node::Ptr node, std::vector<Node::Ptr>& nodes)
     }
 }
 
-std::vector<Node::Ptr> Graph::GetStandardLayout()
+void Graph::BuildLayout()
 {
     // Collect observers including one level deep for list members
     std::vector<std::vector<Node::Ptr>> observers;
-    for(auto ob : GetObservers())
+    for(const auto an : mAllNodes)
     {
-        std::vector<Node::Ptr> nodes;
-        CollectListMembers(ob.second, nodes);
-        observers.push_back(nodes);
+        if(an->mIsObserver)
+        {
+            std::vector<Node::Ptr> nodes;
+            CollectListMembers(an, nodes);
+            observers.push_back(nodes);
+        }
     }
     
     // Find the necessary nodes - nodes connected to an observer
@@ -709,41 +745,50 @@ std::vector<Node::Ptr> Graph::GetStandardLayout()
 
     // Flatten collected nodes into continous block
     // Step 1 - Add inputs
-    std::vector<Node::Ptr> nodeLayout;
-    for(auto in : GetInputs())
+    for(auto an : mAllNodes)
     {
-        CollectListMembers(in.second, nodeLayout);
-    }
-    
-    // Step 2 - Add necessary nodes
-    for(auto n : necessaryNodes)
-    {
-        nodeLayout.push_back(n);
+        if(an->mIsInput) CollectListMembers(an, mLayout);
     }
 
-    // Step 3 - Add observer if necessary copies
+    // Step 2 - Remove inputs from necessary nodes
+    for(auto n : mLayout)
+    {
+        necessaryNodes.erase(n);
+    }
+    
+    // Step 3 - Add necessary nodes
+    for(auto n : necessaryNodes)
+    {
+        mLayout.push_back(n);
+    }
+
+    // Step 4 - Add observer if necessary copies
     int i = 0;
     for(auto oi : observers)
     {
         if(oi.size() == 1)
         {
-            nodeLayout.push_back(oi[0]);
+            mLayout.push_back(oi[0]);
         }
         else
         {
             for(auto node : oi)
             {
-                auto nodeCopy = BuildNode(Node::KIND_PROC);
+                auto nodeCopy = std::make_shared<Node>(Node::KIND_PROC);
                 nodeCopy->mHeight = 0;
                 nodeCopy->mToken = "copy";
                 nodeCopy->mIsObserver = true;
                 nodeCopy->mObserverLabels = node->mObserverLabels;
+                nodeCopy->mInputLabels = node->mInputLabels;
+                nodeCopy->mLength = node->mLength;
                 nodeCopy->mParents.push_back(node);
-                nodeLayout.push_back(nodeCopy);
+                mLayout.push_back(nodeCopy);
+                
+                // No longer an observer
+                node->mIsObserver = false; 
             }
         }
     }
-    return nodeLayout;
 }
 
 GraphBuildException::GraphBuildException(const std::string& error, Cell cell)

@@ -324,12 +324,12 @@ void Jitter::CompleteBuild()
     // node. Also set the heights from observability
     std::set<Node::Ptr> necessaryNodes;
     std::unordered_map<Node::Ptr, std::string> observers;
-    for(auto ob : mGraph->GetObservers())
-    {
-        uint64_t height=0;
-        TraverseNodes(ob.second, height, necessaryNodes);
-        observers[ob.second] = ob.first;
-    }
+    //for(auto ob : mGraph->GetObservers())
+    //{
+    //    uint64_t height=0;
+    //    TraverseNodes(ob.second, height, necessaryNodes);
+    //    observers[ob.second] = ob.first;
+    //}
 
     // Build flat graph
     std::vector<JitPoint> jitPoints;

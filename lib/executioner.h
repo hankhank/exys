@@ -64,6 +64,12 @@ inline std::tuple<bool, std::string, std::string> RunTest(IEngine& exysInstance,
     
     for(auto l = test.list.begin()+2; l != test.list.end(); ++l)
     {
+        if (!l->list.size())
+        {
+            ret &= false;
+            resultStr += "Syntax error - expected start of list";
+            break;
+        }
         auto& firstElem = l->list.front();
         if(firstElem.details.text == "inject")
         {
@@ -113,6 +119,13 @@ inline std::tuple<bool, std::string, std::string> RunTest(IEngine& exysInstance,
         }
         else if(firstElem.details.text == "expect")
         {
+            if(l->list.size() < 3)
+            {
+				ret &= false;
+				resultStr += "Not enough arguments for expect\n";
+				break;
+			}
+
             const auto& label = l->list[1].details.text;
             if(exysInstance.IsDirty())
             {

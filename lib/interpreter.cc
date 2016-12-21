@@ -208,25 +208,14 @@ ComputeFunction Interpreter::LookupComputeFunction(Node::Ptr node)
 
 static size_t FindNodeOffset(const std::vector<Node::Ptr>& nodes, Node::Ptr node)
 {
-    return std::distance(nodes.begin(), std::find(std::begin(nodes), std::end(nodes), node));
-}
-
-void CalculateNodeLength(Node::Ptr node, uint16_t& length)
-{
-    if(node->mKind != Node::KIND_LIST)
-    {
-        ++length;
-        return;
-    }
-    for(auto parent : node->mParents)
-    {
-        CalculateNodeLength(parent, length);
-    }
+    auto niter = std::find(std::begin(nodes), std::end(nodes), node);
+    assert(niter != nodes.end());
+    return std::distance(nodes.begin(), niter);
 }
 
 void Interpreter::CompleteBuild()
 {
-    auto nodeLayout = mGraph->GetStandardLayout();
+    auto nodeLayout = mGraph->GetLayout();
 
     // For cache niceness
     mInterPointGraph.resize(nodeLayout.size());
@@ -253,18 +242,21 @@ void Interpreter::CompleteBuild()
         {
             point = std::stod(node->mToken);
         }
-        else if(node->mIsInput)
+        if(node->mIsInput)
         {
-            mInputs[node->mToken] = &point;
-            CalculateNodeLength(node, point.mLength);
+            for(const auto& label : node->mInputLabels)
+            {
+                mInputs[label] = &point;
+            }
+            point.mLength = node->mLength;
         }
-        else if(node->mIsObserver)
+        if(node->mIsObserver)
         {
             for(const auto& label : node->mObserverLabels)
             {
                 mObservers[label] = &point;
             }
-            CalculateNodeLength(node, point.mLength);
+            point.mLength = node->mLength;
         }
         mRecomputeHeap.emplace(HeightPtrPair{point.mHeight, &point});
     }

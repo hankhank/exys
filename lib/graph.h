@@ -49,7 +49,9 @@ public:
 
     std::string mToken = "";
     std::vector<Ptr> mParents;
+    std::vector<std::string> mInputLabels;
     std::vector<std::string> mObserverLabels;
+    uint16_t mLength=1;
     bool mIsObserver = false;
     bool mIsInput = false;
     
@@ -88,21 +90,19 @@ class Graph : public Node
 public:
     Graph(Graph* parent=nullptr);
 
-    Node::Ptr Construct(const Cell& cell);
+    void Construct(const Cell& cell);
     void DefineNode(const std::string& token, const Cell& cell);
     void DefineNode(const std::string& token, Node::Ptr node);
 
-    const std::unordered_map<std::string, Node::Ptr>& GetObservers();
-    const std::unordered_map<std::string, Node::Ptr>& GetInputs();
-
     void SetSupportedProcedures(const std::vector<Procedure>& procs);
     
-    std::string GetDOTGraph();
+    std::string GetDOTGraph() const;
 
-    std::vector<Node::Ptr> GetStandardLayout();
+    std::vector<Node::Ptr> GetLayout() const { return mLayout; }
 
 private:
     Node::Ptr Build(const Cell& cell);
+    void BuildLayout() const;
     ProcNodeFactoryFunc DefaultFactory(const Procedure& procedure);
     void AddProcFactory(const std::string id, ProcNodeFactoryFunc factory);
     Node::Ptr LookupSymbol(const Cell& cell);
@@ -111,7 +111,7 @@ private:
     Node::Ptr BuildForProcedure(const Cell& token);
     Node::Type InputType2Enum(const std::string& token);
     void BuildInputList(Node::Ptr child, std::string token, std::deque<int> dims);
-    void LabelObserver(Node::Ptr observer, std::string token);
+    void LabelListRoot(Node::Ptr node, std::string label, uint16_t length, bool inputLabel);
     
     // Graph manipulation functions
     Node::Ptr Map(Node::Ptr node);
@@ -130,9 +130,8 @@ private:
     std::shared_ptr<T> BuildNode(Args... as);
 
     std::vector<Node::Ptr> mAllNodes;
+    std::vector<Node::Ptr> mLayout;
     std::unordered_map<std::string, Node::Ptr> mVarNodes;
-    std::unordered_map<std::string, Node::Ptr> mObservers;
-    std::unordered_map<std::string, Node::Ptr> mInputs;
 
     Graph* mParent;
 };
