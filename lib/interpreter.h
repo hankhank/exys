@@ -31,8 +31,6 @@ struct InterPoint : Point
         return *(this+i);
     }
 
-    bool IsDirty() const { return mDirty; };
-    void Clean() { mDirty = false; };
     bool operator!=(const InterPoint& rhs) const { return mVal != rhs.mVal; }
 
     InterPoint& operator=(const InterPoint& p) 

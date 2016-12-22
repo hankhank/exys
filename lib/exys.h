@@ -20,6 +20,9 @@ struct Point
     bool mDirty = false;
     uint16_t mLength=1;
 
+    bool IsDirty() const { return mDirty; };
+    void Clean() { mDirty = false; };
+
     bool operator!=(const Point& rhs)
     {
         return std::abs(mVal - rhs.mVal) > POINT_EPSILON;

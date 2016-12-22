@@ -192,6 +192,12 @@ llvm::Value* __FUNCNAME(llvm::Module*, llvm::IRBuilder<>& builder, const JitPoin
     return builder.__MEMFUNC(point.mParents[0]->mValue); \
 }
 
+llvm::Value* JitCopy(llvm::Module*, llvm::IRBuilder<>& builder, const JitPoint& point)
+{
+    auto p = point.mParents.begin();
+    return (*p)->mValue;
+}
+
 static JitPointProcessor AVAILABLE_PROCS[] =
 {
     {{"?",         CountValueValidator<3,3>},   JitTernary},
@@ -215,7 +221,8 @@ static JitPointProcessor AVAILABLE_PROCS[] =
     {{"not",       CountValueValidator<1,1>},   JitDoubleNot},
     {{"latch",     CountValueValidator<2,2>},   JitLatch},
     {{"flip-flop", CountValueValidator<2,2>},   JitFlipFlop},
-    {{"tick",      MinCountValueValidator<0>}, JitTick}
+    {{"tick",      MinCountValueValidator<0>},  JitTick},
+    {{"copy",      CountValueValidator<1,1>},   JitCopy}
 };
 
 Jitter::Jitter(std::unique_ptr<Graph> graph)
@@ -303,9 +310,9 @@ llvm::Value* Jitter::JitNode(llvm::Module* M, llvm::IRBuilder<>& builder, const 
     return ret;
 }
 
-static size_t FindNodeOffset(const std::set<Node::Ptr>& nodes, Node::Ptr node)
+static size_t FindNodeOffset(const std::vector<Node::Ptr>& nodes, Node::Ptr node)
 {
-    return std::distance(nodes.begin(), nodes.find(node));
+    return std::distance(nodes.begin(), std::find(std::begin(nodes), std::end(nodes), node));
 }
 
 struct CmpJitPointPtr
@@ -319,66 +326,48 @@ struct CmpJitPointPtr
 };
 
 void Jitter::CompleteBuild()
-{
-    // Collect necessary nodes - nodes that are inputs to an observable
-    // node. Also set the heights from observability
-    std::set<Node::Ptr> necessaryNodes;
-    std::unordered_map<Node::Ptr, std::string> observers;
-    //for(auto ob : mGraph->GetObservers())
-    //{
-    //    uint64_t height=0;
-    //    TraverseNodes(ob.second, height, necessaryNodes);
-    //    observers[ob.second] = ob.first;
-    //}
+{    
+    auto nodeLayout = mGraph->GetLayout();
 
-    // Build flat graph
     std::vector<JitPoint> jitPoints;
-    jitPoints.resize(necessaryNodes.size());
-    int incnt = 0;
-    int outcnt = 0;
-    for(auto node : necessaryNodes)
+    jitPoints.resize(nodeLayout.size());
+
+    // This is bigger than what we need
+    // and later it probably makes sense to 
+    // compact it but this makes list layouts easier
+    mPoints.resize(nodeLayout.size());
+
+    for(auto node : nodeLayout)
     {
-        if(node->mIsInput)
-        {
-            ++incnt;
-        }
-        if(node->mIsObserver)
-        {
-            ++outcnt;
-        }
-    }
-
-    mInputPoints.resize(incnt);
-    mOutputPoints.resize(outcnt);
-
-    auto inpoint = mInputPoints.begin();
-    auto outpoint = mOutputPoints.begin();
-
-    for(auto node : necessaryNodes)
-    {
-        size_t offset = FindNodeOffset(necessaryNodes, node);
+        size_t offset = FindNodeOffset(nodeLayout, node);
         auto& jp = jitPoints[offset];
+        auto& point = mPoints[offset];
         jp.mNode = node;
 
         for(auto pnode : node->mParents)
         {
-            auto& parent = jitPoints[FindNodeOffset(necessaryNodes, pnode)];
+            auto& parent = jitPoints[FindNodeOffset(nodeLayout, pnode)];
             jp.mParents.push_back(&parent);
             parent.mChildren.push_back(&jp);
         }
 
-        std::unordered_map<Node::Ptr, std::string>::iterator ob;
         if(node->mIsInput)
         {
-            mInputs[node->mToken] = &(*inpoint);
-            jp.mPoint = &(*inpoint);
-            ++inpoint;
+            for(const auto& label : node->mInputLabels)
+            {
+                mInputs[label] = &point;
+            }
+            jp.mPoint = &point;
+            jp.mPoint->mLength = node->mLength;
         }
-        if((ob = observers.find(node)) != observers.end())
+        if(node->mIsObserver)
         {
-            mObservers[ob->second] = &(*outpoint);
-            jp.mPoint = &(*outpoint);
-            ++outpoint;
+            for(const auto& label : node->mObserverLabels)
+            {
+                mObservers[label] = &point;
+            }
+            jp.mPoint = &point;
+            jp.mPoint->mLength = node->mLength;
         }
     }
     
@@ -438,7 +427,11 @@ void Jitter::CompleteBuild()
 
 bool Jitter::IsDirty()
 {
-    for(const auto& p : mInputPoints) if(p.mDirty) return true;
+    for(const auto& namep : mInputs)
+    {
+        auto& point = *namep.second;
+        if(point.IsDirty()) return true;
+    }
     return false;
 }
 
@@ -455,7 +448,7 @@ void Jitter::Stabilize(bool force)
             std::vector<llvm::GenericValue> noargs;
             mLlvmExecEngine->runFunction(mStabilizeFunc, noargs);
         }
-        for(auto& p : mInputPoints) p.mDirty = false;
+        for(auto& p : mPoints) p.Clean();
     }
 }
 

@@ -70,8 +70,7 @@ private:
     llvm::Function* mStabilizeFunc = nullptr;
     void (*mRawStabilizeFunc)() = nullptr;
     
-    std::vector<Point> mInputPoints;
-    std::vector<Point> mOutputPoints;
+    std::vector<Point> mPoints;
     std::unordered_map<std::string, Point*> mObservers;
     std::unordered_map<std::string, Point*> mInputs;
 
