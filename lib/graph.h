@@ -95,14 +95,13 @@ public:
     void DefineNode(const std::string& token, Node::Ptr node);
 
     void SetSupportedProcedures(const std::vector<Procedure>& procs);
-    
-    std::string GetDOTGraph() const;
 
+    std::string GetDOTGraph() const;
     std::vector<Node::Ptr> GetLayout() const { return mLayout; }
 
 private:
     Node::Ptr Build(const Cell& cell);
-    void BuildLayout() const;
+    void BuildLayout();
     ProcNodeFactoryFunc DefaultFactory(const Procedure& procedure);
     void AddProcFactory(const std::string id, ProcNodeFactoryFunc factory);
     Node::Ptr LookupSymbol(const Cell& cell);

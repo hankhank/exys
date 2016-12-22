@@ -583,6 +583,7 @@ Node::Ptr Graph::Build(const Cell &cell)
                         
                         auto inputNode = BuildNode(KIND_VAR);
                         inputNode->mToken = inputToken;
+                        inputNode->mInputLabels.push_back(inputToken);
                         inputNode->mIsInput = true;
 
                         DefineNode(inputToken, inputNode);
@@ -745,9 +746,16 @@ void Graph::BuildLayout()
 
     // Flatten collected nodes into continous block
     // Step 1 - Add inputs
+    std::vector<Node::Ptr> inputs;
     for(auto an : mAllNodes)
     {
-        if(an->mIsInput) CollectListMembers(an, mLayout);
+        if(an->mIsInput) CollectListMembers(an, inputs);
+    }
+
+    for(auto in : inputs)
+    {
+        in->mIsInput = true;
+        mLayout.push_back(in);
     }
 
     // Step 2 - Remove inputs from necessary nodes
@@ -768,7 +776,8 @@ void Graph::BuildLayout()
     {
         if(oi.size() == 1)
         {
-            mLayout.push_back(oi[0]);
+            oi[0]->mIsObserver = true;
+            // No need to add as already in layout as necessary node
         }
         else
         {
