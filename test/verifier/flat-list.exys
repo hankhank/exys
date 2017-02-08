@@ -1,0 +1,8 @@
+(begin
+    (input list double testList 5)
+    (observe out testList))
+
+(test test-1
+    (inject testList (1 2 3 4 5))
+    (stabilize)
+    (expect out (1 2 3 4 5)))

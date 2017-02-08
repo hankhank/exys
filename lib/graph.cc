@@ -242,6 +242,28 @@ Node::Ptr Graph::Append(Node::Ptr node)
     return nodes;
 }
 
+Node::Ptr Graph::Nth(Node::Ptr node)
+{
+    ValidateFunctionArgs("nth", node, {KIND_CONST, KIND_LIST});
+    auto nth = std::stod(node->mParents[0]->mToken);
+    auto list = std::static_pointer_cast<Node>(node->mParents[1]);
+
+    int i = 0;
+    for(auto item : list->mParents)
+    {
+        if(i == nth) return item;
+        ++i;
+    }
+
+    std::stringstream err;
+    err << "Not enough items in list. Expected at least " << nth 
+        << " Got " << list->mParents.size();
+
+    throw GraphBuildException(err.str(), Cell());
+
+    return nullptr;
+}
+
 Node::Ptr Graph::Import(Node::Ptr node)
 {
     // Get library path
@@ -270,6 +292,7 @@ Graph::Graph(Graph* parent)
     AddProcFactory("import",    WRAP(Import));
     AddProcFactory("apply",     WRAP(Apply));
     AddProcFactory("append",    WRAP(Append));
+    AddProcFactory("nth",        WRAP(Nth));
 }
 
 template<typename T, typename... Args>

@@ -1,0 +1,14 @@
+(begin
+    (input list double testList 5)
+    ;(observe out (nth 0 testList))
+    ;(observe out (car testList))
+    
+    (observe out 
+        (map 
+            (lambda (n) (nth n testList))
+            (iota 5 4 -1))))
+
+(test test-1
+    (inject testList (1 2 3 4 5))
+    (stabilize)
+    (expect out (5 4 3 2 1)))
