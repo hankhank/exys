@@ -79,6 +79,12 @@ inline std::tuple<bool, std::string, std::string> RunTest(IEngine& exysInstance,
 				resultStr += "Not enough arguments for inject\n";
 				break;
 			}
+            if(l->list.size() > 3)
+            {
+				ret &= false;
+				resultStr += "Too many arguments for inject\n";
+				break;
+			}
 
             const auto& label = l->list[1].details.text;
             if(!exysInstance.HasInputPoint(label))
