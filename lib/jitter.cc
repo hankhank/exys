@@ -13,7 +13,6 @@
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/LLVMContext.h"
-#include "llvm/IR/Module.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/TargetSelect.h"
 #include "llvm/Support/raw_ostream.h"
@@ -24,8 +23,14 @@
 #include "jitter.h"
 #include "helpers.h"
 
+namespace 
+{
+const std::string STAB_FUNC_NAME = "StabilizeFunc";
+};
+
 namespace Exys
 {
+
 
 struct JitPoint
 {
@@ -253,54 +258,15 @@ Jitter::Jitter(std::unique_ptr<Graph> graph)
 
 Jitter::~Jitter()
 {
-    if(mLlvmExecEngine)
-    {
-        // calling this on dealloc causes the next 
-        // instance to blow up
-        //llvm::llvm_shutdown();
-    }
+    // dealloc engines here but
+    // calling this on dealloc causes the next 
+    // instance to blow up
+    //llvm::llvm_shutdown();
 }
 
 std::string Jitter::GetDOTGraph()
 {
     return "digraph " + mGraph->GetDOTGraph();
-}
-
-std::string Jitter::GetMemoryLayout() const
-{
-    return mLlvmExecEngine->getDataLayout()->getStringRepresentation();
-}
-
-std::string Jitter::GetLlvmIR() const
-{
-    std::string out;
-    llvm::raw_string_ostream rawout(out);
-
-    rawout << *mStabilizeFunc;
-
-    return rawout.str();
-}
-
-std::string Jitter::GetLlvmIRClone() const
-{
-    std::string out;
-    llvm::raw_string_ostream rawout(out);
-
-    rawout << *mStabilizeFunc;
-
-    return rawout.str();
-}
-
-void Jitter::TraverseNodes(Node::Ptr node, uint64_t& height, std::set<Node::Ptr>& necessaryNodes)
-{
-    if (height > node->mHeight) node->mHeight = height;
-    height++;
-
-    necessaryNodes.insert(node);
-    for(auto parent : node->mParents)
-    {
-        TraverseNodes(parent, height, necessaryNodes);
-    }
 }
 
 llvm::Value* Jitter::GetPtrForPoint(Point& point)
@@ -361,7 +327,7 @@ struct CmpJitPointPtr
     }
 };
 
-void Jitter::CompleteBuild()
+std::unique_ptr<llvm::Module> Jitter::BuildModule()
 {    
     auto nodeLayout = mGraph->GetLayout();
 
@@ -406,7 +372,7 @@ void Jitter::CompleteBuild()
             jp.mPoint->mLength = node->mLength;
         }
     }
-   j
+
     // Copy into computed heap
     std::set<JitPoint*, CmpJitPointPtr> jitHeap;
     for(auto& jp : jitPoints)
@@ -416,44 +382,47 @@ void Jitter::CompleteBuild()
     
     // JIT IT BABY
     mLlvmContext = new llvm::LLVMContext;
-    LLVMInitializeNativeTarget();
-    LLVMInitializeNativeAsmPrinter();
 
-    auto module = BuildModule();
-
-    mLlvmExecEngine = BuildJitEngine();
-
-    Stabilize(true);
-}
-
-std::unique_ptr<llvm::Module> Jitter::BuildModule()
-{
-    auto Owner = std::make_unique<llvm::Module>("exys", *mLlvmContext);
-    llvm::Module *mModule = Owner.get();
+    auto module = std::make_unique<llvm::Module>("exys", *mLlvmContext);
+    llvm::Module *M = module.get();
   
     std::vector<llvm::Type*> args;
 
-    mStabilizeFunc =
-    llvm::cast<llvm::Function>(mModule->getOrInsertFunction("StabilizeFunc", 
+    auto* stabilizeFunc =
+    llvm::cast<llvm::Function>(M->getOrInsertFunction(STAB_FUNC_NAME, 
                     llvm::FunctionType::get(
                         llvm::Type::getVoidTy(*mLlvmContext), // void return
                         args,
                         false))); // no var args
 
-    auto *BB = llvm::BasicBlock::Create(*mLlvmContext, "StabilizeBlock", mStabilizeFunc);
+    auto *BB = llvm::BasicBlock::Create(*mLlvmContext, "StabilizeBlock", stabilizeFunc);
 
     llvm::IRBuilder<> builder(BB);
 
     for(auto& jp : jitHeap)
     {
-        const_cast<JitPoint*>(jp)->mValue = JitNode(mModule, builder, *jp);
+        const_cast<JitPoint*>(jp)->mValue = JitNode(M, builder, *jp);
     }
     builder.CreateRetVoid();
     
-llvm::ExecutionEngine* Jitter::BuildJitEngine()
+    // Output asm
+    if(1)
+    {
+        std::string out;
+        llvm::raw_string_ostream rawout(out);
+
+        rawout << *stabilizeFunc;
+
+        std::cout << rawout.str();
+    }
+
+    return module;
+}
+
+StabilizationFunc Jitter::BuildJitEngine(std::unique_ptr<llvm::Module> module)
 {
     std::string error;
-    auto* llvmExecEngine = llvm::EngineBuilder(std::move(Owner))
+    auto* llvmExecEngine = llvm::EngineBuilder(std::move(module))
                                 .setEngineKind(llvm::EngineKind::JIT)
                                 .setOptLevel(llvm::CodeGenOpt::Level::Aggressive)
                                 .setErrorStr(&error)
@@ -465,13 +434,21 @@ llvm::ExecutionEngine* Jitter::BuildJitEngine()
         std::cout << error;
         assert(llvmExecEngine);
     }
-    mRawStabilizeFunc = (void(*)()) mLlvmExecEngine->getPointerToFunction(mStabilizeFunc);
-    mLlvmExecEngine->finalizeObject();
+    auto rawStabilizeFunc = reinterpret_cast<StabilizationFunc>(llvmExecEngine->getPointerToNamedFunction(STAB_FUNC_NAME));
+    llvmExecEngine->finalizeObject();
 
-    std::cout << GetMemoryLayout();
-    std::cout << GetLlvmIR();
+    return rawStabilizeFunc;
+    //auto OwnerClone = std::unique_ptr<llvm::Module>(llvm::CloneModule(M));
+}
 
-    auto OwnerClone = std::unique_ptr<llvm::Module>(llvm::CloneModule(M));
+void Jitter::CompleteBuild()
+{
+    LLVMInitializeNativeTarget();
+    LLVMInitializeNativeAsmPrinter();
+    
+    mRawStabilizeFunc = BuildJitEngine(BuildModule());
+
+    Stabilize();
 }
 
 bool Jitter::IsDirty()
@@ -489,7 +466,6 @@ void Jitter::Stabilize(bool force)
     if(force || IsDirty())
     {
         mRawStabilizeFunc();
-        mRawStabilizeFuncClone();
         for(auto& p : mPoints) p.Clean();
     }
 }
