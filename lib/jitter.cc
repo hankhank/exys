@@ -26,6 +26,8 @@
 namespace 
 {
 const std::string STAB_FUNC_NAME = "StabilizeFunc";
+const std::string CAP_FUNC_NAME = "CaptureStateFunc";
+const std::string RESET_FUNC_NAME = "ResetStateFunc";
 };
 
 namespace Exys
@@ -386,36 +388,74 @@ std::unique_ptr<llvm::Module> Jitter::BuildModule()
     auto module = std::make_unique<llvm::Module>("exys", *mLlvmContext);
     llvm::Module *M = module.get();
   
-    std::vector<llvm::Type*> args;
+    std::vector<llvm::Type*> noargs;
 
     auto* stabilizeFunc =
     llvm::cast<llvm::Function>(M->getOrInsertFunction(STAB_FUNC_NAME, 
                     llvm::FunctionType::get(
                         llvm::Type::getVoidTy(*mLlvmContext), // void return
-                        args,
+                        noargs,
                         false))); // no var args
+    auto *stabBlock = llvm::BasicBlock::Create(*mLlvmContext, "StabilizeBlock", stabilizeFunc);
 
-    auto *BB = llvm::BasicBlock::Create(*mLlvmContext, "StabilizeBlock", stabilizeFunc);
-
-    llvm::IRBuilder<> builder(BB);
+    llvm::IRBuilder<> stabBuilder(stabBlock);
 
     for(auto& jp : jitHeap)
     {
-        const_cast<JitPoint*>(jp)->mValue = JitNode(M, builder, *jp);
+        const_cast<JitPoint*>(jp)->mValue = JitNode(M, stabBuilder, *jp);
     }
-    builder.CreateRetVoid();
-    
+    stabBuilder.CreateRetVoid();
+
+    // Capture and reset state
+    auto* captureFunc =
+    llvm::cast<llvm::Function>(M->getOrInsertFunction(CAP_FUNC_NAME, 
+                    llvm::FunctionType::get(
+                        llvm::Type::getVoidTy(*mLlvmContext), // void return
+                        noargs,
+                        false))); // no var args
+    auto *capBlock = llvm::BasicBlock::Create(*mLlvmContext, "CaptureStateBlock", captureFunc);
+    llvm::IRBuilder<> capBuilder(capBlock);
+
+    auto* resetFunc =
+    llvm::cast<llvm::Function>(M->getOrInsertFunction(RESET_FUNC_NAME, 
+                    llvm::FunctionType::get(
+                        llvm::Type::getVoidTy(*mLlvmContext), // void return
+                        noargs,
+                        false))); // no var args
+    auto* resetBlock = llvm::BasicBlock::Create(*mLlvmContext, "ResetBlock", resetFunc);
+    llvm::IRBuilder<> resetBuilder(resetBlock);
+
+    // copy here so we aren't inserting new gv into the list we are working on
+    std::vector<llvm::GlobalVariable*> gvList;
+    for(auto& gv : module->getGlobalList())
+    {
+        gvList.push_back(&gv);
+    }
+
+    for(auto& gv : gvList)
+    {
+        auto* copy = JitGV(M, capBuilder);
+        capBuilder.CreateStore(gv, copy);
+
+        auto* loadCopy = resetBuilder.CreateLoad(copy);
+        resetBuilder.CreateStore(loadCopy, gv);
+    }
+    capBuilder.CreateRetVoid();
+    resetBuilder.CreateRetVoid();
+
     // Output asm
-    if(0)
+    if(1)
     {
         std::string out;
         llvm::raw_string_ostream rawout(out);
 
         rawout << *stabilizeFunc;
+        rawout << *captureFunc;
+        rawout << *resetFunc;
 
         std::cout << rawout.str();
     }
-
+    
     return module;
 }
 
