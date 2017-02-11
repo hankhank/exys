@@ -46,7 +46,9 @@ public:
     std::unordered_map<std::string, double> DumpObservers() override;
 
     std::string GetDOTGraph() override;
-    std::string GetLlvmIR();
+    std::string GetLlvmIR() const;
+    std::string GetLlvmIRClone() const;
+    std::string GetMemoryLayout() const;
 
     static std::unique_ptr<IEngine> Build(const std::string& text);
 
@@ -62,8 +64,11 @@ private:
     // the exec engine and the examples I've hit segfaults
     llvm::LLVMContext* mLlvmContext = nullptr;
     llvm::ExecutionEngine* mLlvmExecEngine = nullptr;
+    llvm::ExecutionEngine* mLlvmExecEngineClone = nullptr;
     llvm::Function* mStabilizeFunc = nullptr;
+    llvm::Function* mStabilizeFuncClone = nullptr;
     void (*mRawStabilizeFunc)() = nullptr;
+    void (*mRawStabilizeFuncClone)() = nullptr;
     
     std::vector<Point> mPoints;
     std::unordered_map<std::string, Point*> mObservers;

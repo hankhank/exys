@@ -272,6 +272,7 @@ void Gputer::CompleteBuild()
         }
         if((ob = observers.find(node)) != observers.end())
         {
+
             mObservers[ob->second] = &(*outpoint);
             jp.mPoint = &(*outpoint);
             ++outpoint;

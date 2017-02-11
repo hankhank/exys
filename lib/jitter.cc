@@ -17,6 +17,9 @@
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/TargetSelect.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Transforms/Utils/Cloning.h"
+
+//#include "llvm/lib/Target/NVPTX/MCTargetDesc/NVPTXBaseInfo.h"
 
 #include "jitter.h"
 #include "helpers.h"
@@ -46,6 +49,15 @@ struct JitPointProcessor
     Procedure procedure;
     ComputeFunction func; 
 };
+
+llvm::GlobalVariable* JitGV(llvm::Module* M, llvm::IRBuilder<>& builder)
+{
+    auto* gv = new llvm::GlobalVariable(*M, builder.getDoubleTy(), false, llvm::GlobalValue::InternalLinkage,
+                     llvm::ConstantFP::get(builder.getDoubleTy(), 0.0), "", nullptr,
+                     llvm::GlobalValue::ThreadLocalMode::NotThreadLocal, 
+                     5); //llvm::AddressSpace::ADDRESS_SPACE_LOCAL /* for cuda kernel */);
+    return gv;
+}
 
 llvm::Value* JitTernary(llvm::Module*, llvm::IRBuilder<>& builder, const JitPoint& point)
 {
@@ -80,8 +92,7 @@ llvm::Value* JitLatch(llvm::Module* M, llvm::IRBuilder<>& builder, const JitPoin
 {
     assert(point.mParents.size() == 2);
 
-    auto* gv = new llvm::GlobalVariable(*M, builder.getDoubleTy(), false, llvm::GlobalValue::CommonLinkage,
-                     llvm::ConstantFP::get(builder.getDoubleTy(), 0.0));
+    auto* gv = JitGV(M, builder);
 
     llvm::Value* cmp = point.mParents[0]->mValue;
     llvm::Value* zero = llvm::ConstantFP::get(builder.getDoubleTy(), 0.0);
@@ -100,8 +111,7 @@ llvm::Value* JitFlipFlop(llvm::Module* M, llvm::IRBuilder<>& builder, const JitP
 {
     assert(point.mParents.size() == 2);
 
-    auto* gv = new llvm::GlobalVariable(*M, builder.getDoubleTy(), false, llvm::GlobalValue::CommonLinkage,
-                     llvm::ConstantFP::get(builder.getDoubleTy(), 0.0));
+    auto* gv = JitGV(M, builder);
 
     llvm::Value* cmp = point.mParents[0]->mValue;
     llvm::Value* zero = llvm::ConstantFP::get(builder.getDoubleTy(), 0.0);
@@ -120,8 +130,7 @@ llvm::Value* JitTick(llvm::Module* M, llvm::IRBuilder<>& builder, const JitPoint
 {
     assert(point.mParents.size() == 2);
 
-    auto* gv = new llvm::GlobalVariable(*M, builder.getDoubleTy(), false, llvm::GlobalValue::CommonLinkage,
-                     llvm::ConstantFP::get(builder.getDoubleTy(), 0.0));
+    auto* gv = JitGV(M, builder);
 
     llvm::Value* one = llvm::ConstantFP::get(builder.getDoubleTy(), 1.0);
 
@@ -257,7 +266,22 @@ std::string Jitter::GetDOTGraph()
     return "digraph " + mGraph->GetDOTGraph();
 }
 
-std::string Jitter::GetLlvmIR()
+std::string Jitter::GetMemoryLayout() const
+{
+    return mLlvmExecEngine->getDataLayout()->getStringRepresentation();
+}
+
+std::string Jitter::GetLlvmIR() const
+{
+    std::string out;
+    llvm::raw_string_ostream rawout(out);
+
+    rawout << *mStabilizeFunc;
+
+    return rawout.str();
+}
+
+std::string Jitter::GetLlvmIRClone() const
 {
     std::string out;
     llvm::raw_string_ostream rawout(out);
@@ -382,7 +406,7 @@ void Jitter::CompleteBuild()
             jp.mPoint->mLength = node->mLength;
         }
     }
-    
+   j
     // Copy into computed heap
     std::set<JitPoint*, CmpJitPointPtr> jitHeap;
     for(auto& jp : jitPoints)
@@ -395,13 +419,22 @@ void Jitter::CompleteBuild()
     LLVMInitializeNativeTarget();
     LLVMInitializeNativeAsmPrinter();
 
+    auto module = BuildModule();
+
+    mLlvmExecEngine = BuildJitEngine();
+
+    Stabilize(true);
+}
+
+std::unique_ptr<llvm::Module> Jitter::BuildModule()
+{
     auto Owner = std::make_unique<llvm::Module>("exys", *mLlvmContext);
-    llvm::Module *M = Owner.get();
+    llvm::Module *mModule = Owner.get();
   
     std::vector<llvm::Type*> args;
 
     mStabilizeFunc =
-    llvm::cast<llvm::Function>(M->getOrInsertFunction("StabilizeFunc", 
+    llvm::cast<llvm::Function>(mModule->getOrInsertFunction("StabilizeFunc", 
                     llvm::FunctionType::get(
                         llvm::Type::getVoidTy(*mLlvmContext), // void return
                         args,
@@ -413,28 +446,32 @@ void Jitter::CompleteBuild()
 
     for(auto& jp : jitHeap)
     {
-        const_cast<JitPoint*>(jp)->mValue = JitNode(M, builder, *jp);
+        const_cast<JitPoint*>(jp)->mValue = JitNode(mModule, builder, *jp);
     }
-
     builder.CreateRetVoid();
+    
+llvm::ExecutionEngine* Jitter::BuildJitEngine()
+{
     std::string error;
-    mLlvmExecEngine = llvm::EngineBuilder(std::move(Owner))
+    auto* llvmExecEngine = llvm::EngineBuilder(std::move(Owner))
                                 .setEngineKind(llvm::EngineKind::JIT)
                                 .setOptLevel(llvm::CodeGenOpt::Level::Aggressive)
                                 .setErrorStr(&error)
                                 .create();
-    if(!mLlvmExecEngine)
+    llvmExecEngine->DisableGVCompilation(true);
+    if(!llvmExecEngine)
     {
         // throw here
         std::cout << error;
-        assert(mLlvmExecEngine);
+        assert(llvmExecEngine);
     }
     mRawStabilizeFunc = (void(*)()) mLlvmExecEngine->getPointerToFunction(mStabilizeFunc);
     mLlvmExecEngine->finalizeObject();
 
-    //std::cout << GetLlvmIR();
+    std::cout << GetMemoryLayout();
+    std::cout << GetLlvmIR();
 
-    Stabilize(true);
+    auto OwnerClone = std::unique_ptr<llvm::Module>(llvm::CloneModule(M));
 }
 
 bool Jitter::IsDirty()
@@ -451,15 +488,8 @@ void Jitter::Stabilize(bool force)
 {
     if(force || IsDirty())
     {
-        if(mRawStabilizeFunc)
-        {
-            mRawStabilizeFunc();
-        }
-        else
-        {
-            std::vector<llvm::GenericValue> noargs;
-            mLlvmExecEngine->runFunction(mStabilizeFunc, noargs);
-        }
+        mRawStabilizeFunc();
+        mRawStabilizeFuncClone();
         for(auto& p : mPoints) p.Clean();
     }
 }
