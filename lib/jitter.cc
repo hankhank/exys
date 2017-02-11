@@ -406,7 +406,7 @@ std::unique_ptr<llvm::Module> Jitter::BuildModule()
     builder.CreateRetVoid();
     
     // Output asm
-    if(1)
+    if(0)
     {
         std::string out;
         llvm::raw_string_ostream rawout(out);
@@ -448,7 +448,7 @@ void Jitter::CompleteBuild()
     
     mRawStabilizeFunc = BuildJitEngine(BuildModule());
 
-    Stabilize();
+    Stabilize(true);
 }
 
 bool Jitter::IsDirty()
