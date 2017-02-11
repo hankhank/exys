@@ -1,11 +1,9 @@
 #pragma once
 
-#include <exception>
 #include <string>
 #include <memory>
 #include <stdint.h>
 #include <unordered_map>
-#include <map>
 #include <set>
 
 #include "exys.h"

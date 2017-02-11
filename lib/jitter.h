@@ -1,29 +1,24 @@
 #ifndef _WIN32
 #pragma once
 
-#include <exception>
 #include <string>
 #include <memory>
 #include <stdint.h>
 #include <unordered_map>
-#include <map>
 #include <set>
 
-#include "llvm/ADT/STLExtras.h"
-#include "llvm/ExecutionEngine/GenericValue.h"
-#include "llvm/ExecutionEngine/Interpreter.h"
-#include "llvm/ExecutionEngine/MCJIT.h"
-#include "llvm/IR/Constants.h"
-#include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/IRBuilder.h"
-#include "llvm/IR/Instructions.h"
-#include "llvm/IR/LLVMContext.h"
-#include "llvm/IR/Module.h"
-#include "llvm/Support/ManagedStatic.h"
-#include "llvm/Support/TargetSelect.h"
-#include "llvm/Support/raw_ostream.h"
 
 #include "exys.h"
+
+namespace llvm
+{
+    class Value;
+    class Module;
+    class LLVMContext;
+    class ExecutionEngine;
+    class Function;
+};
 
 namespace Exys
 {
@@ -65,8 +60,8 @@ private:
 
     // def memleaks here but llvm doesnt doc how to pull down
     // the exec engine and the examples I've hit segfaults
-    llvm::LLVMContext* mLlvmContext;
-    llvm::ExecutionEngine* mLlvmExecEngine;
+    llvm::LLVMContext* mLlvmContext = nullptr;
+    llvm::ExecutionEngine* mLlvmExecEngine = nullptr;
     llvm::Function* mStabilizeFunc = nullptr;
     void (*mRawStabilizeFunc)() = nullptr;
     
