@@ -775,9 +775,11 @@ void Graph::BuildLayout()
         if(an->mIsInput) CollectListMembers(an, inputs);
     }
 
+    uint64_t inputOffset = 0;
     for(auto in : inputs)
     {
         in->mIsInput = true;
+        in->mOffset = inputOffset++;
         mLayout.push_back(in);
     }
 
@@ -793,13 +795,14 @@ void Graph::BuildLayout()
         mLayout.push_back(n);
     }
 
-    // Step 4 - Add observer if necessary copies
-    int i = 0;
+    // Step 4 - Add observer flag and if list add copies
+    uint64_t observerOffset = 0;
     for(auto oi : observers)
     {
         if(oi.size() == 1)
         {
             oi[0]->mIsObserver = true;
+            oi[0]->mOffset = observerOffset++;
             // No need to add as already in layout as necessary node
         }
         else
@@ -813,6 +816,7 @@ void Graph::BuildLayout()
                 nodeCopy->mObserverLabels = node->mObserverLabels;
                 nodeCopy->mInputLabels = node->mInputLabels;
                 nodeCopy->mLength = node->mLength;
+                nodeCopy->mOffset = observerOffset++;
                 nodeCopy->mParents.push_back(node);
                 mLayout.push_back(nodeCopy);
                 

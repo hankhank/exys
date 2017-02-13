@@ -55,8 +55,9 @@ public:
     bool mIsObserver = false;
     bool mIsInput = false;
     
-    // Not populated in graph.cc but for use by later stages
+    // For use in later stages
     uint64_t mHeight = 0;
+    uint64_t mOffset = 0;
 
     bool operator<(const Node& rhs) const
     {
