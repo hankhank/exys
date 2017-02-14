@@ -274,15 +274,23 @@ llvm::Value* Jitter::JitNode(llvm::Module* M, llvm::IRBuilder<>&  builder,
         const JitPoint& jp, llvm::Value* inputs, llvm::Value* observers)
 {
     llvm::Value* ret = nullptr;
+    llvm::Value* valIndex   = llvm::ConstantInt::get(llvm::Type::getInt32Ty(*mLlvmContext), 0);
+    llvm::Value* dirtyIndex = llvm::ConstantInt::get(llvm::Type::getInt32Ty(*mLlvmContext), 1); 
+    llvm::Value* nodeOffset = llvm::ConstantInt::get(llvm::Type::getInt32Ty(*mLlvmContext), jp.mNode->mOffset);
+
+    llvm::Value* dirtyFlag = llvm::ConstantInt::get(llvm::Type::getInt8Ty(*mLlvmContext), 1);
+
     if(jp.mNode->mKind == Node::KIND_CONST)
     {
       ret = llvm::ConstantFP::get(builder.getDoubleTy(), std::stod(jp.mNode->mToken));
     }
     else if(jp.mNode->mIsInput)
     {
-        llvm::Value* offset = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*mLlvmContext), jp.mNode->mOffset);
-        llvm::Value* input = builder.CreateGEP(inputs, offset);
-        ret = builder.CreateLoad(input);
+        std::vector<llvm::Value*> gepIndex;
+        gepIndex.push_back(nodeOffset);
+        gepIndex.push_back(valIndex);
+        llvm::Value* point = builder.CreateGEP(inputs, gepIndex);
+        ret = builder.CreateLoad(point);
     }
     else if(jp.mNode->mKind == Node::KIND_PROC)
     {
@@ -304,9 +312,17 @@ llvm::Value* Jitter::JitNode(llvm::Module* M, llvm::IRBuilder<>&  builder,
             ret = builder.CreateUIToFP(ret, builder.getDoubleTy());
         }
 
-        llvm::Value* offset = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*mLlvmContext), jp.mNode->mOffset);
-        llvm::Value* observer = builder.CreateGEP(observers, offset);
+        std::vector<llvm::Value*> gepIndex;
+        gepIndex.push_back(nodeOffset);
+        gepIndex.push_back(valIndex);
+        llvm::Value* observer = builder.CreateGEP(observers, gepIndex);
+
+        gepIndex.pop_back();
+        gepIndex.push_back(dirtyIndex);
+        llvm::Value* flag = builder.CreateGEP(observers, gepIndex);
+
         builder.CreateStore(ret, observer);
+        builder.CreateStore(ret, dirtyFlag);
     }
     return ret;
 }
@@ -360,10 +376,20 @@ std::unique_ptr<llvm::Module> Jitter::BuildModule()
     auto module = std::make_unique<llvm::Module>("exys", *mLlvmContext);
     llvm::Module *M = module.get();
 
+    // before changing this type 
+    auto pointType = llvm::StructType::create(M->getContext(), "struct.Point");
+    std::vector<llvm::Type*> pointTypeFields;
+    pointTypeFields.push_back(llvm::Type::getDoubleTy(M->getContext()));
+    pointTypeFields.push_back(llvm::IntegerType::get(M->getContext(), 8));
+    pointTypeFields.push_back(llvm::IntegerType::get(M->getContext(), 8)); // alignment for u16
+    pointTypeFields.push_back(llvm::IntegerType::get(M->getContext(), 16));
+    pointType->setBody(pointTypeFields, /*isPacked=*/true);
+
+    llvm::PointerType* pointerToPoint = llvm::PointerType::get(pointType, 5 /*address space*/);
+
     std::vector<llvm::Type*> inoutargs;
-    auto* arrayPtr = llvm::PointerType::get(llvm::Type::getDoubleTy(M->getContext()), 0);
-    inoutargs.push_back(arrayPtr);
-    inoutargs.push_back(arrayPtr);
+    inoutargs.push_back(pointerToPoint);
+    inoutargs.push_back(pointerToPoint);
   
     auto* stabilizeFunc =
     llvm::cast<llvm::Function>(M->getOrInsertFunction(STAB_FUNC_NAME, 
@@ -485,7 +511,7 @@ void Jitter::Stabilize(bool force)
 {
     if(force || IsDirty())
     {
-        mRawStabilizeFunc();
+        //mRawStabilizeFunc();
         for(auto& p : mPoints) p.Clean();
     }
 }

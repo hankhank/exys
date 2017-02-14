@@ -23,8 +23,7 @@ namespace llvm
 namespace Exys
 {
 
-typedef void (*StabilizationFunc)(double* input, double* observer);
-typedef void (*StabilizationFunc)();
+typedef void (*StabilizationFunc)(Point* inputs, Point* observers);
 
 class JitPoint;
 
