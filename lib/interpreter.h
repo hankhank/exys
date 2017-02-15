@@ -15,42 +15,13 @@ struct InterPoint;
 
 typedef std::function<void (InterPoint&)> ComputeFunction;
 
-struct InterPoint : Point
+struct InterPoint
 {
     int64_t mHeight;
     std::vector<InterPoint*> mParents;
     std::vector<InterPoint*> mChildren;
+    Point* mPoint;
     ComputeFunction mComputeFunction;
-
-    Point& operator[](size_t i)
-    {
-        assert(i < mLength);
-        i = i < mLength ? i : 0;
-        return *(this+i);
-    }
-
-    bool operator!=(const InterPoint& rhs) const { return mVal != rhs.mVal; }
-
-    InterPoint& operator=(const InterPoint& p) 
-    {
-        mDirty = (mDirty || (mVal != p.mVal));
-        mVal = p.mVal;
-        return *this;
-    }
-
-    InterPoint& operator=(const Point& p)       
-    {
-        mDirty = (mDirty || (mVal != p.mVal));
-        mVal = p.mVal;
-        return *this;
-    }
-
-    InterPoint& operator=(double d)       
-    {
-        mDirty = (mDirty || (mVal != d));
-        mVal = d;
-        return *this;
-    }
 };
 
 class Interpreter : public IEngine
@@ -83,10 +54,11 @@ private:
     void CollectListMembers(Node::Ptr node, std::vector<Node::Ptr>& nodes);
     ComputeFunction LookupComputeFunction(Node::Ptr node);
     
-    std::unordered_map<std::string, InterPoint*> mObservers;
-    std::unordered_map<std::string, InterPoint*> mInputs;
+    std::unordered_map<std::string, Point*> mObservers;
+    std::unordered_map<std::string, Point*> mInputs;
 
     std::vector<InterPoint> mInterPointGraph;
+    std::vector<Point> mPoints;
 
     struct HeightPtrPair
     {

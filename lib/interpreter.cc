@@ -33,22 +33,22 @@ void ConstDummy(InterPoint& /*point*/)
 {
 }
 
-void Copy(InterPoint& point)
+void Copy(InterPoint& ipoint)
 {
-    assert(point.mParents.size() == 1);
-    point = *point.mParents[0];
+    assert(ipoint.mParents.size() == 1);
+    *ipoint.mPoint = *ipoint.mParents[0]->mPoint;
 }
 
 ComputeFunction Latch()
 {
     Point lastPoint;
-    return [lastPoint](InterPoint& point) mutable
+    return [lastPoint](InterPoint& ipoint) mutable
     {
-        assert(point.mParents.size() == 2);
-        if (point.mParents[0]->mVal)
+        assert(ipoint.mParents.size() == 2);
+        if (ipoint.mParents[0]->mPoint->mVal)
         {
-            lastPoint = *point.mParents[1];
-            point = lastPoint;
+            lastPoint = *ipoint.mParents[1]->mPoint;
+            *ipoint.mPoint = lastPoint;
         }
     };
 }
@@ -56,13 +56,13 @@ ComputeFunction Latch()
 ComputeFunction FlipFlop()
 {
     Point lastPoint;
-    return [lastPoint](InterPoint& point) mutable
+    return [lastPoint](InterPoint& ipoint) mutable
     {
-        assert(point.mParents.size() == 2);
-        if (point.mParents[0]->mVal)
+        assert(ipoint.mParents.size() == 2);
+        if (ipoint.mParents[0]->mPoint->mVal)
         {
-            point = lastPoint;
-            lastPoint = *point.mParents[1];
+            *ipoint.mPoint = lastPoint;
+            lastPoint = *ipoint.mParents[1]->mPoint;
         }
     };
 }
@@ -70,22 +70,22 @@ ComputeFunction FlipFlop()
 ComputeFunction Tick()
 {
     uint64_t tick=0;
-    return [tick](InterPoint& point) mutable
+    return [tick](InterPoint& ipoint) mutable
     {
-        point = ++tick;
+        *ipoint.mPoint = ++tick;
     };
 }
 
-void Ternary(InterPoint& point)
+void Ternary(InterPoint& ipoint)
 {
-    assert(point.mParents.size() == 3);
-    if(point.mParents[0]->mVal)
+    assert(ipoint.mParents.size() == 3);
+    if(ipoint.mParents[0]->mPoint->mVal)
     {
-        point = *point.mParents[1];
+        *ipoint.mPoint = *ipoint.mParents[1]->mPoint;
     }
     else
     {
-        point = *point.mParents[2];
+        *ipoint.mPoint = *ipoint.mParents[2]->mPoint;
     }
 }
 
@@ -113,32 +113,33 @@ FUNCTOR(ExpFunc, double, std::exp);
 FUNCTOR(LogFunc, double, std::log);
 
 template<typename Op> 
-void LoopOperator(InterPoint& point)
+void LoopOperator(InterPoint& ipoint)
 {
-    assert(point.mParents.size() >= 2);
+    assert(ipoint.mParents.size() >= 2);
     Op o;
-    auto p = point.mParents.begin();
-    point = *(*p);
-    for(p++; p != point.mParents.end(); p++)
+    auto p = ipoint.mParents.begin();
+    auto& point = *ipoint.mPoint;
+    point = *(*p)->mPoint;
+    for(p++; p != ipoint.mParents.end(); p++)
     {
-        point = o(point.mVal, (*p)->mVal);
+        point = o(point.mVal, (*p)->mPoint->mVal);
     }
 }
 
 template<typename Op> 
-void UnaryOperator(InterPoint& point)
+void UnaryOperator(InterPoint& ipoint)
 {
-    assert(point.mParents.size() == 1);
+    assert(ipoint.mParents.size() == 1);
     Op o;
-    point = o(point.mParents[0]->mVal);
+    *ipoint.mPoint = o(ipoint.mParents[0]->mPoint->mVal);
 }
 
 template<typename Op> 
-void PairOperator(InterPoint& point)
+void PairOperator(InterPoint& ipoint)
 {
-    assert(point.mParents.size() == 2);
+    assert(ipoint.mParents.size() == 2);
     Op o;
-    point = o(point.mParents[0]->mVal, point.mParents[1]->mVal);
+    *ipoint.mPoint = o(ipoint.mParents[0]->mPoint->mVal, ipoint.mParents[1]->mPoint->mVal);
 }
 
 std::function<ComputeFunction ()> Wrap(ComputeFunction func)
@@ -219,6 +220,7 @@ void Interpreter::CompleteBuild()
 
     // For cache niceness
     mInterPointGraph.resize(nodeLayout.size());
+    mPoints.resize(nodeLayout.size());
 
     // Finish adding bulk of logic
     for(auto node : nodeLayout)
@@ -236,27 +238,28 @@ void Interpreter::CompleteBuild()
         }
 
         point.mComputeFunction = LookupComputeFunction(node);
+        point.mPoint = &mPoints[offset];
 
         std::unordered_map<Node::Ptr, std::string>::iterator ob;
         if(node->mKind == Node::KIND_CONST)
         {
-            point = std::stod(node->mToken);
+            *point.mPoint = std::stod(node->mToken);
         }
         if(node->mIsInput)
         {
             for(const auto& label : node->mInputLabels)
             {
-                mInputs[label] = &point;
+                mInputs[label] = point.mPoint;
             }
-            point.mLength = node->mLength;
+            point.mPoint->mLength = node->mLength;
         }
         if(node->mIsObserver)
         {
             for(const auto& label : node->mObserverLabels)
             {
-                mObservers[label] = &point;
+                mObservers[label] = point.mPoint;
             }
-            point.mLength = node->mLength;
+            point.mPoint->mLength = node->mLength;
         }
         mRecomputeHeap.emplace(HeightPtrPair{point.mHeight, &point});
     }
@@ -278,7 +281,7 @@ void Interpreter::Stabilize(bool force)
 {
     for(const auto& namep : mInputs)
     {
-        auto& interpoint = *namep.second;
+        auto& point = *namep.second;
         if(force || interpoint.IsDirty())
         {
             for(auto* child : interpoint.mChildren)
