@@ -20,61 +20,53 @@ namespace llvm
     class Function;
 };
 
+namespace 
+{
+    const std::string STAB_FUNC_NAME = "StabilizeFunc";
+    const std::string CAP_FUNC_NAME = "CaptureStateFunc";
+    const std::string RESET_FUNC_NAME = "ResetStateFunc";
+};
+
 namespace Exys
 {
 
 typedef void (*StabilizationFunc)(Point* inputs, Point* observers);
+typedef void (*CaptureFunc)();
+typedef void (*ResetFunc)();
 
 class JitPoint;
 
 struct JitPointDescription
 {
-    std::string label;
-    int offset;
+    std::vector<std::string> mLabels;
+    uint64_t mOffset;
 };
 
-class Jitter : public IEngine
+class Jitter
 {
 public:
     Jitter(std::unique_ptr<Graph> graph);
-
     virtual ~Jitter();
 
-    void Stabilize(bool force=false) override;
-    bool IsDirty() override;
+    static std::unique_ptr<Jitter> Build(const std::string& text);
 
-    bool HasInputPoint(const std::string& label) override;
-    Point& LookupInputPoint(const std::string& label) override;
-    std::vector<std::string> GetInputPointLabels() override;
-    std::unordered_map<std::string, double> DumpInputs() override;
+    const std::vector<JitPointDescription>& GetInputDesc() const { return mInputs; }
+    const std::vector<JitPointDescription>& GetObserverDesc() const { return mObservers; }
 
-    bool HasObserverPoint(const std::string& label) override;
-    Point& LookupObserverPoint(const std::string& label) override;
-    std::vector<std::string> GetObserverPointLabels() override;
-    std::unordered_map<std::string, double> DumpObservers() override;
-
-    std::string GetDOTGraph() override;
-
-    static std::unique_ptr<IEngine> Build(const std::string& text);
-
-private:
     std::unique_ptr<llvm::Module> BuildModule();
-    StabilizationFunc BuildJitEngine(std::unique_ptr<llvm::Module> module);
-    void CompleteBuild();
 
+    std::string GetDOTGraph();
+private:
     // LLVM helpers
-    llvm::Value* GetPtrForPoint(Point& point);
     llvm::Value* JitNode(llvm::Module* M, llvm::IRBuilder<>&  builder, 
         const JitPoint& jp, llvm::Value* inputs, llvm::Value* observers);
 
     // def memleaks here but llvm doesnt doc how to pull down
     // the exec engine and the examples I've hit segfaults
     llvm::LLVMContext* mLlvmContext = nullptr;
-    StabilizationFunc mRawStabilizeFunc = nullptr;
     
-    std::vector<Point> mPoints;
-    std::unordered_map<std::string, Point*> mObservers;
-    std::unordered_map<std::string, Point*> mInputs;
+    std::vector<JitPointDescription> mInputs;
+    std::vector<JitPointDescription> mObservers;
 
     std::unique_ptr<Graph> mGraph;
 };

@@ -6,8 +6,8 @@
 
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/ADT/STLExtras.h"
-#include "llvm/ExecutionEngine/GenericValue.h"
-#include "llvm/ExecutionEngine/Interpreter.h"
+//#include "llvm/ExecutionEngine/GenericValue.h"
+//#include "llvm/ExecutionEngine/Interpreter.h"
 #include "llvm/ExecutionEngine/MCJIT.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DerivedTypes.h"
@@ -22,13 +22,6 @@
 
 #include "jitter.h"
 #include "helpers.h"
-
-namespace 
-{
-const std::string STAB_FUNC_NAME = "StabilizeFunc";
-const std::string CAP_FUNC_NAME = "CaptureStateFunc";
-const std::string RESET_FUNC_NAME = "ResetStateFunc";
-};
 
 namespace Exys
 {
@@ -256,6 +249,7 @@ Jitter::Jitter(std::unique_ptr<Graph> graph)
 :mGraph(std::move(graph))
 {
 }
+    //auto OwnerClone = std::unique_ptr<llvm::Module>(llvm::CloneModule(M));
 
 Jitter::~Jitter()
 {
@@ -344,6 +338,12 @@ struct CmpJitPointPtr
 
 std::unique_ptr<llvm::Module> Jitter::BuildModule()
 {    
+    if(mLlvmContext)
+    {
+        assert(!mLlvmContext && "Do not call build module multiple times - Call clone module if you want a copy");
+        return nullptr;
+    }
+
     auto nodeLayout = mGraph->GetLayout();
 
     std::vector<JitPoint> jitPoints;
@@ -360,6 +360,15 @@ std::unique_ptr<llvm::Module> Jitter::BuildModule()
             auto& parent = jitPoints[FindNodeOffset(nodeLayout, pnode)];
             jp.mParents.push_back(&parent);
             parent.mChildren.push_back(&jp);
+        }
+
+        if(node->mIsInput)
+        {
+            mInputs.push_back({node->mInputLabels, node->mOffset});
+        }
+        if(node->mIsObserver)
+        {
+            mObservers.push_back({node->mObserverLabels, node->mOffset});
         }
     }
 
@@ -465,123 +474,6 @@ std::unique_ptr<llvm::Module> Jitter::BuildModule()
     return module;
 }
 
-StabilizationFunc Jitter::BuildJitEngine(std::unique_ptr<llvm::Module> module)
-{
-    std::string error;
-    auto* llvmExecEngine = llvm::EngineBuilder(std::move(module))
-                                .setEngineKind(llvm::EngineKind::JIT)
-                                .setOptLevel(llvm::CodeGenOpt::Level::Aggressive)
-                                .setErrorStr(&error)
-                                .create();
-    llvmExecEngine->DisableGVCompilation(true);
-    if(!llvmExecEngine)
-    {
-        // throw here
-        std::cout << error;
-        assert(llvmExecEngine);
-    }
-    auto rawStabilizeFunc = reinterpret_cast<StabilizationFunc>(llvmExecEngine->getPointerToNamedFunction(STAB_FUNC_NAME));
-    llvmExecEngine->finalizeObject();
-
-    return rawStabilizeFunc;
-    //auto OwnerClone = std::unique_ptr<llvm::Module>(llvm::CloneModule(M));
-}
-
-void Jitter::CompleteBuild()
-{
-    LLVMInitializeNativeTarget();
-    LLVMInitializeNativeAsmPrinter();
-    
-    mRawStabilizeFunc = BuildJitEngine(BuildModule());
-
-    Stabilize(true);
-}
-
-bool Jitter::IsDirty()
-{
-    for(const auto& namep : mInputs)
-    {
-        auto& point = *namep.second;
-        if(point.IsDirty()) return true;
-    }
-    return false;
-}
-
-void Jitter::Stabilize(bool force)
-{
-    if(force || IsDirty())
-    {
-        //mRawStabilizeFunc();
-        for(auto& p : mPoints) p.Clean();
-    }
-}
-
-bool Jitter::HasInputPoint(const std::string& label)
-{
-    auto niter = mInputs.find(label);
-    return niter != mInputs.end();
-}
-
-Point& Jitter::LookupInputPoint(const std::string& label)
-{
-    assert(HasInputPoint(label));
-    auto niter = mInputs.find(label);
-    return *niter->second;
-}
-
-std::vector<std::string> Jitter::GetInputPointLabels()
-{
-    std::vector<std::string> ret;
-    for(const auto& ip : mInputs)
-    {
-        ret.push_back(ip.first);
-    }
-    return ret;
-}
-
-std::unordered_map<std::string, double> Jitter::DumpInputs()
-{
-    std::unordered_map<std::string, double> ret;
-    for(const auto& ip : mInputs)
-    {
-        ret[ip.first] = ip.second->mVal;
-    }
-    return ret;
-}
-
-bool Jitter::HasObserverPoint(const std::string& label)
-{
-    auto niter = mObservers.find(label);
-    return niter != mObservers.end();
-}
-
-Point& Jitter::LookupObserverPoint(const std::string& label)
-{
-    assert(HasObserverPoint(label));
-    auto niter = mObservers.find(label);
-    return *niter->second;
-}
-
-std::vector<std::string> Jitter::GetObserverPointLabels()
-{
-    std::vector<std::string> ret;
-    for(const auto& ip : mObservers)
-    {
-        ret.push_back(ip.first);
-    }
-    return ret;
-}
-
-std::unordered_map<std::string, double> Jitter::DumpObservers()
-{
-    std::unordered_map<std::string, double> ret;
-    for(const auto& ip : mObservers)
-    {
-        ret[ip.first] = ip.second->mVal;
-    }
-    return ret;
-}
-
 static std::unique_ptr<Graph> BuildAndLoadGraph()
 {
     auto graph = std::make_unique<Graph>();
@@ -591,13 +483,11 @@ static std::unique_ptr<Graph> BuildAndLoadGraph()
     return graph;
 }
 
-std::unique_ptr<IEngine> Jitter::Build(const std::string& text)
+std::unique_ptr<Jitter> Jitter::Build(const std::string& text)
 {
     auto graph = BuildAndLoadGraph();
     graph->Construct(Parse(text));
-    auto engine = std::make_unique<Jitter>(std::move(graph));
-    engine->CompleteBuild();
-    return std::unique_ptr<IEngine>(std::move(engine));
+    return std::make_unique<Jitter>(std::move(graph));
 }
 
 }

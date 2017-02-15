@@ -7,7 +7,7 @@
 #include "exys.h"
 #include "executioner.h"
 #include "interpreter.h"
-#include "jitter.h"
+#include "jitwrap.h"
 
 int main(int argc, char* argv[])
 {
@@ -46,7 +46,7 @@ int main(int argc, char* argv[])
         }
         else if(mode == JITTER)
         {
-            engine = Exys::Jitter::Build(buffer.str());
+            engine = Exys::JitWrap::Build(buffer.str());
         }
         else
         {

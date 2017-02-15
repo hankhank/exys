@@ -5,40 +5,22 @@
 #include <memory>
 #include <stdint.h>
 #include <unordered_map>
-#include <set>
 
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Module.h"
 
 #include "exys.h"
-
-namespace llvm
-{
-    class Value;
-    class LLVMContext;
-    class ExecutionEngine;
-    class Function;
-};
+#include "jitter.h"
 
 namespace Exys
 {
 
-typedef void (*StabilizationFunc)();
-
-class JitPoint;
-
-struct JitPointDescription
-{
-    std::string label;
-    int offset;
-};
-
-class Jitter : public IEngine
+class JitWrap : public IEngine
 {
 public:
-    Jitter(std::unique_ptr<Graph> graph);
+    JitWrap(std::unique_ptr<Jitter> graph);
 
-    virtual ~Jitter();
+    virtual ~JitWrap();
 
     void Stabilize(bool force=false) override;
     bool IsDirty() override;
@@ -58,25 +40,20 @@ public:
     static std::unique_ptr<IEngine> Build(const std::string& text);
 
 private:
-    std::unique_ptr<llvm::Module> BuildModule();
-    StabilizationFunc BuildJitEngine(std::unique_ptr<llvm::Module> module);
+    void BuildJitEngine(std::unique_ptr<llvm::Module> module);
     void CompleteBuild();
 
-    // LLVM helpers
-    llvm::Value* GetPtrForPoint(Point& point);
-    llvm::Value* JitNode(llvm::Module* M, llvm::IRBuilder<>&  builder, 
-        const JitPoint& jp, llvm::Value* inputs, llvm::Value* observers);
-
-    // def memleaks here but llvm doesnt doc how to pull down
-    // the exec engine and the examples I've hit segfaults
-    llvm::LLVMContext* mLlvmContext = nullptr;
     StabilizationFunc mRawStabilizeFunc = nullptr;
+    CaptureFunc mCaptureFunc = nullptr;
+    ResetFunc mResetFunc = nullptr;
     
     std::vector<Point> mPoints;
+    Point* mInputPtr = nullptr;
+    Point* mObserverPtr = nullptr;
     std::unordered_map<std::string, Point*> mObservers;
     std::unordered_map<std::string, Point*> mInputs;
 
-    std::unique_ptr<Graph> mGraph;
+    std::unique_ptr<Jitter> mJitter;
 };
 
 };
