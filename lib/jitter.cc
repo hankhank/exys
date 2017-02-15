@@ -269,7 +269,7 @@ llvm::Value* Jitter::JitNode(llvm::Module* M, llvm::IRBuilder<>&  builder,
 {
     llvm::Value* ret = nullptr;
     llvm::Value* valIndex   = llvm::ConstantInt::get(llvm::Type::getInt32Ty(*mLlvmContext), 0);
-    llvm::Value* dirtyIndex = llvm::ConstantInt::get(llvm::Type::getInt32Ty(*mLlvmContext), 1); 
+    llvm::Value* dirtyIndex = llvm::ConstantInt::get(llvm::Type::getInt32Ty(*mLlvmContext), 2); 
     llvm::Value* nodeOffset = llvm::ConstantInt::get(llvm::Type::getInt32Ty(*mLlvmContext), jp.mNode->mOffset);
 
     llvm::Value* dirtyFlag = llvm::ConstantInt::get(llvm::Type::getInt8Ty(*mLlvmContext), 1);
@@ -310,13 +310,13 @@ llvm::Value* Jitter::JitNode(llvm::Module* M, llvm::IRBuilder<>&  builder,
         gepIndex.push_back(nodeOffset);
         gepIndex.push_back(valIndex);
         llvm::Value* observer = builder.CreateGEP(observers, gepIndex);
+        builder.CreateStore(ret, observer);
 
         gepIndex.pop_back();
         gepIndex.push_back(dirtyIndex);
         llvm::Value* flag = builder.CreateGEP(observers, gepIndex);
 
-        builder.CreateStore(ret, observer);
-        builder.CreateStore(ret, dirtyFlag);
+        builder.CreateStore(dirtyFlag, flag);
     }
     return ret;
 }
@@ -364,11 +364,11 @@ std::unique_ptr<llvm::Module> Jitter::BuildModule()
 
         if(node->mIsInput)
         {
-            mInputs.push_back({node->mInputLabels, node->mOffset});
+            mInputs.push_back(node);
         }
         if(node->mIsObserver)
         {
-            mObservers.push_back({node->mObserverLabels, node->mOffset});
+            mObservers.push_back(node);
         }
     }
 
@@ -388,10 +388,12 @@ std::unique_ptr<llvm::Module> Jitter::BuildModule()
     // before changing this type 
     auto pointType = llvm::StructType::create(M->getContext(), "struct.Point");
     std::vector<llvm::Type*> pointTypeFields;
-    pointTypeFields.push_back(llvm::Type::getDoubleTy(M->getContext()));
-    pointTypeFields.push_back(llvm::IntegerType::get(M->getContext(), 8));
-    pointTypeFields.push_back(llvm::IntegerType::get(M->getContext(), 8)); // alignment for u16
-    pointTypeFields.push_back(llvm::IntegerType::get(M->getContext(), 16));
+    pointTypeFields.push_back(llvm::Type::getDoubleTy(M->getContext()));    // val
+    pointTypeFields.push_back(llvm::IntegerType::get(M->getContext(), 32)); // length
+    pointTypeFields.push_back(llvm::IntegerType::get(M->getContext(), 8));  // dirty
+    pointTypeFields.push_back(llvm::IntegerType::get(M->getContext(), 8));  // char[0]
+    pointTypeFields.push_back(llvm::IntegerType::get(M->getContext(), 8));  // char[1]
+    pointTypeFields.push_back(llvm::IntegerType::get(M->getContext(), 8));  // char[2]
     pointType->setBody(pointTypeFields, /*isPacked=*/true);
 
     llvm::PointerType* pointerToPoint = llvm::PointerType::get(pointType, 5 /*address space*/);
@@ -459,7 +461,7 @@ std::unique_ptr<llvm::Module> Jitter::BuildModule()
     resetBuilder.CreateRetVoid();
 
     // Output asm
-    if(1)
+    if(0)
     {
         std::string out;
         llvm::raw_string_ostream rawout(out);

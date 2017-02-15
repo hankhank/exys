@@ -55,11 +55,21 @@ void JitWrap::BuildJitEngine(std::unique_ptr<llvm::Module> module)
 
     for(const auto& id : inputDesc)
     {
-        for(const auto& label : id.mLabels) mInputs[label] = &mPoints[id.mOffset];
+        for(const auto& label : id->mInputLabels)
+        {
+            auto& ip = mPoints[id->mOffset];
+            mInputs[label] = &ip;
+            ip.mLength = id->mLength;
+        }
     }
     for(const auto& od : observerDesc)
     {
-        for(const auto& label : od.mLabels) mObservers[label] = &mPoints[od.mOffset];
+        for(const auto& label : od->mObserverLabels)
+        {
+            auto& op = mPoints[inputDesc.size()+od->mOffset];
+            mObservers[label] = &op;
+            op.mLength = od->mLength;
+        }
     }
     mInputPtr = &mPoints.front();
     mObserverPtr = &mPoints.front() + inputDesc.size();

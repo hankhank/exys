@@ -39,7 +39,8 @@ class JitPoint;
 struct JitPointDescription
 {
     std::vector<std::string> mLabels;
-    uint64_t mOffset;
+    uint64_t mOffset = 0;
+    uint32_t mLength = 0;
 };
 
 class Jitter
@@ -50,8 +51,8 @@ public:
 
     static std::unique_ptr<Jitter> Build(const std::string& text);
 
-    const std::vector<JitPointDescription>& GetInputDesc() const { return mInputs; }
-    const std::vector<JitPointDescription>& GetObserverDesc() const { return mObservers; }
+    const std::vector<Node::Ptr>& GetInputDesc() const { return mInputs; }
+    const std::vector<Node::Ptr>& GetObserverDesc() const { return mObservers; }
 
     std::unique_ptr<llvm::Module> BuildModule();
 
@@ -65,8 +66,8 @@ private:
     // the exec engine and the examples I've hit segfaults
     llvm::LLVMContext* mLlvmContext = nullptr;
     
-    std::vector<JitPointDescription> mInputs;
-    std::vector<JitPointDescription> mObservers;
+    std::vector<Node::Ptr> mInputs;
+    std::vector<Node::Ptr> mObservers;
 
     std::unique_ptr<Graph> mGraph;
 };

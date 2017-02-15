@@ -13,12 +13,20 @@
 namespace Exys
 {
 
+// Size and layout of this structure is very important
+// as we describe it to the llvm compiler later so
+// the functions we generate can operate on pointers
+// of this type. Trying also to keep it to 16 bytes 
+// so we can fit 4 per cache line
+#pragma pack(push)
+#pragma pack(1)
 struct Point
 {
     static constexpr double POINT_EPSILON = 0.000001;
-    double mVal = 0.0;
-    bool mDirty = false;
-    uint16_t mLength=1;
+    double mVal = 0.0;   // 8
+    uint32_t mLength=1;  // 4
+    bool mDirty = false; // 1
+    char pad[3];         // 3
 
     bool IsDirty() const { return mDirty; };
     void Clean() { mDirty = false; };
@@ -28,7 +36,7 @@ struct Point
         return std::abs(mVal - rhs.mVal) > POINT_EPSILON;
     }
 
-    virtual Point& operator[](size_t i)
+    Point& operator[](size_t i)
     {
         assert(i < mLength);
         i = i < mLength ? i : 0;
@@ -51,6 +59,7 @@ struct Point
     bool operator==(double d) const  {return mVal == d;}
     bool operator!=(double d) const  {return mVal != d;}
 };
+#pragma pack(pop)
 
 class IEngine
 {

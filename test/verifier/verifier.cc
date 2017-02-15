@@ -33,37 +33,41 @@ int main(int argc, char* argv[])
         exit(EXIT_FAILURE);
     }
     
-    std::ifstream t(argv[optind]);
-    std::stringstream buffer;
-    buffer << t.rdbuf();
-    
-    try
+    for(int i = optind; i < argc; ++i)
     {
-        std::unique_ptr<Exys::IEngine> engine;
-        if(mode == INTERPRETER)
+        std::cout << "Testing " << argv[i] << " - ";
+        std::ifstream t(argv[i]);
+        std::stringstream buffer;
+        buffer << t.rdbuf();
+        
+        try
         {
-            engine = Exys::Interpreter::Build(buffer.str());
+            std::unique_ptr<Exys::IEngine> engine;
+            if(mode == INTERPRETER)
+            {
+                engine = Exys::Interpreter::Build(buffer.str());
+            }
+            else if(mode == JITTER)
+            {
+                engine = Exys::JitWrap::Build(buffer.str());
+            }
+            else
+            {
+                assert(false);
+            }
+            auto results = Exys::Execute(*engine, buffer.str());
+            std::cout << std::get<1>(results) << "\n";
+            if(!std::get<0>(results)) return -1;
         }
-        else if(mode == JITTER)
+        catch (const Exys::ParseException& e)
         {
-            engine = Exys::JitWrap::Build(buffer.str());
+            std::cout << e.GetErrorMessage(buffer.str());
         }
-        else
+        catch (const Exys::GraphBuildException& e)
         {
-            assert(false);
+            std::cout << e.GetErrorMessage(buffer.str());
         }
-        auto results = Exys::Execute(*engine, buffer.str());
-        std::cout << std::get<1>(results) << "\n";
-        return std::get<0>(results) ? 0 : -1;
-    }
-    catch (const Exys::ParseException& e)
-    {
-        std::cout << e.GetErrorMessage(buffer.str());
-    }
-    catch (const Exys::GraphBuildException& e)
-    {
-        std::cout << e.GetErrorMessage(buffer.str());
-    }
 
-    return -1;
+    }
+    return 0;
 }

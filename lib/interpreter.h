@@ -22,7 +22,7 @@ struct InterPoint : Point
     std::vector<InterPoint*> mChildren;
     ComputeFunction mComputeFunction;
 
-    Point& operator[](size_t i) override
+    Point& operator[](size_t i)
     {
         assert(i < mLength);
         i = i < mLength ? i : 0;
