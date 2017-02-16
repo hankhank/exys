@@ -57,6 +57,9 @@ void Gputer::CompleteBuild()
     llvm::TargetOptions PTXTargetOptions = llvm::TargetOptions();
     auto* ptxTargetMachine = ptxTarget->createTargetMachine(PTXTriple, PTXCPU, "", PTXTargetOptions);
 
+    M->setDataLayout(llvm::StringRef("e-p:64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-"
+                "f64:64:64-v16:16:16-v32:32:32-v64:64:64-v128:128:128-n16:32:64"));
+
     // Generate PTX assembly
     std::string buffer;
     llvm::raw_string_ostream OS(buffer);

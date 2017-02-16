@@ -3,7 +3,7 @@
 
 #include "exys.h"
 #include "interpreter.h"
-#include "jitter.h"
+#include "jitwrap.h"
 
 enum
 {
@@ -136,10 +136,10 @@ void BM_ExecuteGraph_FatSum(benchmark::State& state)
     }
 }
 
-BENCHMARK_TEMPLATE(BM_ExecuteGraph_FatSum, Exys::Jitter)->Ranges({{8, 1024}, {0,2}});
+BENCHMARK_TEMPLATE(BM_ExecuteGraph_FatSum, Exys::JitWrap)->Ranges({{8, 1024}, {0,2}});
 BENCHMARK_TEMPLATE(BM_ExecuteGraph_FatSum, Exys::Interpreter)->Ranges({{8, 1024}, {0,2}});
 
-BENCHMARK_TEMPLATE(BM_ExecuteGraph_DeepSum, Exys::Jitter)->Ranges({{8, 1024}, {0,2}});
+BENCHMARK_TEMPLATE(BM_ExecuteGraph_DeepSum, Exys::JitWrap)->Ranges({{8, 1024}, {0,2}});
 BENCHMARK_TEMPLATE(BM_ExecuteGraph_DeepSum, Exys::Interpreter)->Ranges({{8, 1024}, {0,2}});
 
 BENCHMARK_MAIN()
