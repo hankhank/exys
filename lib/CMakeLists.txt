@@ -4,7 +4,7 @@ target_include_directories (exys PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} )
 
 if (JIT)
 
-target_sources(exys PRIVATE jitwrap.cc jitter.cc)
+target_sources(exys PRIVATE jitwrap.cc jitter.cc gputer.cc)
 
 find_package(LLVM REQUIRED CONFIG)
 
