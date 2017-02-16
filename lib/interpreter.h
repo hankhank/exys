@@ -22,6 +22,9 @@ struct InterPoint
     std::vector<InterPoint*> mChildren;
     Point* mPoint;
     ComputeFunction mComputeFunction;
+
+    bool IsDirty() const { return mPoint->mDirty; };
+    void Clean() { mPoint->mDirty = false; };
 };
 
 class Interpreter : public IEngine

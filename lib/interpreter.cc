@@ -282,26 +282,27 @@ void Interpreter::Stabilize(bool force)
     for(const auto& namep : mInputs)
     {
         auto& point = *namep.second;
-        if(force || interpoint.IsDirty())
+        if(force || point.IsDirty())
+        {
+            auto& interpoint = mInterPointGraph[&point - &mPoints.front()];
+            for(auto* child : interpoint.mChildren)
+            {
+                mRecomputeHeap.emplace(HeightPtrPair{child->mHeight, child});
+            }
+            point.Clean();
+        }
+    }
+    for(auto& hpp : mRecomputeHeap)
+    {
+        auto& interpoint = *hpp.point;
+        interpoint.mComputeFunction(interpoint);
+        if(interpoint.IsDirty())
         {
             for(auto* child : interpoint.mChildren)
             {
                 mRecomputeHeap.emplace(HeightPtrPair{child->mHeight, child});
             }
             interpoint.Clean();
-        }
-    }
-    for(auto& hpp : mRecomputeHeap)
-    {
-        auto& point = *hpp.point;
-        point.mComputeFunction(point);
-        if(point.IsDirty())
-        {
-            for(auto* child : point.mChildren)
-            {
-                mRecomputeHeap.emplace(HeightPtrPair{child->mHeight, child});
-            }
-            point.Clean();
         }
     }
     mRecomputeHeap.clear();
