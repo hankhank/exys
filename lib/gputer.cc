@@ -61,8 +61,7 @@ void Gputer::CompleteBuild()
                 "f64:64:64-v16:16:16-v32:32:32-v64:64:64-v128:128:128-n16:32:64"));
 
     // Generate PTX assembly
-    std::string buffer;
-    llvm::raw_string_ostream OS(buffer);
+    llvm::raw_string_ostream OS(mPtxBuf);
     {
         // TODO: put these in the constructor
         llvm::legacy::PassManager *PM2 = new llvm::legacy::PassManager();
@@ -71,23 +70,6 @@ void Gputer::CompleteBuild()
         PM2->run(*M);
         delete PM2;
     }
-    std::cout << OS.str();
-                         
-    //mLlvmExecEngine = llvm::EngineBuilder(std::move(Owner))
-    //                            .setEngineKind(llvm::EngineKind::JIT)
-    //                            .setOptLevel(llvm::CodeGenOpt::Level::Aggressive)
-    //                            .setErrorStr(&error)
-    //                            .create(ptxTargetMachine);
-    //if(!mLlvmExecEngine)
-    //{
-    //    // throw here
-    //    std::cout << error;
-    //    assert(mLlvmExecEngine);
-    //}
-    //mRawStabilizeFunc = (void(*)()) mLlvmExecEngine->getPointerToFunction(mStabilizeFunc);
-    //mLlvmExecEngine->finalizeObject();
-
-    //Stabilize();
 }
 
 std::unique_ptr<Gputer> Gputer::Build(const std::string& text)

@@ -22,6 +22,7 @@ public:
 
     const std::vector<Node::Ptr>& GetInputDesc()    const { return mJitter->GetInputDesc(); }
     const std::vector<Node::Ptr>& GetObserverDesc() const { return mJitter->GetInputDesc(); }
+    std::string GetPTX() const { return mPtxBuf; }
 
     static std::unique_ptr<Gputer> Build(const std::string& text);
 
@@ -29,7 +30,9 @@ private:
     void CompleteBuild();
     
     std::unique_ptr<Jitter> mJitter;
+    std::string mPtxBuf;
 };
+
 
 };
 #endif

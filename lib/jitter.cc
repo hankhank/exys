@@ -302,6 +302,9 @@ llvm::Value* Jitter::JitNode(llvm::Module* M, llvm::IRBuilder<>&  builder,
             ret = builder.CreateUIToFP(ret, builder.getDoubleTy());
         }
 
+        //auto* addr = JitGV(M, builder);
+        //builder.CreateStore(observers, addr);
+
         std::vector<llvm::Value*> gepIndex;
         gepIndex.push_back(nodeOffset);
         gepIndex.push_back(valIndex);
@@ -310,9 +313,8 @@ llvm::Value* Jitter::JitNode(llvm::Module* M, llvm::IRBuilder<>&  builder,
 
         gepIndex.pop_back();
         gepIndex.push_back(dirtyIndex);
-        llvm::Value* flag = builder.CreateGEP(observers, gepIndex);
-
-        builder.CreateStore(dirtyFlag, flag);
+        //llvm::Value* flag = builder.CreateGEP(observers, gepIndex);
+        //builder.CreateStore(dirtyFlag, flag);
     }
     return ret;
 }
@@ -392,7 +394,7 @@ std::unique_ptr<llvm::Module> Jitter::BuildModule()
     pointTypeFields.push_back(llvm::IntegerType::get(M->getContext(), 8));  // char[2]
     pointType->setBody(pointTypeFields, /*isPacked=*/true);
 
-    llvm::PointerType* pointerToPoint = llvm::PointerType::get(pointType, 5 /*address space*/);
+    llvm::PointerType* pointerToPoint = llvm::PointerType::get(pointType, 0 /*address space*/);
 
     std::vector<llvm::Type*> inoutargs;
     inoutargs.push_back(pointerToPoint);
@@ -457,7 +459,7 @@ std::unique_ptr<llvm::Module> Jitter::BuildModule()
     resetBuilder.CreateRetVoid();
 
     // Output asm
-    if(0)
+    if(1)
     {
         std::string out;
         llvm::raw_string_ostream rawout(out);
