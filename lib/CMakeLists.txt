@@ -6,6 +6,7 @@ if (JIT)
 
 target_sources(exys PRIVATE jitwrap.cc jitter.cc gputer.cc)
 
+#set (LLVM_BUILD_ROOT LLVMConfig.cmake /home/andrew/Projects/llvm-3.8.1.src/build/share/llvm/cmake)
 find_package(LLVM REQUIRED CONFIG)
 
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")

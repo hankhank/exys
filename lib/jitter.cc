@@ -302,9 +302,6 @@ llvm::Value* Jitter::JitNode(llvm::Module* M, llvm::IRBuilder<>&  builder,
             ret = builder.CreateUIToFP(ret, builder.getDoubleTy());
         }
 
-        //auto* addr = JitGV(M, builder);
-        //builder.CreateStore(observers, addr);
-
         std::vector<llvm::Value*> gepIndex;
         gepIndex.push_back(nodeOffset);
         gepIndex.push_back(valIndex);
@@ -313,8 +310,8 @@ llvm::Value* Jitter::JitNode(llvm::Module* M, llvm::IRBuilder<>&  builder,
 
         gepIndex.pop_back();
         gepIndex.push_back(dirtyIndex);
-        //llvm::Value* flag = builder.CreateGEP(observers, gepIndex);
-        //builder.CreateStore(dirtyFlag, flag);
+        llvm::Value* flag = builder.CreateGEP(observers, gepIndex);
+        builder.CreateStore(dirtyFlag, flag);
     }
     return ret;
 }
@@ -394,7 +391,7 @@ std::unique_ptr<llvm::Module> Jitter::BuildModule()
     pointTypeFields.push_back(llvm::IntegerType::get(M->getContext(), 8));  // char[2]
     pointType->setBody(pointTypeFields, /*isPacked=*/true);
 
-    llvm::PointerType* pointerToPoint = llvm::PointerType::get(pointType, 0 /*address space*/);
+    llvm::PointerType* pointerToPoint = llvm::PointerType::get(pointType, 5 /*address space*/);
 
     std::vector<llvm::Type*> inoutargs;
     inoutargs.push_back(pointerToPoint);
@@ -410,8 +407,8 @@ std::unique_ptr<llvm::Module> Jitter::BuildModule()
     llvm::IRBuilder<> stabBuilder(stabBlock);
 
     llvm::Function::arg_iterator args = stabilizeFunc->arg_begin();
-    llvm::Value* inputsPtr = args++;
-    llvm::Value* observersPtr = args;
+    llvm::Value* inputsPtr = &(*args++);
+    llvm::Value* observersPtr = &(*args);
  
     for(auto& jp : jitHeap)
     {
@@ -450,7 +447,8 @@ std::unique_ptr<llvm::Module> Jitter::BuildModule()
     for(auto& gv : gvList)
     {
         auto* copy = JitGV(M, capBuilder);
-        capBuilder.CreateStore(gv, copy);
+        auto* loadedGv = capBuilder.CreateLoad(gv);
+        capBuilder.CreateStore(loadedGv, copy);
 
         auto* loadCopy = resetBuilder.CreateLoad(copy);
         resetBuilder.CreateStore(loadCopy, gv);
