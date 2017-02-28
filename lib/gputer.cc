@@ -46,13 +46,12 @@ void Gputer::CompleteBuild()
     if (!ptxTarget) 
     {
         std::cout << Err;
-        assert(ptxTarget);
-      // no nvptx target is available
+        assert(false && "no nvptx target is available");
     }
 
     if(!ptxTarget->hasTargetMachine())
     {
-      // no backend for ptx gen available
+        assert(false && "no backend for ptx gen available");
     }
     
     llvm::TargetOptions PTXTargetOptions = llvm::TargetOptions();

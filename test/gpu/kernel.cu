@@ -1,4 +1,13 @@
 
+#include "exys.h"
+
+// Functions defined in the jitted code
+namespace Exys {
+
+__device__ void (ExysStabilize)(Point* inputs, Point* observers);
+__device__ void (ExysCaptureState)();
+__device__ void (ExysResetState)();
+
 __global__ void ExysSim(
         int numSims,
         Point* inputs, 
@@ -19,19 +28,21 @@ __global__ void ExysSim(
     // Point to my memory
     inputScratch += inputSize*tid;
     observerScratch += observerScratchSize*tid;
-    execIdScratch += tid
+    execIdScratch += tid;
 
     // Copy in inputs
     memcpy(inputs, inputScratch, inputSize*sizeof(double));
 
-    CaptureStateBlock();
+    ExysCaptureState();
 
-    StabilizeBlock(inputScratch, observerScratch);
+    ExysStabilize(inputScratch, observerScratch);
 
-    ResetBlock();
+    ExysResetState();
     
     // Check if our sim job is done
 
     // Run simfunc to update inputs
+
+}
 
 }
