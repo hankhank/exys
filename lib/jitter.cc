@@ -153,7 +153,6 @@ llvm::Value* __FUNCNAME(llvm::Module *M, llvm::IRBuilder<>& builder, const JitPo
         std::vector<llvm::Type*> argTypes; \
         std::vector<llvm::Value*> argValues; \
         argTypes.push_back(builder.getDoubleTy()); \
-        argTypes.push_back(builder.getDoubleTy()); \
         argValues.push_back(val); \
         argValues.push_back((*p)->mValue); \
         llvm::Function *fun = llvm::Intrinsic::getDeclaration(M, llvm::Intrinsic::__INFUNC, argTypes); \
@@ -457,7 +456,7 @@ std::unique_ptr<llvm::Module> Jitter::BuildModule()
     resetBuilder.CreateRetVoid();
 
     // Output asm
-    if(1)
+    if(0)
     {
         std::string out;
         llvm::raw_string_ostream rawout(out);
