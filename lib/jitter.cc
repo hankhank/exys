@@ -473,7 +473,7 @@ std::unique_ptr<llvm::Module> Jitter::BuildModule()
 
 static std::unique_ptr<Graph> BuildAndLoadGraph()
 {
-    auto graph = std::make_unique<Graph>();
+    auto graph = std::unique_ptr<Graph>(new Graph);
     std::vector<Procedure> procedures;
     for(const auto &proc : AVAILABLE_PROCS) procedures.push_back(proc.procedure);
     graph->SetSupportedProcedures(procedures);
@@ -484,7 +484,7 @@ std::unique_ptr<Jitter> Jitter::Build(const std::string& text)
 {
     auto graph = BuildAndLoadGraph();
     graph->Construct(Parse(text));
-    return std::make_unique<Jitter>(std::move(graph));
+    return std::unique_ptr<Jitter>(new Jitter(std::move(graph)));
 }
 
 }

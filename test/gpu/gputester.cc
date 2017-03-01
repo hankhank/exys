@@ -4,11 +4,12 @@
 #include <sstream>
 #include <unistd.h>
 
-//#include "cuda.h"
+#include "cuda.h"
 
 #include "exys.h"
 #include "gputer.h"
-#if 0
+#include "kernel_gen.h"
+
 // Error Code string definitions here
 typedef struct
 {
@@ -374,8 +375,7 @@ void __checkCudaErrors(CUresult err, const char *file, const int line) {
     exit(-1);
   }
 }
-
-void LinkCudaModules(const std::string& ptx)
+void LinkCudaModules(const std::string& ptx, const std::string& compiledFile)
 {
   checkCudaErrors(cuInit(0));
   CUmodule cudaModule;
@@ -408,8 +408,8 @@ void LinkCudaModules(const std::string& ptx)
   checkCudaErrors(cuLinkCreate(sizeof(linkerOptions) / sizeof(linkerOptions[0]), linkerOptions, linkerOptionValues, &linker));
   checkCudaErrors(cuLinkAddData(linker, CU_JIT_INPUT_PTX, (void*)ptx.c_str(),
                                 ptx.size(), "<compiled-ptx>", 0, NULL, NULL));
-  //checkCudaErrors(cuLinkAddFile(linker, CU_JIT_INPUT_LIBRARY, libpath.c_str(),
-  //                              0, NULL, NULL));
+  checkCudaErrors(cuLinkAddData(linker, CU_JIT_INPUT_LIBRARY, (void*)compiledFile.c_str(),
+                                compiledFile.size(), "<precompiled-kernel>", 0, NULL, NULL));
  
   void *cubin;
   size_t cubinSize;
@@ -423,7 +423,7 @@ void LinkCudaModules(const std::string& ptx)
   // Now that the CUBIN is loaded, we can release the linker.
   checkCudaErrors(cuLinkDestroy(linker));
 }
-#endif
+
 int main(int argc, char* argv[])
 {
     std::cout << "Testing " << argv[1];
@@ -435,7 +435,7 @@ int main(int argc, char* argv[])
     {
         auto gputer = Exys::Gputer::Build(buffer.str());
         std::cout << gputer->GetPTX();
-        //LinkCudaModules(gputer->GetPTX());
+        LinkCudaModules(gputer->GetPTX(), std::string((const char*)kernel_co, kernel_co_len));
     }
     catch (const Exys::ParseException& e)
     {

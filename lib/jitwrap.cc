@@ -173,7 +173,7 @@ std::unordered_map<std::string, double> JitWrap::DumpObservers()
 std::unique_ptr<IEngine> JitWrap::Build(const std::string& text)
 {
     auto jitter = Jitter::Build(text);
-    auto engine = std::make_unique<JitWrap>(std::move(jitter));
+    auto engine = std::unique_ptr<JitWrap>(new JitWrap(std::move(jitter)));
     engine->CompleteBuild();
     return std::unique_ptr<IEngine>(std::move(engine));
 }

@@ -41,23 +41,23 @@ void ValidateParamListLength(const std::vector<Cell> params1, const Node::Ptr no
     }
 }
 
-template <typename T, size_t N>
-void ValidateFunctionArgs(const std::string& name, const Node::Ptr node, const T (&args)[N])
+template <typename T>
+void ValidateFunctionArgs(const std::string& name, const Node::Ptr node, const std::initializer_list<T> args)
 {
     size_t argsize = node->mParents.size();
-    if(argsize < N)
+    if(argsize < args.size())
     {
         std::stringstream err;
         err << "Not enough items in list for function '" << name << 
-            "'. Expected at least " << N << " Got " << argsize;
+            "'. Expected at least " << args.size() << " Got " << argsize;
         throw GraphBuildException(err.str(), Cell());
     }
 
-    if(argsize > N)
+    if(argsize > args.size())
     {
         std::stringstream err;
         err << "Too many items in list for function '" << name <<
-            "'. Expected at most " << N << " Got " << argsize;
+            "'. Expected at most " << args.size() << " Got " << argsize;
         throw GraphBuildException(err.str(), Cell());
     }
 

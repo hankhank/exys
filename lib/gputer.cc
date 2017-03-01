@@ -80,7 +80,7 @@ void Gputer::CompleteBuild()
 std::unique_ptr<Gputer> Gputer::Build(const std::string& text)
 {
     auto jitter = Jitter::Build(text);
-    auto engine = std::make_unique<Gputer>(std::move(jitter));
+    auto engine = std::unique_ptr<Gputer>(new Gputer(std::move(jitter)));
     engine->CompleteBuild();
     return engine;
 }
