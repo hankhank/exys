@@ -11,6 +11,7 @@
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/Mangler.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/TargetSelect.h"
 #include "llvm/Support/raw_ostream.h"
@@ -330,6 +331,14 @@ struct CmpJitPointPtr
     }
 };
 
+std::string MangleName(const std::string& name, const llvm::DataLayout &DL)
+{
+    std::string mangledName;
+    llvm::raw_string_ostream mangledNameStream(mangledName);
+    llvm::Mangler::getNameWithPrefix(mangledNameStream, name, DL);
+    return mangledNameStream.str();
+}
+
 std::unique_ptr<llvm::Module> Jitter::BuildModule()
 {    
     if(mLlvmContext)
@@ -376,11 +385,13 @@ std::unique_ptr<llvm::Module> Jitter::BuildModule()
     // JIT IT BABY
     mLlvmContext = new llvm::LLVMContext;
 
-    auto module = std::make_unique<llvm::Module>("exys", *mLlvmContext);
+    auto module = std::unique_ptr<llvm::Module>(new llvm::Module("exys", *mLlvmContext));
     llvm::Module *M = module.get();
 
     // before changing this type 
-    auto pointType = llvm::StructType::create(M->getContext(), "struct.Point");
+    //
+    auto pointName = MangleName(POINT_NAME, M->getDataLayout());
+    auto pointType = llvm::StructType::create(M->getContext(), pointName);
     std::vector<llvm::Type*> pointTypeFields;
     pointTypeFields.push_back(llvm::Type::getDoubleTy(M->getContext()));    // val
     pointTypeFields.push_back(llvm::IntegerType::get(M->getContext(), 32)); // length
@@ -396,12 +407,14 @@ std::unique_ptr<llvm::Module> Jitter::BuildModule()
     inoutargs.push_back(pointerToPoint);
     inoutargs.push_back(pointerToPoint);
   
+    auto stabFuncName = MangleName(STAB_FUNC_NAME, M->getDataLayout());
     auto* stabilizeFunc =
-    llvm::cast<llvm::Function>(M->getOrInsertFunction(STAB_FUNC_NAME, 
+    llvm::cast<llvm::Function>(M->getOrInsertFunction(stabFuncName,
                     llvm::FunctionType::get(
                         llvm::Type::getVoidTy(*mLlvmContext), // void return
                         inoutargs,
                         false))); // no var args
+
     auto *stabBlock = llvm::BasicBlock::Create(*mLlvmContext, "StabilizeBlock", stabilizeFunc);
     llvm::IRBuilder<> stabBuilder(stabBlock);
 
@@ -418,8 +431,9 @@ std::unique_ptr<llvm::Module> Jitter::BuildModule()
     std::vector<llvm::Type*> noargs;
 
     // Capture and reset state
+    auto capFuncName = MangleName(CAP_FUNC_NAME, M->getDataLayout());
     auto* captureFunc =
-    llvm::cast<llvm::Function>(M->getOrInsertFunction(CAP_FUNC_NAME, 
+    llvm::cast<llvm::Function>(M->getOrInsertFunction(capFuncName, 
                     llvm::FunctionType::get(
                         llvm::Type::getVoidTy(*mLlvmContext), // void return
                         noargs,
@@ -427,8 +441,9 @@ std::unique_ptr<llvm::Module> Jitter::BuildModule()
     auto *capBlock = llvm::BasicBlock::Create(*mLlvmContext, "CaptureStateBlock", captureFunc);
     llvm::IRBuilder<> capBuilder(capBlock);
 
+    auto resetFuncName = MangleName(RESET_FUNC_NAME, M->getDataLayout());
     auto* resetFunc =
-    llvm::cast<llvm::Function>(M->getOrInsertFunction(RESET_FUNC_NAME, 
+    llvm::cast<llvm::Function>(M->getOrInsertFunction(resetFuncName,
                     llvm::FunctionType::get(
                         llvm::Type::getVoidTy(*mLlvmContext), // void return
                         noargs,
