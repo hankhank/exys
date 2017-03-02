@@ -29,7 +29,7 @@ RUN curl -fsSLO https://github.com/google/benchmark/archive/v1.1.0.tar.gz && \
 
 # GRAPHVIZ WITH FIXES
 RUN curl -fsSLO "http://www.graphviz.org/pub/graphviz/stable/redhat/el7/x86_64/os/graphviz-libs-2.38.0-1.el7.x86_64.rpm" && \
-    rpm -i "graphviz-libs-2.38.0-1.el7.x86_64.rpm" && \
+    yum install -y "graphviz-libs-2.38.0-1.el7.x86_64.rpm" && \
     curl -fsSLO "http://www.graphviz.org/pub/graphviz/stable/redhat/el7/x86_64/os/graphviz-devel-2.38.0-1.el7.x86_64.rpm" && \
-    rpm -i "graphviz-devel-2.38.0-1.el7.x86_64.rpm" && \
+    yum install -y "graphviz-devel-2.38.0-1.el7.x86_64.rpm" && \
     rm *.rpm
