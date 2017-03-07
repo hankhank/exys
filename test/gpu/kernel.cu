@@ -3,13 +3,79 @@
 
 // Functions defined in the jitted code
 namespace Exys {
+ 
+extern "C" __device__ void (ExysStabilize)(Point* inputs, Point* observers);
+extern "C" __device__ void (ExysCaptureState)();
+extern "C" __device__ void (ExysResetState)();
 
-__device__ void (ExysStabilize)(Point* inputs, Point* observers);
-__device__ void (ExysCaptureState)();
-__device__ void (ExysResetState)();
+__device__ int GetTid()
+{
+    return threadIdx.x + blockIdx.x * blockDim.x; 
+}
 
-__global__ void ExysSim(
-        int numSims,
+__device__ bool RunBlock(int blocksInUse)
+{
+    return (GetTid() < blocksInUse);
+}
+
+__device__ void GetPtrsThisBlock(
+        Point** inputScratch,
+        int inputSize,
+        Point** observerScratch,
+        int observerScratchSize)
+{
+    int tid = GetTid();
+
+    // Point to my memory
+    if(inputScratch)    *inputScratch += inputSize*tid;
+    if(observerScratch) *observerScratch += observerScratchSize*tid;
+}
+
+__device__ volatile uint64_t valRunCount = 0;
+
+extern "C" __global__ void ExysVal(
+        volatile uint64_t* inExecId, 
+        volatile uint64_t* outExecId, 
+        int numBlocksRunning,
+        Point* inputs, 
+        int inputSize,
+        Point* observerScratch,
+        int observerScratchSize)
+{
+    int tid = GetTid();
+
+    if(!RunBlock(numBlocksRunning)) return;
+
+    uint64_t curExecId = *inExecId;
+
+    GetPtrsThisBlock(
+            nullptr,
+            0,
+            &observerScratch,
+            observerScratchSize);
+    
+    // Run this kernel hot hot hot
+    while (true)
+    {
+        while(*inExecId && curExecId != *inExecId);
+        
+        ExysStabilize(inputs, observerScratch);
+
+        ++curExecId;
+
+        atomicAdd((unsigned long long int *)&valRunCount, 1);
+
+        while(!tid && ((valRunCount % numBlocksRunning) != 0));
+
+        if(!tid) // all threads should be done and we are the master so update count
+        {
+            *outExecId = *inExecId;
+        }
+    }
+}
+
+extern "C" __global__ void ExysSim(
+        int numBlocksRunning,
         Point* inputs, 
         Point* inputScratch,
         int inputSize,
@@ -18,20 +84,16 @@ __global__ void ExysSim(
         uint64_t execId, 
         uint64_t* execIdScratch)
 {
-    int tid = blockIdx.x;
-    if(tid > numSims)
-    {
-        // no sim for me
-        return;
-    }
-    
-    // Point to my memory
-    inputScratch += inputSize*tid;
-    observerScratch += observerScratchSize*tid;
-    execIdScratch += tid;
+    if(!RunBlock(numBlocksRunning)) return;
+
+    GetPtrsThisBlock(
+            &inputScratch,
+            inputSize,
+            &observerScratch,
+            observerScratchSize);
 
     // Copy in inputs
-    memcpy(inputs, inputScratch, inputSize*sizeof(double));
+    memcpy(inputs, inputScratch, inputSize*sizeof(Exys::Point));
 
     ExysCaptureState();
 

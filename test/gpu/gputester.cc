@@ -377,11 +377,14 @@ void __checkCudaErrors(CUresult err, const char *file, const int line) {
 }
 void LinkCudaModules(const std::string& ptx, const std::string& compiledFile)
 {
-  checkCudaErrors(cuInit(0));
+    std::cout << "init\n";
+  CUdevice device;
   CUmodule cudaModule;
+  CUcontext context;
   CUlinkState linker;
   char linkerInfo[1024];
   char linkerErrors[1024];
+  int devCount;
 
   linkerInfo[0] = 0;
   linkerErrors[0] = 0;
@@ -404,15 +407,39 @@ void LinkCudaModules(const std::string& ptx, const std::string& compiledFile)
     reinterpret_cast<void*>(1)
   };
 
+  checkCudaErrors(cuInit(0));
+  checkCudaErrors(cuDeviceGetCount(&devCount));
+  checkCudaErrors(cuDeviceGet(&device, 0));
+  checkCudaErrors(cuCtxCreate(&context, 0, device));
+
+  char name[128];
+  checkCudaErrors(cuDeviceGetName(name, 128, device));
+  std::cout << "Using CUDA Device [0]: " << name << "\n";
+
+  int devMajor, devMinor;
+  checkCudaErrors(cuDeviceComputeCapability(&devMajor, &devMinor, device));
+  std::cout << "Device Compute Capability: " 
+         << devMajor << "." << devMinor << "\n";
+  if (devMajor < 2) {
+      std::cout << "ERROR: Device 0 is not SM 2.0 or greater\n";
+    return ;
+  }
+
+
+
   // Create JIT linker and create final CUBIN
+    std::cout << "link create\n";
   checkCudaErrors(cuLinkCreate(sizeof(linkerOptions) / sizeof(linkerOptions[0]), linkerOptions, linkerOptionValues, &linker));
+    std::cout << "add data\n";
   checkCudaErrors(cuLinkAddData(linker, CU_JIT_INPUT_PTX, (void*)ptx.c_str(),
                                 ptx.size(), "<compiled-ptx>", 0, NULL, NULL));
-  checkCudaErrors(cuLinkAddData(linker, CU_JIT_INPUT_LIBRARY, (void*)compiledFile.c_str(),
+    std::cout << "add data\n";
+  checkCudaErrors(cuLinkAddData(linker, CU_JIT_INPUT_OBJECT, (void*)compiledFile.c_str(),
                                 compiledFile.size(), "<precompiled-kernel>", 0, NULL, NULL));
  
   void *cubin;
   size_t cubinSize;
+    std::cout << "link complete\n";
   checkCudaErrors(cuLinkComplete(linker, &cubin, &cubinSize));
 
   std::cout << "Linker Log:\n" << linkerInfo << "\n" << linkerErrors << "\n";
@@ -422,6 +449,70 @@ void LinkCudaModules(const std::string& ptx, const std::string& compiledFile)
 
   // Now that the CUBIN is loaded, we can release the linker.
   checkCudaErrors(cuLinkDestroy(linker));
+
+  // Get kernel function
+  CUfunction function;
+  checkCudaErrors(cuModuleGetFunction(&function, cudaModule, "ExysVal"));
+
+#if 0
+extern "C" __global__ void ExysVal(
+        volatile uint64_t* inExecId, 
+        volatile uint64_t* outExecId, 
+        int numBlocksRunning,
+        Point* inputs, 
+        int inputSize,
+        Point* observerScratch,
+        int observerScratchSize)
+#endif
+
+  int numBlocksRunning=4;
+  int inputSize=2;
+  int observerSize=1;
+    
+  // execids
+  volatile uint64_t *inExecId;
+  volatile uint64_t *outExecId;
+  checkCudaErrors(cuMemHostAlloc((void**)&outExecId, sizeof(uint64_t), CU_MEMHOSTALLOC_DEVICEMAP));
+  checkCudaErrors(cuMemHostAlloc((void**)&inExecId, sizeof(uint64_t), CU_MEMHOSTALLOC_DEVICEMAP));
+  *inExecId = 1;
+
+  // Device data
+  CUdeviceptr inputBuf;
+  checkCudaErrors(cuMemAlloc(&inputBuf, sizeof(Exys::Point)*2));
+
+  CUdeviceptr observerBuf;
+  checkCudaErrors(cuMemAlloc(&observerBuf, sizeof(Exys::Point)*1*numBlocksRunning));
+
+  // Kernel parameters
+  void *KernelParams[] = { &inExecId, &outExecId, &numBlocksRunning, &inputBuf, &inputSize, &observerBuf, &observerSize};
+
+  std::cout << "Launching kernel\n";
+
+  // Kernel launch
+
+    checkCudaErrors(cuLaunchKernel(function, 1, 1, 1,
+                                 4, 1, 1,
+                                 0, NULL, KernelParams, NULL));
+    
+    // Copy into inputs
+  auto inputs = new Exys::Point[2];
+  inputs[0] = 7;
+  inputs[1] = 99;
+  checkCudaErrors(cuMemcpyHtoDAsync(inputBuf, &inputs[0], sizeof(Exys::Point)*2));
+
+  // bump exec and kick of calc
+  *inExecId++;
+   while(*inExecId != *outExecId);
+
+  // Retrieve device data
+  auto output = new Exys::Point[numBlocksRunning];
+  checkCudaErrors(cuMemcpyDtoHAsync(&output[0], observerBuf, sizeof(Exys::Point)*1*numBlocksRunning));
+
+  for(int i =0 ; i < numBlocksRunning; ++i)
+  {
+      std::cout << "Output :" << output[i].mVal << "\n";
+  }
+
 }
 
 int main(int argc, char* argv[])

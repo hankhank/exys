@@ -16,7 +16,7 @@ message(STATUS "Using cuda header: ${CUDA_H}")
 add_custom_command(
     OUTPUT kernel_gen.h
     COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/kernel.cu kernel.cu
-    COMMAND nvcc -I ../../../lib --std=c++11 --device-c kernel.cu -o kernel.co
+    COMMAND nvcc -I ../../../lib --std=c++11 --device-c -g kernel.cu -o kernel.co
     COMMAND xxd -i kernel.co kernel_gen.h
     DEPENDS kernel.cu
 )

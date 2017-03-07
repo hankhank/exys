@@ -401,7 +401,7 @@ std::unique_ptr<llvm::Module> Jitter::BuildModule()
     pointTypeFields.push_back(llvm::IntegerType::get(M->getContext(), 8));  // char[2]
     pointType->setBody(pointTypeFields, /*isPacked=*/true);
 
-    llvm::PointerType* pointerToPoint = llvm::PointerType::get(pointType, 5 /*address space*/);
+    llvm::PointerType* pointerToPoint = llvm::PointerType::get(pointType, 0 /*address space*/);
 
     std::vector<llvm::Type*> inoutargs;
     inoutargs.push_back(pointerToPoint);

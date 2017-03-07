@@ -1,0 +1,73 @@
+(begin
+
+    (input double ttmult)
+    (input double mindeltas)
+    (input list double depth 2 5 2)
+    (input list double tt 3) ; vol price isbid
+
+    (define bids (car depth))
+    (define asks (cdr (car depth)))
+
+    (define mindelta-price
+        (lambda (mindeltas side)
+            (begin
+                (define deltasCrossed 0)
+                (define dPrice (car (car side)))
+                (for-each
+                    (lambda (level) 
+                        (begin
+                            (set! deltasCrossed (+ deltasCrossed (car (cdr level))))
+                            (set! dPrice (? (> deltasCrossed mindeltas) dPrice (car level)))))
+                    side)
+                dPrice)))
+
+    (define tt-offset
+        (lambda (tt side) (- (nth 1 tt) (car (car side)))))
+    
+    (define isbid (nth 2 tt))
+    (define tt-adjust (* ttmult (? isbid (tt-offset tt asks) (tt-offset tt bids))))
+    (observe minDp (mindelta-price mindeltas bids))
+    (observe minDpAdj (+ tt-adjust (mindelta-price mindeltas bids)))
+    
+    (define fully-traded-tt-generator
+        (lambda (side)
+            (for-each (lambda (level) (level)) side)))
+
+    (define tt-generator-from-price
+        (lambda (size price dir vol) (for-each (lambda (offset) (list vol (+ price offset))) (iota size 0 dir))))
+
+    ; Can we do binary search
+    (define binary-tt-search
+        (lambda (side simtraded)
+            (begin
+                (
+
+    (sim-apply tt (apply fully-traded-tt-generator bids asks))
+    (sim-apply tt (apply fully-traded-tt-generator bids asks))
+    ; We want to be able to make simulations dynamic based upon inputs
+    (sim-apply tt (tt-generator-from-price 10 (car (cdr (car bids)) -1 10)))
+
+)
+
+(test test-1
+    (inject mindeltas 4)
+    (inject ttmult 0.5)
+    (inject tt (10 52 1))
+    (inject depth
+    (
+        (
+            (50 1)
+            (49 1)
+            (48 2)
+            (47 2)
+            (46 2)
+        )
+        (
+            (51 2)
+            (52 2)
+            (53 2)
+            (54 2)
+            (55 2)
+        )))
+    (stabilize)
+    )

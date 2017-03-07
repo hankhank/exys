@@ -1,6 +1,6 @@
 (begin
-    ;(input double in1 in2)
-    (define out (+ 1 3))
+    (input double in1 in2)
+    (define out (+ in1 in2))
     (observe out out))
 
 ; Test cases

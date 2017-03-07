@@ -22,10 +22,10 @@ namespace llvm
 
 namespace 
 {
-    const std::string STAB_FUNC_NAME  = "Exys::ExysStabilize";
-    const std::string CAP_FUNC_NAME   = "Exys::ExysCaptureState";
-    const std::string RESET_FUNC_NAME = "Exys::ExysResetState";
-    const std::string POINT_NAME      = "Exys::Point";
+    const std::string STAB_FUNC_NAME  = "ExysStabilize";
+    const std::string CAP_FUNC_NAME   = "ExysCaptureState";
+    const std::string RESET_FUNC_NAME = "ExysResetState";
+    const std::string POINT_NAME      = "Point";
 };
 
 namespace Exys
