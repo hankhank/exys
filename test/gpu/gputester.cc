@@ -3,6 +3,7 @@
 #include <fstream>
 #include <sstream>
 #include <unistd.h>
+#include <chrono>
 
 #include "cuda.h"
 
@@ -375,7 +376,53 @@ void __checkCudaErrors(CUresult err, const char *file, const int line) {
     exit(-1);
   }
 }
-void LinkCudaModules(const std::string& ptx, const std::string& compiledFile)
+
+std::string GetDeviceInfo(CUdevice& dev)
+{
+    std::string output;
+
+#define ADD_TO_OUTPUT(_X) \
+    { \
+        int pi = 0; \
+        cuDeviceGetAttribute(&pi, _X, dev); \
+        output += std::string(#_X) + "=" + std::to_string(pi) + "\n"; \
+    }
+
+    ADD_TO_OUTPUT(CU_DEVICE_ATTRIBUTE_MAX_THREADS_PER_BLOCK)
+    ADD_TO_OUTPUT(CU_DEVICE_ATTRIBUTE_MAX_BLOCK_DIM_X)
+    ADD_TO_OUTPUT(CU_DEVICE_ATTRIBUTE_MAX_BLOCK_DIM_Y)
+    ADD_TO_OUTPUT(CU_DEVICE_ATTRIBUTE_MAX_BLOCK_DIM_Z)
+    ADD_TO_OUTPUT(CU_DEVICE_ATTRIBUTE_MAX_GRID_DIM_X)
+    ADD_TO_OUTPUT(CU_DEVICE_ATTRIBUTE_MAX_GRID_DIM_Y)
+    ADD_TO_OUTPUT(CU_DEVICE_ATTRIBUTE_MAX_GRID_DIM_Z)
+    ADD_TO_OUTPUT(CU_DEVICE_ATTRIBUTE_MAX_SHARED_MEMORY_PER_BLOCK)
+    ADD_TO_OUTPUT(CU_DEVICE_ATTRIBUTE_TOTAL_CONSTANT_MEMORY)
+    ADD_TO_OUTPUT(CU_DEVICE_ATTRIBUTE_WARP_SIZE)
+    ADD_TO_OUTPUT(CU_DEVICE_ATTRIBUTE_CLOCK_RATE)
+    ADD_TO_OUTPUT(CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT)
+    ADD_TO_OUTPUT(CU_DEVICE_ATTRIBUTE_KERNEL_EXEC_TIMEOUT)
+    ADD_TO_OUTPUT(CU_DEVICE_ATTRIBUTE_MEMORY_CLOCK_RATE)
+    ADD_TO_OUTPUT(CU_DEVICE_ATTRIBUTE_GLOBAL_MEMORY_BUS_WIDTH)
+    ADD_TO_OUTPUT(CU_DEVICE_ATTRIBUTE_L2_CACHE_SIZE)
+    ADD_TO_OUTPUT(CU_DEVICE_ATTRIBUTE_MAX_THREADS_PER_MULTIPROCESSOR)
+    ADD_TO_OUTPUT(CU_DEVICE_ATTRIBUTE_UNIFIED_ADDRESSING)
+    ADD_TO_OUTPUT(CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR)
+    ADD_TO_OUTPUT(CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR)
+    ADD_TO_OUTPUT(CU_DEVICE_ATTRIBUTE_GLOBAL_L1_CACHE_SUPPORTED)
+    ADD_TO_OUTPUT(CU_DEVICE_ATTRIBUTE_LOCAL_L1_CACHE_SUPPORTED)
+    ADD_TO_OUTPUT(CU_DEVICE_ATTRIBUTE_MAX_SHARED_MEMORY_PER_MULTIPROCESSOR)
+    ADD_TO_OUTPUT(CU_DEVICE_ATTRIBUTE_MAX_REGISTERS_PER_MULTIPROCESSOR)
+    ADD_TO_OUTPUT(CU_DEVICE_ATTRIBUTE_MANAGED_MEMORY)
+    ADD_TO_OUTPUT(CU_DEVICE_ATTRIBUTE_MULTI_GPU_BOARD)
+    ADD_TO_OUTPUT(CU_DEVICE_ATTRIBUTE_MULTI_GPU_BOARD_GROUP_ID)
+    ADD_TO_OUTPUT(CU_DEVICE_ATTRIBUTE_HOST_NATIVE_ATOMIC_SUPPORTED)
+    ADD_TO_OUTPUT(CU_DEVICE_ATTRIBUTE_SINGLE_TO_DOUBLE_PRECISION_PERF_RATIO)
+    ADD_TO_OUTPUT(CU_DEVICE_ATTRIBUTE_PAGEABLE_MEMORY_ACCESS)
+    ADD_TO_OUTPUT(CU_DEVICE_ATTRIBUTE_CONCURRENT_MANAGED_ACCESS)
+    return output;
+}
+
+void LinkCudaModules(int grids, int cores, const std::string& ptx, const std::string& compiledFile)
 {
     std::cout << "init\n";
   CUdevice device;
@@ -425,7 +472,7 @@ void LinkCudaModules(const std::string& ptx, const std::string& compiledFile)
     return ;
   }
 
-
+  std::cout << GetDeviceInfo(device);
 
   // Create JIT linker and create final CUBIN
     std::cout << "link create\n";
@@ -454,18 +501,7 @@ void LinkCudaModules(const std::string& ptx, const std::string& compiledFile)
   CUfunction function;
   checkCudaErrors(cuModuleGetFunction(&function, cudaModule, "ExysVal"));
 
-#if 0
-extern "C" __global__ void ExysVal(
-        volatile uint64_t* inExecId, 
-        volatile uint64_t* outExecId, 
-        int numBlocksRunning,
-        Point* inputs, 
-        int inputSize,
-        Point* observerScratch,
-        int observerScratchSize)
-#endif
-
-  int numBlocksRunning=4;
+  int numBlocksRunning=cores*grids;
   int inputSize=2;
   int observerSize=1;
     
@@ -475,6 +511,7 @@ extern "C" __global__ void ExysVal(
   checkCudaErrors(cuMemHostAlloc((void**)&outExecId, sizeof(uint64_t), CU_MEMHOSTALLOC_DEVICEMAP));
   checkCudaErrors(cuMemHostAlloc((void**)&inExecId, sizeof(uint64_t), CU_MEMHOSTALLOC_DEVICEMAP));
   *inExecId = 1;
+  *outExecId = 0;
 
   // Device data
   CUdeviceptr inputBuf;
@@ -488,31 +525,50 @@ extern "C" __global__ void ExysVal(
 
   std::cout << "Launching kernel\n";
 
-  // Kernel launch
+  CUstream kernelStream;
+  CUstream dataStream;
+    
+   checkCudaErrors(cuStreamCreate(&kernelStream, CU_STREAM_NON_BLOCKING));
+   checkCudaErrors(cuStreamCreate(&dataStream, CU_STREAM_NON_BLOCKING));
 
-    checkCudaErrors(cuLaunchKernel(function, 1, 1, 1,
-                                 4, 1, 1,
-                                 0, NULL, KernelParams, NULL));
+  // Kernel launch
+    checkCudaErrors(cuLaunchKernel(function, grids, 1, 1,
+                                 cores, 1, 1,
+                                 0, kernelStream, KernelParams, NULL));
     
     // Copy into inputs
+  auto start = std::chrono::steady_clock::now();
   auto inputs = new Exys::Point[2];
-  inputs[0] = 7;
-  inputs[1] = 99;
-  checkCudaErrors(cuMemcpyHtoDAsync(inputBuf, &inputs[0], sizeof(Exys::Point)*2));
+  for(int i = 0; i < 1000; i++)
+  {
+      inputs[0] = 7+i;
+      inputs[1] = 99;
+      //std::cout << "Copy inputs\n";
+      checkCudaErrors(cuMemcpyHtoDAsync(inputBuf, &inputs[0], sizeof(Exys::Point)*2, dataStream));
+      checkCudaErrors(cuStreamSynchronize(dataStream));
 
-  // bump exec and kick of calc
-  *inExecId++;
-   while(*inExecId != *outExecId);
+      // bump exec and kick of calc
+      //std::cout << "bump and wait\n";
+      (*inExecId)++;
+       while(*inExecId != *outExecId);
 
-  // Retrieve device data
-  auto output = new Exys::Point[numBlocksRunning];
-  checkCudaErrors(cuMemcpyDtoHAsync(&output[0], observerBuf, sizeof(Exys::Point)*1*numBlocksRunning));
+      // Retrieve device data
+      //std::cout << "get results\n";
 
+  }
+
+  std::cout << "Run time " << std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - start).count() 
+      << "\n";
+
+      auto output = new Exys::Point[numBlocksRunning];
+      checkCudaErrors(cuMemcpyDtoHAsync(&output[0], observerBuf, sizeof(Exys::Point)*1*numBlocksRunning, dataStream));
+      checkCudaErrors(cuStreamSynchronize(dataStream));
   for(int i =0 ; i < numBlocksRunning; ++i)
   {
       std::cout << "Output :" << output[i].mVal << "\n";
   }
-
+   checkCudaErrors(cuStreamDestroy(kernelStream));
+   checkCudaErrors(cuStreamDestroy(dataStream));
 }
 
 int main(int argc, char* argv[])
@@ -522,11 +578,13 @@ int main(int argc, char* argv[])
     std::stringstream buffer;
     buffer << t.rdbuf();
         
+    int cores = std::atoi(argv[2]);
+    int grids = std::atoi(argv[3]);
     try
     {
         auto gputer = Exys::Gputer::Build(buffer.str());
         std::cout << gputer->GetPTX();
-        LinkCudaModules(gputer->GetPTX(), std::string((const char*)kernel_co, kernel_co_len));
+        LinkCudaModules(grids, cores, gputer->GetPTX(), std::string((const char*)kernel_co, kernel_co_len));
     }
     catch (const Exys::ParseException& e)
     {

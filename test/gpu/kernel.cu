@@ -65,45 +65,66 @@ extern "C" __global__ void ExysVal(
 
         atomicAdd((unsigned long long int *)&valRunCount, 1);
 
-        while(!tid && ((valRunCount % numBlocksRunning) != 0));
-
-        if(!tid) // all threads should be done and we are the master so update count
+        if(!tid) 
         {
+            // all threads should be done and we are the master so update count
+            while((valRunCount % numBlocksRunning) != 0);
             *outExecId = *inExecId;
         }
     }
 }
 
 extern "C" __global__ void ExysSim(
+        volatile uint64_t* inExecId, 
+        volatile uint64_t* outExecId, 
         int numBlocksRunning,
         Point* inputs, 
         Point* inputScratch,
         int inputSize,
         Point* observerScratch,
-        int observerScratchSize,
-        uint64_t execId, 
-        uint64_t* execIdScratch)
+        int observerScratchSize)
 {
+    int tid = GetTid();
+
     if(!RunBlock(numBlocksRunning)) return;
+
+    uint64_t curExecId = *inExecId;
 
     GetPtrsThisBlock(
             &inputScratch,
             inputSize,
             &observerScratch,
             observerScratchSize);
-
-    // Copy in inputs
-    memcpy(inputs, inputScratch, inputSize*sizeof(Exys::Point));
-
-    ExysCaptureState();
-
-    ExysStabilize(inputScratch, observerScratch);
-
-    ExysResetState();
     
-    // Check if our sim job is done
+    // Run this kernel hot hot hot
+    while (true)
+    {
+        while(*inExecId && curExecId != *inExecId);
+        
+        // Copy in inputs
+        memcpy(inputs, inputScratch, inputSize*sizeof(Exys::Point));
 
-    // Run simfunc to update inputs
+        ExysCaptureState();
+
+        ExysStabilize(inputScratch, observerScratch);
+
+        ExysResetState();
+
+        // Check if our sim job is done
+
+        // Run simfunc to update inputs
+
+        ++curExecId;
+
+        atomicAdd((unsigned long long int *)&valRunCount, 1);
+
+        if(!tid) 
+        {
+            // all threads should be done and we are the master so update count
+            while((valRunCount % numBlocksRunning) != 0);
+            *outExecId = *inExecId;
+        }
+    }
 
 }
 
