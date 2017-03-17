@@ -44,14 +44,22 @@ struct JitPointDescription
     uint32_t mLength = 0;
 };
 
+typedef std::function<llvm::Value* (llvm::Module*, llvm::IRBuilder<>&, const JitPoint&)> JitComputeFunction;
+
+struct JitPointProcessor
+{
+    Procedure procedure;
+    JitComputeFunction func; 
+};
+
 class Jitter
 {
 public:
-    Jitter(std::unique_ptr<Graph> graph);
+    Jitter();
     virtual ~Jitter();
 
     static std::unique_ptr<Jitter> Build(const std::string& text);
-
+    
     const std::vector<Node::Ptr>& GetInputDesc() const { return mInputs; }
     const std::vector<Node::Ptr>& GetObserverDesc() const { return mObservers; }
 
@@ -59,9 +67,8 @@ public:
 
     std::string GetDOTGraph();
 private:
-    // LLVM helpers
-    llvm::Value* JitNode(llvm::Module* M, llvm::IRBuilder<>&  builder, 
-        const JitPoint& jp, llvm::Value* inputs, llvm::Value* observers);
+    void AssignGraph(std::unique_ptr<Graph>& graph);
+    std::unique_ptr<Graph> BuildAndLoadGraph();
 
     // def memleaks here but llvm doesnt doc how to pull down
     // the exec engine and the examples I've hit segfaults
@@ -71,6 +78,15 @@ private:
     std::vector<Node::Ptr> mObservers;
 
     std::unique_ptr<Graph> mGraph;
+    std::vector<JitPointProcessor> mPointProcessors;
+
+    // LLVM helpers
+    llvm::GlobalVariable* JitGV(llvm::Module* M, llvm::IRBuilder<>& builder);
+    llvm::Value* JitNode(llvm::Module* M, llvm::IRBuilder<>&  builder, 
+        const JitPoint& jp, llvm::Value* inputs, llvm::Value* observers);
+    llvm::Value* JitLatch(llvm::Module*, llvm::IRBuilder<>&, const JitPoint&);
+    llvm::Value* JitFlipFlop(llvm::Module*, llvm::IRBuilder<>&, const JitPoint&);
+    llvm::Value* JitTick(llvm::Module*, llvm::IRBuilder<>&, const JitPoint&);
 };
 
 };

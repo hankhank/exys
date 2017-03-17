@@ -38,15 +38,6 @@ struct JitPoint
     }
 };
 
-llvm::GlobalVariable* JitGV(llvm::Module* M, llvm::IRBuilder<>& builder)
-{
-    auto* gv = new llvm::GlobalVariable(*M, builder.getDoubleTy(), false, llvm::GlobalValue::InternalLinkage,
-                     llvm::ConstantFP::get(builder.getDoubleTy(), 0.0), "", nullptr,
-                     llvm::GlobalValue::ThreadLocalMode::NotThreadLocal, 
-                     5); //llvm::AddressSpace::ADDRESS_SPACE_LOCAL /* for cuda kernel */);
-    return gv;
-}
-
 llvm::Value* JitTernary(llvm::Module*, llvm::IRBuilder<>& builder, const JitPoint& point)
 {
     assert(point.mParents.size() == 3);
@@ -76,7 +67,16 @@ llvm::Value* JitDoubleNot(llvm::Module*, llvm::IRBuilder<>& builder, const JitPo
     return builder.CreateSelect(cmp, zero, one);
 }
 
-llvm::Value* JitLatch(llvm::Module* M, llvm::IRBuilder<>& builder, const JitPoint& point)
+llvm::GlobalVariable* Jitter::JitGV(llvm::Module* M, llvm::IRBuilder<>& builder)
+{
+    auto* gv = new llvm::GlobalVariable(*M, builder.getDoubleTy(), false, llvm::GlobalValue::InternalLinkage,
+                     llvm::ConstantFP::get(builder.getDoubleTy(), 0.0), "", nullptr,
+                     llvm::GlobalValue::ThreadLocalMode::NotThreadLocal, 
+                     3); //llvm::AddressSpace::ADDRESS_SPACE_SHARED /* for cuda kernel */);
+    return gv;
+}
+
+llvm::Value* Jitter::JitLatch(llvm::Module* M, llvm::IRBuilder<>& builder, const JitPoint& point)
 {
     assert(point.mParents.size() == 2);
 
@@ -95,7 +95,7 @@ llvm::Value* JitLatch(llvm::Module* M, llvm::IRBuilder<>& builder, const JitPoin
     return ret;
 }
 
-llvm::Value* JitFlipFlop(llvm::Module* M, llvm::IRBuilder<>& builder, const JitPoint& point)
+llvm::Value* Jitter::JitFlipFlop(llvm::Module* M, llvm::IRBuilder<>& builder, const JitPoint& point)
 {
     assert(point.mParents.size() == 2);
 
@@ -114,7 +114,7 @@ llvm::Value* JitFlipFlop(llvm::Module* M, llvm::IRBuilder<>& builder, const JitP
     return loadGv;
 }
 
-llvm::Value* JitTick(llvm::Module* M, llvm::IRBuilder<>& builder, const JitPoint& point)
+llvm::Value* Jitter::JitTick(llvm::Module* M, llvm::IRBuilder<>& builder, const JitPoint& point)
 {
     assert(point.mParents.size() == 2);
 
@@ -206,13 +206,9 @@ llvm::Value* JitCopy(llvm::Module*, llvm::IRBuilder<>& builder, const JitPoint& 
     return (*p)->mValue;
 }
 
-typedef std::function<llvm::Value* (llvm::Module*, llvm::IRBuilder<>&, const JitPoint&)> ComputeFunction;
-
-struct JitPointProcessor
-{
-    Procedure procedure;
-    ComputeFunction func; 
-};
+#define WRAP(__FUNC) \
+    [this](llvm::Module* m, llvm::IRBuilder<>& b, const JitPoint& p) -> llvm::Value* \
+    {return this->__FUNC(m,b,p);}
 
 static JitPointProcessor AVAILABLE_PROCS[] =
 {
@@ -235,15 +231,18 @@ static JitPointProcessor AVAILABLE_PROCS[] =
     {{"exp",       CountValueValidator<1,1>},   JitDoubleExp},
     {{"ln",        CountValueValidator<1,1>},   JitDoubleLn},
     {{"not",       CountValueValidator<1,1>},   JitDoubleNot},
-    {{"latch",     CountValueValidator<2,2>},   JitLatch},
-    {{"flip-flop", CountValueValidator<2,2>},   JitFlipFlop},
-    {{"tick",      MinCountValueValidator<0>},  JitTick},
     {{"copy",      CountValueValidator<1,1>},   JitCopy}
 };
 
-Jitter::Jitter(std::unique_ptr<Graph> graph)
-:mGraph(std::move(graph))
+Jitter::Jitter()
 {
+    for(auto& jpp : AVAILABLE_PROCS)
+    {
+        mPointProcessors.push_back(jpp);
+    }
+    mPointProcessors.push_back({{"latch",     CountValueValidator<2,2>},   WRAP(JitLatch)});
+    mPointProcessors.push_back({{"flip-flop", CountValueValidator<2,2>},   WRAP(JitFlipFlop)});
+    mPointProcessors.push_back({{"tick",      MinCountValueValidator<0>},  WRAP(JitTick)});
 }
     //auto OwnerClone = std::unique_ptr<llvm::Module>(llvm::CloneModule(M));
 
@@ -284,7 +283,7 @@ llvm::Value* Jitter::JitNode(llvm::Module* M, llvm::IRBuilder<>&  builder,
     }
     else if(jp.mNode->mKind == Node::KIND_PROC)
     {
-        for(auto& proc : AVAILABLE_PROCS)
+        for(auto& proc : mPointProcessors)
         {
             if(jp.mNode->mToken.compare(proc.procedure.id) == 0)
             {
@@ -486,20 +485,27 @@ std::unique_ptr<llvm::Module> Jitter::BuildModule()
     return module;
 }
 
-static std::unique_ptr<Graph> BuildAndLoadGraph()
+std::unique_ptr<Graph> Jitter::BuildAndLoadGraph()
 {
     auto graph = std::unique_ptr<Graph>(new Graph);
     std::vector<Procedure> procedures;
-    for(const auto &proc : AVAILABLE_PROCS) procedures.push_back(proc.procedure);
+    for(const auto &proc : mPointProcessors) procedures.push_back(proc.procedure);
     graph->SetSupportedProcedures(procedures);
     return graph;
 }
 
+void Jitter::AssignGraph(std::unique_ptr<Graph>& graph)
+{
+    mGraph.swap(graph);
+}
+
 std::unique_ptr<Jitter> Jitter::Build(const std::string& text)
 {
-    auto graph = BuildAndLoadGraph();
+    auto jitter = std::unique_ptr<Jitter>(new Jitter());
+    auto graph = jitter->BuildAndLoadGraph();
     graph->Construct(Parse(text));
-    return std::unique_ptr<Jitter>(new Jitter(std::move(graph)));
+    jitter->AssignGraph(graph);
+    return jitter;
 }
 
 }
