@@ -44,9 +44,8 @@ private:
     void CompleteBuild();
 
     StabilizationFunc mRawStabilizeFunc = nullptr;
-    CaptureFunc mCaptureFunc = nullptr;
-    ResetFunc mResetFunc = nullptr;
     
+    std::vector<double> mState;
     std::vector<Point> mPoints;
     Point* mInputPtr = nullptr;
     Point* mObserverPtr = nullptr;

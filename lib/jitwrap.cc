@@ -43,8 +43,6 @@ void JitWrap::BuildJitEngine(std::unique_ptr<llvm::Module> module)
     }
 
     mRawStabilizeFunc = reinterpret_cast<StabilizationFunc>(llvmExecEngine->getPointerToNamedFunction(STAB_FUNC_NAME));
-    mCaptureFunc = reinterpret_cast<CaptureFunc>(llvmExecEngine->getPointerToNamedFunction(CAP_FUNC_NAME));
-    mResetFunc = reinterpret_cast<ResetFunc>(llvmExecEngine->getPointerToNamedFunction(RESET_FUNC_NAME));
 
     llvmExecEngine->finalizeObject();
     
@@ -52,6 +50,7 @@ void JitWrap::BuildJitEngine(std::unique_ptr<llvm::Module> module)
     const auto& inputDesc = mJitter->GetInputDesc();
     const auto& observerDesc = mJitter->GetObserverDesc();
     mPoints.resize(inputDesc.size() + observerDesc.size());
+    mState.resize(mJitter->GetStateSpaceSize());
 
     for(const auto& id : inputDesc)
     {
@@ -99,7 +98,7 @@ void JitWrap::Stabilize(bool force)
 {
     if(force || IsDirty())
     {
-        mRawStabilizeFunc(mInputPtr, mObserverPtr);
+        mRawStabilizeFunc(mInputPtr, mObserverPtr, mState.data());
         for(auto& p : mPoints) p.Clean();
     }
 }

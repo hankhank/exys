@@ -31,7 +31,7 @@ namespace
 namespace Exys
 {
 
-typedef void (*StabilizationFunc)(Point* inputs, Point* observers);
+typedef void (*StabilizationFunc)(Point* inputs, Point* observers, double* state);
 typedef void (*CaptureFunc)();
 typedef void (*ResetFunc)();
 
@@ -62,6 +62,7 @@ public:
     
     const std::vector<Node::Ptr>& GetInputDesc() const { return mInputs; }
     const std::vector<Node::Ptr>& GetObserverDesc() const { return mObservers; }
+    int GetStateSpaceSize() const { return mNumStatePtr; }
 
     std::unique_ptr<llvm::Module> BuildModule();
 
@@ -73,6 +74,8 @@ private:
     // def memleaks here but llvm doesnt doc how to pull down
     // the exec engine and the examples I've hit segfaults
     llvm::LLVMContext* mLlvmContext = nullptr;
+    llvm::Value* mStatePtr = nullptr;
+    int mNumStatePtr = 0;
     
     std::vector<Node::Ptr> mInputs;
     std::vector<Node::Ptr> mObservers;
@@ -81,7 +84,7 @@ private:
     std::vector<JitPointProcessor> mPointProcessors;
 
     // LLVM helpers
-    llvm::GlobalVariable* JitGV(llvm::Module* M, llvm::IRBuilder<>& builder);
+    llvm::Value* JitGV(llvm::Module* M, llvm::IRBuilder<>& builder);
     llvm::Value* JitNode(llvm::Module* M, llvm::IRBuilder<>&  builder, 
         const JitPoint& jp, llvm::Value* inputs, llvm::Value* observers);
     llvm::Value* JitLatch(llvm::Module*, llvm::IRBuilder<>&, const JitPoint&);

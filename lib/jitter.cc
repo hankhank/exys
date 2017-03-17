@@ -67,13 +67,12 @@ llvm::Value* JitDoubleNot(llvm::Module*, llvm::IRBuilder<>& builder, const JitPo
     return builder.CreateSelect(cmp, zero, one);
 }
 
-llvm::GlobalVariable* Jitter::JitGV(llvm::Module* M, llvm::IRBuilder<>& builder)
+llvm::Value* Jitter::JitGV(llvm::Module* M, llvm::IRBuilder<>& builder)
 {
-    auto* gv = new llvm::GlobalVariable(*M, builder.getDoubleTy(), false, llvm::GlobalValue::InternalLinkage,
-                     llvm::ConstantFP::get(builder.getDoubleTy(), 0.0), "", nullptr,
-                     llvm::GlobalValue::ThreadLocalMode::NotThreadLocal, 
-                     3); //llvm::AddressSpace::ADDRESS_SPACE_SHARED /* for cuda kernel */);
-    return gv;
+    llvm::Value* stateIndex = llvm::ConstantInt::get(llvm::Type::getInt32Ty(*mLlvmContext), mNumStatePtr++);
+    std::vector<llvm::Value*> gepIndex;
+    gepIndex.push_back(stateIndex);
+    return builder.CreateGEP(mStatePtr, gepIndex);
 }
 
 llvm::Value* Jitter::JitLatch(llvm::Module* M, llvm::IRBuilder<>& builder, const JitPoint& point)
@@ -388,7 +387,7 @@ std::unique_ptr<llvm::Module> Jitter::BuildModule()
     llvm::Module *M = module.get();
 
     // before changing this type 
-    //
+    // review exys.h header where the type matches
     auto pointName = MangleName(POINT_NAME, M->getDataLayout());
     auto pointType = llvm::StructType::create(M->getContext(), pointName);
     std::vector<llvm::Type*> pointTypeFields;
@@ -401,10 +400,12 @@ std::unique_ptr<llvm::Module> Jitter::BuildModule()
     pointType->setBody(pointTypeFields, /*isPacked=*/true);
 
     llvm::PointerType* pointerToPoint = llvm::PointerType::get(pointType, 0 /*address space*/);
+    llvm::PointerType* pointerToDouble = llvm::PointerType::get(llvm::Type::getDoubleTy(M->getContext()), 0 /*address space*/);
 
     std::vector<llvm::Type*> inoutargs;
-    inoutargs.push_back(pointerToPoint);
-    inoutargs.push_back(pointerToPoint);
+    inoutargs.push_back(pointerToPoint);  // inputs
+    inoutargs.push_back(pointerToPoint);  // observers
+    inoutargs.push_back(pointerToDouble); // state variables
   
     auto stabFuncName = MangleName(STAB_FUNC_NAME, M->getDataLayout());
     auto* stabilizeFunc =
@@ -419,55 +420,15 @@ std::unique_ptr<llvm::Module> Jitter::BuildModule()
 
     llvm::Function::arg_iterator args = stabilizeFunc->arg_begin();
     llvm::Value* inputsPtr = &(*args++);
-    llvm::Value* observersPtr = &(*args);
+    llvm::Value* observersPtr = &(*args++);
+    mStatePtr = &(*args);
+    mNumStatePtr = 0;
  
     for(auto& jp : jitHeap)
     {
         const_cast<JitPoint*>(jp)->mValue = JitNode(M, stabBuilder, *jp, inputsPtr, observersPtr);
     }
     stabBuilder.CreateRetVoid();
-
-    std::vector<llvm::Type*> noargs;
-
-    // Capture and reset state
-    auto capFuncName = MangleName(CAP_FUNC_NAME, M->getDataLayout());
-    auto* captureFunc =
-    llvm::cast<llvm::Function>(M->getOrInsertFunction(capFuncName, 
-                    llvm::FunctionType::get(
-                        llvm::Type::getVoidTy(*mLlvmContext), // void return
-                        noargs,
-                        false))); // no var args
-    auto *capBlock = llvm::BasicBlock::Create(*mLlvmContext, "CaptureStateBlock", captureFunc);
-    llvm::IRBuilder<> capBuilder(capBlock);
-
-    auto resetFuncName = MangleName(RESET_FUNC_NAME, M->getDataLayout());
-    auto* resetFunc =
-    llvm::cast<llvm::Function>(M->getOrInsertFunction(resetFuncName,
-                    llvm::FunctionType::get(
-                        llvm::Type::getVoidTy(*mLlvmContext), // void return
-                        noargs,
-                        false))); // no var args
-    auto* resetBlock = llvm::BasicBlock::Create(*mLlvmContext, "ResetBlock", resetFunc);
-    llvm::IRBuilder<> resetBuilder(resetBlock);
-
-    // copy here so we aren't inserting new gv into the list we are working on
-    std::vector<llvm::GlobalVariable*> gvList;
-    for(auto& gv : module->getGlobalList())
-    {
-        gvList.push_back(&gv);
-    }
-
-    for(auto& gv : gvList)
-    {
-        auto* copy = JitGV(M, capBuilder);
-        auto* loadedGv = capBuilder.CreateLoad(gv);
-        capBuilder.CreateStore(loadedGv, copy);
-
-        auto* loadCopy = resetBuilder.CreateLoad(copy);
-        resetBuilder.CreateStore(loadCopy, gv);
-    }
-    capBuilder.CreateRetVoid();
-    resetBuilder.CreateRetVoid();
 
     // Output asm
     if(0)
@@ -476,8 +437,6 @@ std::unique_ptr<llvm::Module> Jitter::BuildModule()
         llvm::raw_string_ostream rawout(out);
 
         rawout << *stabilizeFunc;
-        rawout << *captureFunc;
-        rawout << *resetFunc;
 
         std::cout << rawout.str();
     }
