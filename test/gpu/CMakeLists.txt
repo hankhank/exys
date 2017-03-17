@@ -27,3 +27,6 @@ target_link_libraries(gputester exys ${CUDA_LIB})
 
 file(GLOB TEST_FILES "*.exys")
 file(COPY ${TEST_FILES} DESTINATION ".")
+
+add_executable(gpuprinter gpuprinter.cc)
+target_link_libraries(gpuprinter exys)

@@ -422,7 +422,8 @@ std::string GetDeviceInfo(CUdevice& dev)
     return output;
 }
 
-void LinkCudaModules(int grids, int cores, const std::string& ptx, const std::string& compiledFile)
+void LinkCudaModules(int blocks, int threads, const std::string& ptx, const std::string& compiledFile, int loopnum, int val, int inputSize,
+            int observerSize)
 {
     std::cout << "init\n";
   CUdevice device;
@@ -501,74 +502,108 @@ void LinkCudaModules(int grids, int cores, const std::string& ptx, const std::st
   CUfunction function;
   checkCudaErrors(cuModuleGetFunction(&function, cudaModule, "ExysVal"));
 
-  int numBlocksRunning=cores*grids;
-  int inputSize=2;
-  int observerSize=1;
-    
-  // execids
-  volatile uint64_t *inExecId;
-  volatile uint64_t *outExecId;
-  checkCudaErrors(cuMemHostAlloc((void**)&outExecId, sizeof(uint64_t), CU_MEMHOSTALLOC_DEVICEMAP));
-  checkCudaErrors(cuMemHostAlloc((void**)&inExecId, sizeof(uint64_t), CU_MEMHOSTALLOC_DEVICEMAP));
-  *inExecId = 1;
-  *outExecId = 0;
+  int numBlocksRunning=threads*blocks;
 
   // Device data
   CUdeviceptr inputBuf;
-  checkCudaErrors(cuMemAlloc(&inputBuf, sizeof(Exys::Point)*2));
+  checkCudaErrors(cuMemAlloc(&inputBuf, sizeof(Exys::Point)*inputSize));
 
   CUdeviceptr observerBuf;
-  checkCudaErrors(cuMemAlloc(&observerBuf, sizeof(Exys::Point)*1*numBlocksRunning));
-
-  // Kernel parameters
-  void *KernelParams[] = { &inExecId, &outExecId, &numBlocksRunning, &inputBuf, &inputSize, &observerBuf, &observerSize};
-
-  std::cout << "Launching kernel\n";
-
-  CUstream kernelStream;
-  CUstream dataStream;
+  checkCudaErrors(cuMemAlloc(&observerBuf, sizeof(Exys::Point)*observerSize*numBlocksRunning));
     
-   checkCudaErrors(cuStreamCreate(&kernelStream, CU_STREAM_NON_BLOCKING));
-   checkCudaErrors(cuStreamCreate(&dataStream, CU_STREAM_NON_BLOCKING));
-
-  // Kernel launch
-    checkCudaErrors(cuLaunchKernel(function, grids, 1, 1,
-                                 cores, 1, 1,
-                                 0, kernelStream, KernelParams, NULL));
-    
-    // Copy into inputs
-  auto start = std::chrono::steady_clock::now();
-  auto inputs = new Exys::Point[2];
-  for(int i = 0; i < 1000; i++)
+  if(val)
   {
-      inputs[0] = 7+i;
-      inputs[1] = 99;
-      //std::cout << "Copy inputs\n";
-      checkCudaErrors(cuMemcpyHtoDAsync(inputBuf, &inputs[0], sizeof(Exys::Point)*2, dataStream));
-      checkCudaErrors(cuStreamSynchronize(dataStream));
+      // Kernel parameters
+      void *KernelParams[] = { &numBlocksRunning, &inputBuf, &inputSize, &observerBuf, &observerSize};
 
-      // bump exec and kick of calc
-      //std::cout << "bump and wait\n";
-      (*inExecId)++;
-       while(*inExecId != *outExecId);
+      std::cout << "Launching kernel\n";
 
-      // Retrieve device data
-      //std::cout << "get results\n";
+      // Kernel launch - warming
+        checkCudaErrors(cuLaunchKernel(function, blocks, 1, 1,
+                                     threads, 1, 1,
+                                     0, NULL, KernelParams, NULL));
+        checkCudaErrors(cuLaunchKernel(function, blocks, 1, 1,
+                                     threads, 1, 1,
+                                     0, NULL, KernelParams, NULL));
 
-  }
+        checkCudaErrors(cuLaunchKernel(function, blocks, 1, 1,
+                                     threads, 1, 1,
+                                     0, NULL, KernelParams, NULL));
+        // Copy into inputs
+      auto start = std::chrono::steady_clock::now();
+      auto inputs = new Exys::Point[2];
+      for(int i = 0; i < 1000; i++)
+      {
+          inputs[0] = 7+i;
+          inputs[1] = 99;
+          checkCudaErrors(cuMemcpyHtoD(inputBuf, &inputs[0], sizeof(Exys::Point)*inputSize));
+        checkCudaErrors(cuLaunchKernel(function, blocks, 1, 1,
+                                     threads, 1, 1,
+                                     0, NULL, KernelParams, NULL));
 
-  std::cout << "Run time " << std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - start).count() 
-      << "\n";
+      }
+
+      std::cout << "Run time " << std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - start).count() 
+          << "\n";
 
       auto output = new Exys::Point[numBlocksRunning];
-      checkCudaErrors(cuMemcpyDtoHAsync(&output[0], observerBuf, sizeof(Exys::Point)*1*numBlocksRunning, dataStream));
-      checkCudaErrors(cuStreamSynchronize(dataStream));
-  for(int i =0 ; i < numBlocksRunning; ++i)
-  {
-      std::cout << "Output :" << output[i].mVal << "\n";
+      checkCudaErrors(cuMemcpyDtoH(&output[0], observerBuf, sizeof(Exys::Point)*observerSize*numBlocksRunning));
+      for(int i =0 ; i < numBlocksRunning; ++i)
+      {
+          std::cout << "Output :" << output[i].mVal << "\n";
+      }
+
   }
-   checkCudaErrors(cuStreamDestroy(kernelStream));
-   checkCudaErrors(cuStreamDestroy(dataStream));
+  else
+  {
+      CUfunction simfunction;
+      checkCudaErrors(cuModuleGetFunction(&simfunction, cudaModule, "ExysSim"));
+
+      // Device data
+      CUdeviceptr inputScratch;
+      checkCudaErrors(cuMemAlloc(&inputScratch, sizeof(Exys::Point)*inputSize*numBlocksRunning));
+
+      // Kernel parameters
+      void *KernelParams[] = { &numBlocksRunning, &inputBuf, &inputScratch, &inputSize, &observerBuf, &observerSize, &loopnum};
+
+      std::cout << "Launching kernel\n";
+
+      // Kernel launch - warming
+        checkCudaErrors(cuLaunchKernel(simfunction, blocks, 1, 1,
+                                     threads, 1, 1,
+                                     0, NULL, KernelParams, NULL));
+        checkCudaErrors(cuLaunchKernel(simfunction, blocks, 1, 1,
+                                     threads, 1, 1,
+                                     0, NULL, KernelParams, NULL));
+
+        checkCudaErrors(cuLaunchKernel(simfunction, blocks, 1, 1,
+                                     threads, 1, 1,
+                                     0, NULL, KernelParams, NULL));
+
+        // Copy into inputs
+      auto start = std::chrono::steady_clock::now();
+      auto inputs = new Exys::Point[2];
+      for(int i = 0; i < 1000; i++)
+      {
+          inputs[0] = 7+i;
+          inputs[1] = 99;
+          checkCudaErrors(cuMemcpyHtoD(inputBuf, &inputs[0], sizeof(Exys::Point)*inputSize));
+        checkCudaErrors(cuLaunchKernel(simfunction, blocks, 1, 1,
+                                     threads, 1, 1,
+                                     0, NULL, KernelParams, NULL));
+
+      }
+
+      std::cout << "Run time " << std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - start).count() 
+          << "\n";
+
+      auto output = new Exys::Point[numBlocksRunning];
+      checkCudaErrors(cuMemcpyDtoH(&output[0], observerBuf, sizeof(Exys::Point)*observerSize*numBlocksRunning));
+      for(int i =0 ; i < numBlocksRunning; ++i)
+      {
+          std::cout << "Output :" << output[i].mVal << "\n";
+      }
+  }
 }
 
 int main(int argc, char* argv[])
@@ -578,13 +613,18 @@ int main(int argc, char* argv[])
     std::stringstream buffer;
     buffer << t.rdbuf();
         
-    int cores = std::atoi(argv[2]);
-    int grids = std::atoi(argv[3]);
+    int threads = std::atoi(argv[2]);
+    int blocks = std::atoi(argv[3]);
+    int loopnum = std::atoi(argv[4]);
+    int val = std::atoi(argv[5]);
+    int inputsize = std::atoi(argv[6]);
+    int outputsize = std::atoi(argv[7]);
     try
     {
         auto gputer = Exys::Gputer::Build(buffer.str());
         std::cout << gputer->GetPTX();
-        LinkCudaModules(grids, cores, gputer->GetPTX(), std::string((const char*)kernel_co, kernel_co_len));
+        LinkCudaModules(blocks, threads, gputer->GetPTX(), std::string((const char*)kernel_co, kernel_co_len), loopnum, val,
+                    inputsize, outputsize);
     }
     catch (const Exys::ParseException& e)
     {

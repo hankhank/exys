@@ -31,11 +31,7 @@ __device__ void GetPtrsThisBlock(
     if(observerScratch) *observerScratch += observerScratchSize*tid;
 }
 
-__device__ volatile uint64_t valRunCount = 0;
-
 extern "C" __global__ void ExysVal(
-        volatile uint64_t* inExecId, 
-        volatile uint64_t* outExecId, 
         int numBlocksRunning,
         Point* inputs, 
         int inputSize,
@@ -45,8 +41,6 @@ extern "C" __global__ void ExysVal(
     int tid = GetTid();
 
     if(!RunBlock(numBlocksRunning)) return;
-
-    uint64_t curExecId = *inExecId;
 
     GetPtrsThisBlock(
             nullptr,
@@ -54,41 +48,21 @@ extern "C" __global__ void ExysVal(
             &observerScratch,
             observerScratchSize);
     
-    // Run this kernel hot hot hot
-    while (true)
-    {
-        while(*inExecId && curExecId != *inExecId);
-        
-        ExysStabilize(inputs, observerScratch);
-
-        ++curExecId;
-
-        atomicAdd((unsigned long long int *)&valRunCount, 1);
-
-        if(!tid) 
-        {
-            // all threads should be done and we are the master so update count
-            while((valRunCount % numBlocksRunning) != 0);
-            *outExecId = *inExecId;
-        }
-    }
+    ExysStabilize(inputs, observerScratch);
 }
 
 extern "C" __global__ void ExysSim(
-        volatile uint64_t* inExecId, 
-        volatile uint64_t* outExecId, 
         int numBlocksRunning,
         Point* inputs, 
         Point* inputScratch,
         int inputSize,
         Point* observerScratch,
-        int observerScratchSize)
+        int observerScratchSize,
+        int sims)
 {
     int tid = GetTid();
 
     if(!RunBlock(numBlocksRunning)) return;
-
-    uint64_t curExecId = *inExecId;
 
     GetPtrsThisBlock(
             &inputScratch,
@@ -96,36 +70,17 @@ extern "C" __global__ void ExysSim(
             &observerScratch,
             observerScratchSize);
     
-    // Run this kernel hot hot hot
-    while (true)
+    // Copy in inputs
+    memcpy(inputs, inputScratch, inputSize*sizeof(Exys::Point));
+    
+    for (int i = 0; i < sims; ++i)
     {
-        while(*inExecId && curExecId != *inExecId);
-        
-        // Copy in inputs
-        memcpy(inputs, inputScratch, inputSize*sizeof(Exys::Point));
-
         ExysCaptureState();
 
         ExysStabilize(inputScratch, observerScratch);
 
         ExysResetState();
-
-        // Check if our sim job is done
-
-        // Run simfunc to update inputs
-
-        ++curExecId;
-
-        atomicAdd((unsigned long long int *)&valRunCount, 1);
-
-        if(!tid) 
-        {
-            // all threads should be done and we are the master so update count
-            while((valRunCount % numBlocksRunning) != 0);
-            *outExecId = *inExecId;
-        }
     }
-
 }
 
 }

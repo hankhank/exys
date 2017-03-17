@@ -1,5 +1,6 @@
 (begin
 
+    (input double execId)
     (input double ttmult)
     (input double mindeltas)
     (input list double depth 2 5 2)
@@ -29,6 +30,7 @@
     (observe minDp (mindelta-price mindeltas bids))
     (observe minDpAdj (+ tt-adjust (mindelta-price mindeltas bids)))
     
+    ; Simulations
     (define fully-traded-tt-generator
         (lambda (side)
             (for-each (lambda (level) (level)) side)))
@@ -36,11 +38,11 @@
     (define tt-generator-from-price
         (lambda (size price dir vol) (for-each (lambda (offset) (list vol (+ price offset))) (iota size 0 dir))))
 
-    ; Can we do binary search
-    (define binary-tt-search
+    ; Can we do linear search per level
+    (define linear-search
         (lambda (side simtraded)
-            (begin
-                (
+            (for-each (lambda (level)
+                (begin
 
     (sim-apply tt (apply fully-traded-tt-generator bids asks))
     (sim-apply tt (apply fully-traded-tt-generator bids asks))
