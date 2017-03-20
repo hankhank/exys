@@ -58,9 +58,6 @@ void Gputer::CompleteBuild()
     auto* ptxTargetMachine = ptxTarget->createTargetMachine(PTXTriple, PTXCPU, "", PTXTargetOptions,
              llvm::Reloc::PIC_, llvm::CodeModel::Default, llvm::CodeGenOpt::Aggressive);
 
-    // 32-bit
-    //M->setDataLayout(llvm::StringRef("e-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-"
-    //            "f32:32:32-f64:64:64-v16:16:16-v32:32:32-v64:64:64-v128:128:128-n16:32:64"));
     // 64-bit
     M->setDataLayout(llvm::StringRef("e-p:64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-"
                 "f64:64:64-v16:16:16-v32:32:32-v64:64:64-v128:128:128-n16:32:64"));

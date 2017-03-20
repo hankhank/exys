@@ -337,6 +337,24 @@ std::string MangleName(const std::string& name, const llvm::DataLayout &DL)
     return mangledNameStream.str();
 }
 
+llvm::PointerType* GetPointPointerType(llvm::Module* M)
+{
+    // before changing this type 
+    // review exys.h header where the type matches
+    auto pointName = MangleName(POINT_NAME, M->getDataLayout());
+    auto pointType = llvm::StructType::create(M->getContext(), pointName);
+    std::vector<llvm::Type*> pointTypeFields;
+    pointTypeFields.push_back(llvm::Type::getDoubleTy(M->getContext()));    // val
+    pointTypeFields.push_back(llvm::IntegerType::get(M->getContext(), 32)); // length
+    pointTypeFields.push_back(llvm::IntegerType::get(M->getContext(), 8));  // dirty
+    pointTypeFields.push_back(llvm::IntegerType::get(M->getContext(), 8));  // char[0]
+    pointTypeFields.push_back(llvm::IntegerType::get(M->getContext(), 8));  // char[1]
+    pointTypeFields.push_back(llvm::IntegerType::get(M->getContext(), 8));  // char[2]
+    pointType->setBody(pointTypeFields, /*isPacked=*/true);
+
+    return llvm::PointerType::get(pointType, 0 /*address space*/);
+}
+
 std::unique_ptr<llvm::Module> Jitter::BuildModule()
 {    
     if(mLlvmContext)
@@ -345,8 +363,53 @@ std::unique_ptr<llvm::Module> Jitter::BuildModule()
         return nullptr;
     }
 
-    auto nodeLayout = mGraph->GetLayout();
+    // JIT IT BABY
+    mLlvmContext = new llvm::LLVMContext;
 
+    auto module = std::unique_ptr<llvm::Module>(new llvm::Module("exys", *mLlvmContext));
+    llvm::Module *M = module.get();
+
+    llvm::PointerType* pointerToPoint = GetPointPointerType(M);
+    llvm::PointerType* pointerToDouble = llvm::PointerType::get(llvm::Type::getDoubleTy(M->getContext()), 0 /*address space*/);
+
+    std::vector<llvm::Type*> inoutargs;
+    inoutargs.push_back(pointerToPoint);  // inputs
+    inoutargs.push_back(pointerToPoint);  // observers
+    inoutargs.push_back(pointerToDouble); // state variables
+  
+    auto stabFuncName = MangleName(STAB_FUNC_NAME, M->getDataLayout());
+    auto* stabilizeFunc =
+    llvm::cast<llvm::Function>(M->getOrInsertFunction(stabFuncName,
+                    llvm::FunctionType::get(
+                        llvm::Type::getVoidTy(*mLlvmContext), // void return
+                        inoutargs,
+                        false))); // no var args
+
+    llvm::Function::arg_iterator args = stabilizeFunc->arg_begin();
+    llvm::Value* inputsPtr = &(*args++);
+    llvm::Value* observersPtr = &(*args++);
+    llvm::Value* statePtr = &(*args++);
+
+    auto nodeLayout = mGraph->GetLayout();
+    
+    BuildBlock(STAB_FUNC_NAME, nodeLayout, stabilizeFunc, M, inputsPtr, observersPtr, statePtr);
+ 
+    // Output asm
+    if(0)
+    {
+        std::string out;
+        llvm::raw_string_ostream rawout(out);
+
+        rawout << *stabilizeFunc;
+
+        std::cout << rawout.str();
+    }
+    return module;
+}
+
+void Jitter::BuildBlock(const std::string& blockName, const std::vector<Node::Ptr>& nodeLayout, 
+        llvm::Function* func, llvm::Module *M, llvm::Value* inputsPtr, llvm::Value* observersPtr, llvm::Value* statePtr)
+{
     std::vector<JitPoint> jitPoints;
     jitPoints.resize(nodeLayout.size());
 
@@ -373,77 +436,24 @@ std::unique_ptr<llvm::Module> Jitter::BuildModule()
         }
     }
 
+    auto *block = llvm::BasicBlock::Create(*mLlvmContext, blockName, func);
+    llvm::IRBuilder<> builder(block);
+    mStatePtr = statePtr;
+    mNumStatePtr = 0;
+
     // Copy into computed heap
     std::set<JitPoint*, CmpJitPointPtr> jitHeap;
     for(auto& jp : jitPoints)
     {
         jitHeap.insert(&jp);
     }
-    
-    // JIT IT BABY
-    mLlvmContext = new llvm::LLVMContext;
-
-    auto module = std::unique_ptr<llvm::Module>(new llvm::Module("exys", *mLlvmContext));
-    llvm::Module *M = module.get();
-
-    // before changing this type 
-    // review exys.h header where the type matches
-    auto pointName = MangleName(POINT_NAME, M->getDataLayout());
-    auto pointType = llvm::StructType::create(M->getContext(), pointName);
-    std::vector<llvm::Type*> pointTypeFields;
-    pointTypeFields.push_back(llvm::Type::getDoubleTy(M->getContext()));    // val
-    pointTypeFields.push_back(llvm::IntegerType::get(M->getContext(), 32)); // length
-    pointTypeFields.push_back(llvm::IntegerType::get(M->getContext(), 8));  // dirty
-    pointTypeFields.push_back(llvm::IntegerType::get(M->getContext(), 8));  // char[0]
-    pointTypeFields.push_back(llvm::IntegerType::get(M->getContext(), 8));  // char[1]
-    pointTypeFields.push_back(llvm::IntegerType::get(M->getContext(), 8));  // char[2]
-    pointType->setBody(pointTypeFields, /*isPacked=*/true);
-
-    llvm::PointerType* pointerToPoint = llvm::PointerType::get(pointType, 0 /*address space*/);
-    llvm::PointerType* pointerToDouble = llvm::PointerType::get(llvm::Type::getDoubleTy(M->getContext()), 0 /*address space*/);
-
-    std::vector<llvm::Type*> inoutargs;
-    inoutargs.push_back(pointerToPoint);  // inputs
-    inoutargs.push_back(pointerToPoint);  // observers
-    inoutargs.push_back(pointerToDouble); // state variables
-  
-    auto stabFuncName = MangleName(STAB_FUNC_NAME, M->getDataLayout());
-    auto* stabilizeFunc =
-    llvm::cast<llvm::Function>(M->getOrInsertFunction(stabFuncName,
-                    llvm::FunctionType::get(
-                        llvm::Type::getVoidTy(*mLlvmContext), // void return
-                        inoutargs,
-                        false))); // no var args
-
-    auto *stabBlock = llvm::BasicBlock::Create(*mLlvmContext, "StabilizeBlock", stabilizeFunc);
-    llvm::IRBuilder<> stabBuilder(stabBlock);
-
-    llvm::Function::arg_iterator args = stabilizeFunc->arg_begin();
-    llvm::Value* inputsPtr = &(*args++);
-    llvm::Value* observersPtr = &(*args++);
-    mStatePtr = &(*args);
-    mNumStatePtr = 0;
- 
     for(auto& jp : jitHeap)
     {
-        const_cast<JitPoint*>(jp)->mValue = JitNode(M, stabBuilder, *jp, inputsPtr, observersPtr);
+        const_cast<JitPoint*>(jp)->mValue = JitNode(M, builder, *jp, inputsPtr, observersPtr);
     }
-    stabBuilder.CreateRetVoid();
-
-    // Output asm
-    if(0)
-    {
-        std::string out;
-        llvm::raw_string_ostream rawout(out);
-
-        rawout << *stabilizeFunc;
-
-        std::cout << rawout.str();
-    }
-    
-    return module;
+    builder.CreateRetVoid();
 }
-
+    
 std::unique_ptr<Graph> Jitter::BuildAndLoadGraph()
 {
     auto graph = std::unique_ptr<Graph>(new Graph);

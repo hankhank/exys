@@ -4,9 +4,7 @@
 // Functions defined in the jitted code
 namespace Exys {
  
-extern "C" __device__ void (ExysStabilize)(Point* inputs, Point* observers);
-extern "C" __device__ void (ExysCaptureState)();
-extern "C" __device__ void (ExysResetState)();
+extern "C" __device__ void (ExysStabilize)(Point* inputs, Point* observers, double* state);
 
 __device__ int GetTid()
 {
@@ -75,11 +73,7 @@ extern "C" __global__ void ExysSim(
     
     for (int i = 0; i < sims; ++i)
     {
-        ExysCaptureState();
-
-        ExysStabilize(inputScratch, observerScratch);
-
-        ExysResetState();
+        ExysStabilize(inputScratch, observerScratch, nullptr);
     }
 }
 

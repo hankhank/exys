@@ -84,6 +84,8 @@ private:
     std::vector<JitPointProcessor> mPointProcessors;
 
     // LLVM helpers
+    void BuildBlock(const std::string& blockName, const std::vector<Node::Ptr>& nodeLayout, llvm::Function* func, llvm::Module *M,
+        llvm::Value* inputsPtr, llvm::Value* observersPtr, llvm::Value* statePtr);
     llvm::Value* JitGV(llvm::Module* M, llvm::IRBuilder<>& builder);
     llvm::Value* JitNode(llvm::Module* M, llvm::IRBuilder<>&  builder, 
         const JitPoint& jp, llvm::Value* inputs, llvm::Value* observers);
