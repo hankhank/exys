@@ -38,14 +38,11 @@
     (define tt-generator-from-price
         (lambda (size price dir vol isbid) (for-each (lambda (offset) (list vol (+ price offset) isbid)) (iota size 0 dir))))
 
-    (define linear-search
-        (lambda (level isbid) (
-
-    (sim-apply tt (apply fully-traded-tt-generator (bids 1) (asks 1)))
-    (sim-apply tt (apply fully-traded-tt-generator (bids 1) (asks 1)))
+    (sim-apply tt (apply fully-traded-tt-generator (list (list bids 1) (list asks 1))))
+    ;(sim-apply tt (apply fully-traded-tt-generator (bids 1) (asks 1)))
 
     ; We want to be able to make simulations dynamic based upon inputs
-    (sim-apply tt (tt-generator-from-price 10 (car (cdr (car bids)) -1 10 1)))
+    ;(sim-apply tt (tt-generator-from-price 10 (car (cdr (car bids)) -1 10 1)))
 )
 
 (test test-1

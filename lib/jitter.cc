@@ -127,6 +127,11 @@ llvm::Value* Jitter::JitTick(llvm::Module* M, llvm::IRBuilder<>& builder, const 
     return ret;
 }
 
+llvm::Value* JitNull(llvm::Module* M, llvm::IRBuilder<>& builder, const JitPoint& point)
+{
+    return nullptr;
+}
+
 #define DEFINE_INTRINSICS_UNARY_OPERATOR(__FUNCNAME, __INFUNC) \
 llvm::Value* __FUNCNAME(llvm::Module *M, llvm::IRBuilder<>& builder, const JitPoint& point) \
 { \
@@ -230,7 +235,8 @@ static JitPointProcessor AVAILABLE_PROCS[] =
     {{"exp",       CountValueValidator<1,1>},   JitDoubleExp},
     {{"ln",        CountValueValidator<1,1>},   JitDoubleLn},
     {{"not",       CountValueValidator<1,1>},   JitDoubleNot},
-    {{"copy",      CountValueValidator<1,1>},   JitCopy}
+    {{"copy",      CountValueValidator<1,1>},   JitCopy},
+    {{"sim-apply",  MinCountValueValidator<2>},  JitNull}
 };
 
 Jitter::Jitter()
@@ -239,9 +245,9 @@ Jitter::Jitter()
     {
         mPointProcessors.push_back(jpp);
     }
-    mPointProcessors.push_back({{"latch",     CountValueValidator<2,2>},   WRAP(JitLatch)});
-    mPointProcessors.push_back({{"flip-flop", CountValueValidator<2,2>},   WRAP(JitFlipFlop)});
-    mPointProcessors.push_back({{"tick",      MinCountValueValidator<0>},  WRAP(JitTick)});
+    mPointProcessors.push_back({{"latch",      CountValueValidator<2,2>},   WRAP(JitLatch)});
+    mPointProcessors.push_back({{"flip-flop",  CountValueValidator<2,2>},   WRAP(JitFlipFlop)});
+    mPointProcessors.push_back({{"tick",       MinCountValueValidator<0>},  WRAP(JitTick)});
 }
     //auto OwnerClone = std::unique_ptr<llvm::Module>(llvm::CloneModule(M));
 
@@ -472,6 +478,7 @@ std::unique_ptr<Jitter> Jitter::Build(const std::string& text)
 {
     auto jitter = std::unique_ptr<Jitter>(new Jitter());
     auto graph = jitter->BuildAndLoadGraph();
+
     graph->Construct(Parse(text));
     jitter->AssignGraph(graph);
     return jitter;

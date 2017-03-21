@@ -92,17 +92,24 @@ public:
     Graph(Graph* parent=nullptr);
 
     void Construct(const Cell& cell);
-    void DefineNode(const std::string& token, const Cell& cell);
-    void DefineNode(const std::string& token, Node::Ptr node);
-
     void SetSupportedProcedures(const std::vector<Procedure>& procs);
 
     std::string GetDOTGraph() const;
-    std::vector<Node::Ptr> GetLayout() const { return mLayout; }
+    std::vector<Node::Ptr> GetLayout() const;
+
+    std::unique_ptr<Graph> SplitOutBy(Node::Ptr node);
+    std::vector<std::unique_ptr<Graph>> SplitOutBy(Node::Kind kind, const std::string& token);
 
 private:
+    Graph(std::vector<Node::Ptr> nodes);
+
+    void DefineNode(const std::string& token, const Cell& cell);
+    void DefineNode(const std::string& token, Node::Ptr node);
+
+    template<typename T>
+    void RemoveNodes(T& nodes);
+
     Node::Ptr Build(const Cell& cell);
-    void BuildLayout();
     ProcNodeFactoryFunc DefaultFactory(const Procedure& procedure);
     void AddProcFactory(const std::string id, ProcNodeFactoryFunc factory);
     Node::Ptr LookupSymbol(const Cell& cell);
@@ -131,7 +138,6 @@ private:
     std::shared_ptr<T> BuildNode(Args... as);
 
     std::vector<Node::Ptr> mAllNodes;
-    std::vector<Node::Ptr> mLayout;
     std::unordered_map<std::string, Node::Ptr> mVarNodes;
 
     Graph* mParent;

@@ -142,6 +142,10 @@ void PairOperator(InterPoint& ipoint)
     *ipoint.mPoint = o(ipoint.mParents[0]->mPoint->mVal, ipoint.mParents[1]->mPoint->mVal);
 }
 
+void Null(InterPoint&)
+{
+}
+
 std::function<ComputeFunction ()> Wrap(ComputeFunction func)
 {
     return [func]() -> ComputeFunction {return func;};
@@ -172,6 +176,7 @@ static InterPointProcessor AVAILABLE_PROCS[] =
     {{"flip-flop",  CountValueValidator<2,2>},   FlipFlop},
     {{"tick",       MinCountValueValidator<0>},  Tick},
     {{"copy",       MinCountValueValidator<1>},  Wrap(Copy)},
+    {{"sim-apply",  MinCountValueValidator<2>},  Wrap(Null)}
 };
 
 Interpreter::Interpreter(std::unique_ptr<Graph> graph)
@@ -217,6 +222,8 @@ static size_t FindNodeOffset(const std::vector<Node::Ptr>& nodes, Node::Ptr node
 void Interpreter::CompleteBuild()
 {
     auto nodeLayout = mGraph->GetLayout();
+    
+    //mGraph->SplitOutBy(Node::KIND_PROC, "sim-apply");
 
     // For cache niceness
     mInterPointGraph.resize(nodeLayout.size());

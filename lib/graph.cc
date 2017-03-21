@@ -2,6 +2,7 @@
 #include <cassert>
 #include <sstream>
 #include <set>
+#include <algorithm>
 
 #include "graph.h"
 #include "helpers.h"
@@ -295,6 +296,13 @@ Graph::Graph(Graph* parent)
     AddProcFactory("nth",        WRAP(Nth));
 }
 
+Graph::Graph(std::vector<Node::Ptr> nodes)
+: Node(KIND_GRAPH) 
+, mParent(nullptr)
+, mAllNodes(nodes)
+{
+}
+
 template<typename T, typename... Args>
 std::shared_ptr<T> Graph::BuildNode(Args... as)
 {
@@ -475,7 +483,6 @@ void Graph::Construct(const Cell &cell)
             if(l.size() > 1 && l[0].details.text == "begin")
             {
                 Build(c);
-                BuildLayout();
                 return;
             }
         }
@@ -741,8 +748,10 @@ void CollectListMembers(Node::Ptr node, std::vector<Node::Ptr>& nodes)
     }
 }
 
-void Graph::BuildLayout()
+std::vector<Node::Ptr> Graph::GetLayout() const
 {
+    std::vector<Node::Ptr> layout;
+
     // Collect observers including one level deep for list members
     std::vector<std::vector<Node::Ptr>> observers;
     for(const auto an : mAllNodes)
@@ -780,11 +789,11 @@ void Graph::BuildLayout()
     {
         in->mIsInput = true;
         in->mOffset = inputOffset++;
-        mLayout.push_back(in);
+        layout.push_back(in);
     }
 
     // Step 2 - Remove inputs from necessary nodes
-    for(auto n : mLayout)
+    for(auto n : layout)
     {
         necessaryNodes.erase(n);
     }
@@ -792,7 +801,7 @@ void Graph::BuildLayout()
     // Step 3 - Add necessary nodes
     for(auto n : necessaryNodes)
     {
-        mLayout.push_back(n);
+        layout.push_back(n);
     }
 
     // Step 4 - Add observer flag and if list add copies
@@ -818,13 +827,80 @@ void Graph::BuildLayout()
                 nodeCopy->mLength = node->mLength;
                 nodeCopy->mOffset = observerOffset++;
                 nodeCopy->mParents.push_back(node);
-                mLayout.push_back(nodeCopy);
+                layout.push_back(nodeCopy);
                 
                 // No longer an observer
                 node->mIsObserver = false; 
             }
         }
     }
+    return layout;
+}
+
+void CollectParents(Node::Ptr node, std::vector<Node::Ptr>& nodes)
+{
+    for(auto parent : node->mParents)
+    {
+        nodes.push_back(parent);
+        CollectParents(parent, nodes);
+    }
+}
+
+template<typename T>
+void Graph::RemoveNodes(T& nodes)
+{
+    std::unordered_map<Node::Ptr, int> useCount;
+    for(auto n : nodes)
+    {
+        useCount[n] = 0;
+    }
+
+    for(auto n : mAllNodes)
+    {
+        for(auto np : n->mParents) 
+        {
+            auto count = useCount.find(np);
+            if(count != useCount.end()) useCount[np] += 1;
+        }
+    }
+
+    mAllNodes.erase(std::remove_if(mAllNodes.begin(), mAllNodes.end(), 
+                [&useCount] (auto n) 
+                { 
+                    auto c = useCount.find(n);
+                    if(c == useCount.end())
+                    {
+                        return false;
+                    }
+                    return c->second == 1;
+                    }), 
+            mAllNodes.end());
+}
+
+std::unique_ptr<Graph> Graph::SplitOutBy(Node::Ptr splitNode)
+{
+    std::vector<Node::Ptr> parents;
+    CollectParents(splitNode, parents);
+    RemoveNodes(parents);
+    return std::unique_ptr<Graph>(new Graph(parents));
+}
+
+std::vector<std::unique_ptr<Graph>> Graph::SplitOutBy(Node::Kind kind, const std::string& token)
+{
+    std::vector<std::unique_ptr<Graph>> graphs;
+    std::set<Node::Ptr> nodes;
+    for(auto n : mAllNodes)
+    {
+        if((n->mKind == Node::KIND_PROC) && (n->mToken.compare(token) == 0))
+        {
+            std::vector<Node::Ptr> parents;
+            CollectParents(n, parents);
+            nodes.insert(parents.begin(), parents.end());
+            graphs.emplace_back(new Graph(parents));
+        }
+    }
+    RemoveNodes(nodes);
+    return graphs;
 }
 
 GraphBuildException::GraphBuildException(const std::string& error, Cell cell)
