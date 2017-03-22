@@ -18,22 +18,21 @@ namespace llvm
     class LLVMContext;
     class ExecutionEngine;
     class Function;
+    class Block;
 };
 
 namespace 
 {
-    const std::string STAB_FUNC_NAME  = "ExysStabilize";
-    const std::string CAP_FUNC_NAME   = "ExysCaptureState";
-    const std::string RESET_FUNC_NAME = "ExysResetState";
-    const std::string POINT_NAME      = "Point";
+    const std::string STAB_FUNC_NAME = "ExysStabilize";
+    const std::string SIM_FUNC_NAME  = "ExysSim";
+    const std::string POINT_NAME     = "Point";
 };
 
 namespace Exys
 {
 
 typedef void (*StabilizationFunc)(Point* inputs, Point* observers, double* state);
-typedef void (*CaptureFunc)();
-typedef void (*ResetFunc)();
+typedef void (*SimFunc)(Point* inputs, Point* observers, double* state, int simId);
 
 class JitPoint;
 
@@ -63,6 +62,7 @@ public:
     const std::vector<Node::Ptr>& GetInputDesc() const { return mInputs; }
     const std::vector<Node::Ptr>& GetObserverDesc() const { return mObservers; }
     int GetStateSpaceSize() const { return mNumStatePtr; }
+    int GetSimFuncCount() const { return mNumSimFunc; }
 
     std::unique_ptr<llvm::Module> BuildModule();
 
@@ -76,6 +76,7 @@ private:
     llvm::LLVMContext* mLlvmContext = nullptr;
     llvm::Value* mStatePtr = nullptr;
     int mNumStatePtr = 0;
+    int mNumSimFunc = 0;
     
     std::vector<Node::Ptr> mInputs;
     std::vector<Node::Ptr> mObservers;
@@ -84,8 +85,8 @@ private:
     std::vector<JitPointProcessor> mPointProcessors;
 
     // LLVM helpers
-    void BuildBlock(const std::string& blockName, const std::vector<Node::Ptr>& nodeLayout, llvm::Function* func, llvm::Module *M,
-        llvm::Value* inputsPtr, llvm::Value* observersPtr, llvm::Value* statePtr);
+    llvm::BasicBlock* BuildBlock(const std::string& blockName, const std::vector<Node::Ptr>& nodeLayout, 
+            llvm::Function* func, llvm::Module *M, llvm::Value* inputsPtr, llvm::Value* observersPtr, llvm::Value* statePtr);
     llvm::Value* JitGV(llvm::Module* M, llvm::IRBuilder<>& builder);
     llvm::Value* JitNode(llvm::Module* M, llvm::IRBuilder<>&  builder, 
         const JitPoint& jp, llvm::Value* inputs, llvm::Value* observers);

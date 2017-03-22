@@ -222,8 +222,6 @@ static size_t FindNodeOffset(const std::vector<Node::Ptr>& nodes, Node::Ptr node
 void Interpreter::CompleteBuild()
 {
     auto nodeLayout = mGraph->GetLayout();
-    
-    //mGraph->SplitOutBy(Node::KIND_PROC, "sim-apply");
 
     // For cache niceness
     mInterPointGraph.resize(nodeLayout.size());

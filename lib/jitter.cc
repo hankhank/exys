@@ -378,6 +378,7 @@ std::unique_ptr<llvm::Module> Jitter::BuildModule()
     llvm::PointerType* pointerToPoint = GetPointPointerType(M);
     llvm::PointerType* pointerToDouble = llvm::PointerType::get(llvm::Type::getDoubleTy(M->getContext()), 0 /*address space*/);
 
+    // Create valuation function
     std::vector<llvm::Type*> inoutargs;
     inoutargs.push_back(pointerToPoint);  // inputs
     inoutargs.push_back(pointerToPoint);  // observers
@@ -396,24 +397,55 @@ std::unique_ptr<llvm::Module> Jitter::BuildModule()
     llvm::Value* observersPtr = &(*args++);
     llvm::Value* statePtr = &(*args++);
 
+    auto sims = mGraph->SplitOutBy(Node::KIND_PROC, "sim-apply");
     auto nodeLayout = mGraph->GetLayout();
-    
     BuildBlock(STAB_FUNC_NAME, nodeLayout, stabilizeFunc, M, inputsPtr, observersPtr, statePtr);
+
+    // Create sim function
+    inoutargs.push_back(llvm::Type::getInt32Ty(M->getContext())); // sim function id
+    auto simFuncName = MangleName(SIM_FUNC_NAME, M->getDataLayout());
+    auto* simFunc =
+    llvm::cast<llvm::Function>(M->getOrInsertFunction(simFuncName,
+                    llvm::FunctionType::get(
+                        llvm::Type::getVoidTy(*mLlvmContext), // void return
+                        inoutargs,
+                        false))); // no var args
+
+    llvm::Function::arg_iterator simargs = simFunc->arg_begin();
+    llvm::Value* simInputsPtr = &(*simargs++);
+    llvm::Value* simObserversPtr = &(*simargs++);
+    llvm::Value* simStatePtr = &(*simargs++);
+    llvm::Value* simId = &(*simargs++);
+
+    auto *switchBlock = llvm::BasicBlock::Create(*mLlvmContext, "sim-switch", simFunc);
+    llvm::IRBuilder<> switchBuilder(switchBlock);
+    if (sims.size())
+    {
+        auto swinstr = switchBuilder.CreateSwitch(simId, switchBlock, sims.size());
+        for(auto& sim : sims)
+        {
+            auto* id = llvm::ConstantInt::get(llvm::Type::getInt32Ty(M->getContext()), mNumSimFunc);
+            auto layout = sim->GetLayout();
+            auto* block = BuildBlock("sim-switch", layout, simFunc, M, simInputsPtr, simObserversPtr, simStatePtr);
+            swinstr->addCase(id, block);
+        }
+    }
+    switchBuilder.CreateRetVoid();
  
     // Output asm
-    if(0)
+    if(1)
     {
         std::string out;
         llvm::raw_string_ostream rawout(out);
 
         rawout << *stabilizeFunc;
-
+        rawout << *simFunc;
         std::cout << rawout.str();
     }
     return module;
 }
 
-void Jitter::BuildBlock(const std::string& blockName, const std::vector<Node::Ptr>& nodeLayout, 
+llvm::BasicBlock* Jitter::BuildBlock(const std::string& blockName, const std::vector<Node::Ptr>& nodeLayout, 
         llvm::Function* func, llvm::Module *M, llvm::Value* inputsPtr, llvm::Value* observersPtr, llvm::Value* statePtr)
 {
     std::vector<JitPoint> jitPoints;
@@ -458,6 +490,8 @@ void Jitter::BuildBlock(const std::string& blockName, const std::vector<Node::Pt
         const_cast<JitPoint*>(jp)->mValue = JitNode(M, builder, *jp, inputsPtr, observersPtr);
     }
     builder.CreateRetVoid();
+
+    return block;
 }
     
 std::unique_ptr<Graph> Jitter::BuildAndLoadGraph()
