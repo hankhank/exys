@@ -293,14 +293,14 @@ Graph::Graph(Graph* parent)
     AddProcFactory("import",    WRAP(Import));
     AddProcFactory("apply",     WRAP(Apply));
     AddProcFactory("append",    WRAP(Append));
-    AddProcFactory("nth",        WRAP(Nth));
+    AddProcFactory("nth",       WRAP(Nth));
 }
 
-Graph::Graph(std::vector<Node::Ptr> nodes)
+Graph::Graph(std::set<Node::Ptr> nodes)
 : Node(KIND_GRAPH) 
 , mParent(nullptr)
-, mAllNodes(nodes)
 {
+    mAllNodes.insert(mAllNodes.end(), nodes.begin(), nodes.end());
 }
 
 template<typename T, typename... Args>
@@ -837,11 +837,11 @@ std::vector<Node::Ptr> Graph::GetLayout() const
     return layout;
 }
 
-void CollectParents(Node::Ptr node, std::vector<Node::Ptr>& nodes)
+void CollectParents(Node::Ptr node, std::set<Node::Ptr>& nodes)
 {
     for(auto parent : node->mParents)
     {
-        nodes.push_back(parent);
+        nodes.insert(parent);
         CollectParents(parent, nodes);
     }
 }
@@ -879,7 +879,7 @@ void Graph::RemoveNodes(T& nodes)
 
 std::unique_ptr<Graph> Graph::SplitOutBy(Node::Ptr splitNode)
 {
-    std::vector<Node::Ptr> parents;
+    std::set<Node::Ptr> parents;
     CollectParents(splitNode, parents);
     RemoveNodes(parents);
     return std::unique_ptr<Graph>(new Graph(parents));
@@ -889,18 +889,91 @@ std::vector<std::unique_ptr<Graph>> Graph::SplitOutBy(Node::Kind kind, const std
 {
     std::vector<std::unique_ptr<Graph>> graphs;
     std::set<Node::Ptr> nodes;
+
     for(auto n : mAllNodes)
     {
         if((n->mKind == Node::KIND_PROC) && (n->mToken.compare(token) == 0))
         {
-            std::vector<Node::Ptr> parents;
-            CollectParents(n, parents);
-            nodes.insert(parents.begin(), parents.end());
-            graphs.emplace_back(new Graph(parents));
+            std::vector<Node::Ptr> graphNodes;
+            graphNodes.insert(graphNodes.end(), inputs.begin(), inputs.end());
+            graphNodes.push_back(n);
+            CollectParents(n, graphNodes);
+            graphs.emplace_back(new Graph(graphNodes));
+
+            nodes.insert(graphNodes.begin(), graphNodes.end());
         }
     }
     RemoveNodes(nodes);
     return graphs;
+}
+
+// (sim-apply target-input (list (list adjusted-input finished)))
+std::vector<std::unique_ptr<Graph>> Graph::PullOutSimApplys(Node::Kind kind, const std::string& token)
+{
+    std::set<Node::Ptr> nodesToRemove;
+
+    // Collect inputs
+    std::vector<Node::Ptr> inputs;
+    for(auto an : mAllNodes)
+    {
+        if(an->mIsInput) inputs.push_back(an);
+    }
+
+    // Pull out sim-applys
+    std::vector<Node::Ptr> simNodes;
+    for(auto n : mAllNodes)
+    {
+        if((n->mKind == Node::KIND_PROC) && (n->mToken.compare("sim-apply") == 0))
+        {
+            CollectParents(n, nodesToRemove);
+            simNodes.push_back(n);
+        }
+    }
+
+    // For each one of the potential sim functions
+    for(auto& simNode : simNodes)
+    {
+        auto args = simNode->mParents;
+        auto target = args[0];
+        auto sims = args[1];
+        assert(sims->mKind == Node::Kind::KIND_LIST);
+        for(auto& sim : sim->mParents)
+        {
+            assert(sim->mKind == Node::Kind::KIND_LIST);
+            auto inputVal = sim->mParents[0];
+            auto finFlag = sim->mParents[1];
+
+            auto observers = InputToObservers(inputs, target, inputVal);
+            {
+                std::vector<Node::Ptr> nodes;
+                for(auto& input : inputs)
+                {
+                    nodes.push(input);
+                    if(input == target)
+                    {
+
+                    }
+                    else
+                    {
+                        
+                    }
+                }
+            }
+
+            std::set<Node::Ptr> singleSimNodes;
+            singleSimNodes.insert(outputs.begin(), outputs.end());
+
+            CollectParents(inputVal, graphNodes);
+            CollectParents(finFlag, graphNodes);
+        }
+    }
+        std::set<Node::Ptr> graphNodes;
+        graphNodes.insert(inputs.begin(), inputs.end());
+    //     Pull out its leg
+    //     Duplicate inputs as observers
+    //     Hook up observers to the leg
+    //     Extend observers to include finished flags
+    // Return a bunch of graphs
 }
 
 GraphBuildException::GraphBuildException(const std::string& error, Cell cell)

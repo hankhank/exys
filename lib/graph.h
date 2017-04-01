@@ -7,6 +7,7 @@
 #include <memory>
 #include <deque>
 #include <limits>
+#include <set>
 #include <unordered_map>
 
 #include "parser.h"
@@ -101,7 +102,7 @@ public:
     std::vector<std::unique_ptr<Graph>> SplitOutBy(Node::Kind kind, const std::string& token);
 
 private:
-    Graph(std::vector<Node::Ptr> nodes);
+    Graph(std::set<Node::Ptr> nodes);
 
     void DefineNode(const std::string& token, const Cell& cell);
     void DefineNode(const std::string& token, Node::Ptr node);
