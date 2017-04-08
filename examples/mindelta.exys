@@ -31,17 +31,19 @@
     (observe minDpAdj (+ tt-adjust (mindelta-price mindeltas bids)))
     
     ; Simulations
-    (define fully-traded-tt-generator
-        (lambda (side isbid)
-            (map (lambda (level) (list (append level isbid) 1)) side)))
+    ;(define fully-traded-tt-generator
+    ;    (lambda (side isbid)
+    ;        (map (lambda (level) (list (append level isbid) 1)) side)))
 
-    (define tt-generator-from-price
-        (lambda (size price dir vol isbid) (for-each (lambda (offset) (list vol (+ price offset) isbid)) (iota size 0 dir))))
+    ;(define tt-generator-from-price
+    ;    (lambda (size price dir vol isbid) (for-each (lambda (offset) (list vol (+ price offset) isbid)) (iota size 0 dir))))
 
-    (define sim-apply-for lambda (target overwrites)
-        (for-each (lambda (x) (sim-apply target x)) overwrites))
+    ;(define sim-apply-for (lambda (target overwrites fin)
+    ;    (for-each (lambda (x) (sim-apply target x fin)) overwrites)))
 
-    (sim-apply-for tt (apply fully-traded-tt-generator (list (list bids 1) (list asks 1))))
+    (sim-apply tt (list 1 2 3) 9)
+    (sim-apply tt (list 4 5 6) 8)
+    ;(sim-apply-for tt (apply fully-traded-tt-generator (list (list bids 1) (list asks 1))))
     ;(sim-apply tt (apply fully-traded-tt-generator (bids 1) (asks 1)))
 
     ; We want to be able to make simulations dynamic based upon inputs

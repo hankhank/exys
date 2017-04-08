@@ -97,12 +97,12 @@ public:
 
     std::string GetDOTGraph() const;
     std::vector<Node::Ptr> GetLayout() const;
+    std::vector<Node::Ptr> GetSimApplyLayout() const;
 
-    std::unique_ptr<Graph> SplitOutBy(Node::Ptr node);
     std::vector<std::unique_ptr<Graph>> SplitOutBy(Node::Kind kind, const std::string& token);
 
 private:
-    Graph(std::set<Node::Ptr> nodes);
+    Graph(std::vector<Node::Ptr> nodes);
 
     void DefineNode(const std::string& token, const Cell& cell);
     void DefineNode(const std::string& token, Node::Ptr node);
@@ -134,6 +134,7 @@ private:
     Node::Ptr Apply(Node::Ptr node);
     Node::Ptr Append(Node::Ptr node);
     Node::Ptr Nth(Node::Ptr node);
+    Node::Ptr SimApply(Node::Ptr node);
 
     template<typename T=Node, typename... Args>
     std::shared_ptr<T> BuildNode(Args... as);
