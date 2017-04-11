@@ -954,8 +954,6 @@ std::vector<std::unique_ptr<Graph>> Graph::SplitOutBy(Node::Kind kind, const std
 // but we are trying to abuse that here
 std::vector<Node::Ptr> Graph::GetSimApplyLayout() const
 { 
-    std::vector<Node::Ptr> layout;
-
     // Flatten collected nodes into continous block
     // Step 1 - Add inputs
     std::vector<Node::Ptr> inputs;
@@ -969,54 +967,68 @@ std::vector<Node::Ptr> Graph::GetSimApplyLayout() const
     {
         in->mIsInput = true;
         in->mOffset = inputOffset++;
-        layout.push_back(in);
     }
 
-    std::set<Node::Ptr> simnodes;
+    std::vector<Node::Ptr> simnodes;
 
     for(auto n : mAllNodes)
     {
         if((n->mKind == Node::KIND_PROC) && (n->mToken.compare("sim-apply") == 0))
         {
-            auto args = n->mParents;
-            auto target = std::static_pointer_cast<ProcNodeFactory>(args[0]);
-            auto overwrite = std::static_pointer_cast<Node>(args[1]);
-            auto doneFlag = std::static_pointer_cast<Node>(args[2]);
+            simnodes.push_back(n);
+        }
+    }
 
-            doneFlag->mIsObserver = true;
-            doneFlag->mToken = doneFlag->mToken;
-            doneFlag->mInputLabels.push_back("sim-done");
-            doneFlag->mOffset = inputOffset; // Want it to be last
-            simnodes.insert(doneFlag);
+    assert(simnodes.size()==1);
+    
+    std::vector<Node::Ptr> expandedSimApply;
+    // Expand sim apply
+    {
+        auto n = simnodes[0];
+        auto args = n->mParents;
+        auto target = std::static_pointer_cast<ProcNodeFactory>(args[0]);
+        auto overwrite = std::static_pointer_cast<Node>(args[1]);
+        auto doneFlag = std::static_pointer_cast<Node>(args[2]);
 
-            if(target->mKind == KIND_LIST)
+        doneFlag->mIsObserver = true;
+        doneFlag->mHeight = 0;
+        doneFlag->mToken = doneFlag->mToken;
+        doneFlag->mInputLabels.push_back("sim-done");
+        doneFlag->mOffset = inputOffset; // Want it to be last
+        expandedSimApply.push_back(doneFlag);
+
+        if(target->mKind == KIND_LIST)
+        {
+            for(int i = 0; i < target->mParents.size(); ++i)
             {
-                for(int i = 0; i < target->mParents.size(); ++i)
-                {
-                    auto simapply = std::make_shared<Node>(Node::KIND_PROC);
-                    simapply->mToken = "sim-apply";
-                    simapply->mIsObserver = true;
-                    simapply->mObserverLabels = target->mParents[i]->mInputLabels;
-                    simapply->mOffset = target->mParents[i]->mOffset;
-                    simapply->mLength = 1;
-                    simapply->mParents.push_back(target->mParents[i]);
-                    simapply->mParents.push_back(overwrite->mParents[i]);
-                    simnodes.insert(simapply);
-                }
-                continue;
+                auto simapply = std::make_shared<Node>(Node::KIND_PROC);
+                simapply->mIsObserver = true;
+                simapply->mHeight = 0;
+                simapply->mToken = "sim-apply";
+                simapply->mObserverLabels = target->mParents[i]->mInputLabels;
+                simapply->mOffset = target->mParents[i]->mOffset;
+                simapply->mLength = 1;
+                simapply->mParents.push_back(overwrite->mParents[i]);
+                expandedSimApply.push_back(simapply);
             }
         }
-        if(!n->mIsInput) simnodes.insert(n);
-    }
-    
-    // Step 2 - Remove inputs from necessary nodes
-    for(auto n : layout)
-    {
-        simnodes.erase(n);
+        else
+        {
+            expandedSimApply.push_back(n);
+        }
     }
 
-    // Step 3 - Add necessary nodes
-    for(auto n : simnodes)
+    // Collect necessary nodes and set heights
+    std::set<Node::Ptr> necessarySimNodes;
+    for(auto n : expandedSimApply)
+    {
+        uint64_t height=1;
+        TraverseNodes(n, height, necessarySimNodes); 
+    }
+    
+    // Build layout
+    std::vector<Node::Ptr> layout;
+    for(auto n : necessarySimNodes)
     {
         layout.push_back(n);
     }

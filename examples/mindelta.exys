@@ -41,6 +41,7 @@
     ;(define sim-apply-for (lambda (target overwrites fin)
     ;    (for-each (lambda (x) (sim-apply target x fin)) overwrites)))
 
+    ;(observe tt (+ 1 (car tt)))
     (sim-apply tt (list 1 2 3) 9)
     (sim-apply tt (list 4 5 6) 8)
     ;(sim-apply-for tt (apply fully-traded-tt-generator (list (list bids 1) (list asks 1))))
