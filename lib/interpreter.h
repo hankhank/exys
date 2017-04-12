@@ -47,6 +47,11 @@ public:
     std::vector<std::string> GetObserverPointLabels() override;
     std::unordered_map<std::string, double> DumpObservers() override;
 
+    int GetNumSimulationFunctions() override;
+    void CaptureState() override;
+    void ResetState() override;
+    bool RunSimulationId(int simId) override;
+
     std::string GetDOTGraph() override;
 
     static std::unique_ptr<IEngine> Build(const std::string& text);

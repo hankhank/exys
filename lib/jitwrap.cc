@@ -43,13 +43,17 @@ void JitWrap::BuildJitEngine(std::unique_ptr<llvm::Module> module)
     }
 
     mRawStabilizeFunc = reinterpret_cast<StabilizationFunc>(llvmExecEngine->getPointerToNamedFunction(STAB_FUNC_NAME));
+    if(mJitter->GetSimFuncCount() > 0)
+    {
+        mRawSimFunc = reinterpret_cast<SimFunc>(llvmExecEngine->getPointerToNamedFunction(SIM_FUNC_NAME));
+    }
 
     llvmExecEngine->finalizeObject();
     
     // Setup memory
     const auto& inputDesc = mJitter->GetInputDesc();
     const auto& observerDesc = mJitter->GetObserverDesc();
-    mPoints.resize(inputDesc.size() + observerDesc.size());
+    mPoints.resize(inputDesc.size() + observerDesc.size() + 1);
     mState.resize(mJitter->GetStateSpaceSize());
 
     for(const auto& id : inputDesc)
@@ -65,13 +69,16 @@ void JitWrap::BuildJitEngine(std::unique_ptr<llvm::Module> module)
     {
         for(const auto& label : od->mObserverLabels)
         {
-            auto& op = mPoints[inputDesc.size()+od->mOffset];
+            auto& op = mPoints[inputDesc.size()+1+od->mOffset];
             mObservers[label] = &op;
             op.mLength = od->mLength;
         }
     }
     mInputPtr = &mPoints.front();
-    mObserverPtr = &mPoints.front() + inputDesc.size();
+    mObserverPtr = &mPoints.front() + inputDesc.size() + 1;
+    mInputSize = inputDesc.size();
+    // we shift the observers by one so we can fit done flag
+    // at the end
 }
 
 void JitWrap::CompleteBuild()
@@ -167,6 +174,35 @@ std::unordered_map<std::string, double> JitWrap::DumpObservers()
         ret[ip.first] = ip.second->mVal;
     }
     return ret;
+}
+
+int JitWrap::GetNumSimulationFunctions()
+{
+    return mJitter->GetSimFuncCount();
+}
+
+void JitWrap::CaptureState()
+{
+    std::copy(mState.begin(), mState.end(),
+        std::back_inserter(mStateCapture));
+    std::copy(mPoints.begin(), mPoints.end(),
+        std::back_inserter(mPointsCapture));
+}
+
+void JitWrap::ResetState()
+{
+    std::copy(mStateCapture.begin(), mStateCapture.end(),
+        std::back_inserter(mState));
+    std::copy(mPointsCapture.begin(), mPointsCapture.end(),
+        std::back_inserter(mPoints));
+}
+
+bool JitWrap::RunSimulationId(int simId)
+{
+    assert(mRawSimFunc && "Simulation function does not exist");
+    if(!mRawSimFunc) return true;
+    mRawSimFunc(mInputPtr, mInputPtr, mState.data(), simId);
+    return mInputPtr[mInputSize] != 0.0;
 }
 
 std::unique_ptr<IEngine> JitWrap::Build(const std::string& text)

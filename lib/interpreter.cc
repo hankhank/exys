@@ -379,6 +379,26 @@ std::unordered_map<std::string, double> Interpreter::DumpObservers()
     return ret;
 }
 
+int Interpreter::GetNumSimulationFunctions() 
+{
+    assert(false && "Not implemented");
+}
+
+void Interpreter::CaptureState()
+{
+    assert(false && "Not implemented");
+}
+
+void Interpreter::ResetState()
+{
+    assert(false && "Not implemented");
+}
+
+bool Interpreter::RunSimulationId(int simId)
+{
+    assert(false && "Not implemented");
+}
+
 static std::unique_ptr<Graph> BuildAndLoadGraph()
 {
     auto graph = std::unique_ptr<Graph>(new Graph);

@@ -35,6 +35,11 @@ public:
     std::vector<std::string> GetObserverPointLabels() override;
     std::unordered_map<std::string, double> DumpObservers() override;
 
+    int GetNumSimulationFunctions() override;
+    void CaptureState() override;
+    void ResetState() override;
+    bool RunSimulationId(int simId) override;
+
     std::string GetDOTGraph() override;
 
     static std::unique_ptr<IEngine> Build(const std::string& text);
@@ -44,11 +49,15 @@ private:
     void CompleteBuild();
 
     StabilizationFunc mRawStabilizeFunc = nullptr;
+    SimFunc mRawSimFunc = nullptr;
     
     std::vector<double> mState;
+    std::vector<double> mStateCapture;
     std::vector<Point> mPoints;
+    std::vector<Point> mPointsCapture;
     Point* mInputPtr = nullptr;
     Point* mObserverPtr = nullptr;
+    int mInputSize = 0;
     std::unordered_map<std::string, Point*> mObservers;
     std::unordered_map<std::string, Point*> mInputs;
 

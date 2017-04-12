@@ -1014,6 +1014,14 @@ std::vector<Node::Ptr> Graph::GetSimApplyLayout() const
         }
         else
         {
+            n->mIsObserver = true;
+            n->mHeight = 0;
+            n->mToken = "sim-apply";
+            n->mObserverLabels = target->mInputLabels;
+            n->mOffset = target->mOffset;
+            n->mLength = 1;
+            n->mParents.clear();
+            n->mParents.push_back(overwrite);
             expandedSimApply.push_back(n);
         }
     }

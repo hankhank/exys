@@ -123,6 +123,43 @@ inline std::tuple<bool, std::string, std::string> RunTest(IEngine& exysInstance,
                 state.observers[observer.first].push_back(observer.second);
             }
         }
+        else if(firstElem.details.text == "sim-capture")
+        {
+            exysInstance.CaptureState();
+        }
+        else if(firstElem.details.text == "sim-reset")
+        {
+            exysInstance.ResetState();
+        }
+        else if(firstElem.details.text == "sim-run")
+        {
+            if(l->list.size() != 2)
+            {
+				ret &= false;
+				resultStr += "Not enough arguments for sim-run\n";
+				break;
+            }
+
+			int id = std::stoi(l->list[1].details.text);
+            if(id >= exysInstance.GetNumSimulationFunctions())
+            {
+				ret &= false;
+				resultStr += "Simulation id does not exist\n";
+				break;
+            }
+
+            int simRun = 0;
+            while(simRun < 1000 && !exysInstance.RunSimulationId(id))
+            {
+                ++simRun;
+            }
+            if(simRun >= 1000)
+            {
+				ret &= false;
+				resultStr += "Too many simulations\n";
+				break;
+            }
+        }
         else if(firstElem.details.text == "expect")
         {
             if(l->list.size() < 3)
@@ -135,7 +172,7 @@ inline std::tuple<bool, std::string, std::string> RunTest(IEngine& exysInstance,
             const auto& label = l->list[1].details.text;
             if(exysInstance.IsDirty())
             {
-                resultStr += "Value checked before stabilization - " + label + "==" + l->list[2].details.text;
+                resultStr += "Value checked before stabilization - " + label + "==" + l->list[2].details.text + "\n";
             }
 
             if(exysInstance.HasObserverPoint(label))

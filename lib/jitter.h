@@ -32,7 +32,7 @@ namespace Exys
 {
 
 typedef void (*StabilizationFunc)(Point* inputs, Point* observers, double* state);
-typedef void (*SimFunc)(Point* inputs, Point* observers, double* state, int simId);
+typedef void (*SimFunc)(Point* inputs, Point* inputsAndDone, double* state, int simId);
 
 class JitPoint;
 

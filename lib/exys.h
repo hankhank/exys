@@ -56,8 +56,14 @@ struct Point
         mVal = d;
         return *this;
     }
-    bool operator==(double d) const  {return mVal == d;}
-    bool operator!=(double d) const  {return mVal != d;}
+    bool operator==(double d) const 
+    {
+        return std::abs(mVal - d) <= POINT_EPSILON;
+    }
+    bool operator!=(double d) const
+    {
+        return std::abs(mVal - d) > POINT_EPSILON;
+    }
 };
 #pragma pack(pop)
 
@@ -78,6 +84,11 @@ public:
     virtual Point& LookupObserverPoint(const std::string& label) = 0;
     virtual std::vector<std::string> GetObserverPointLabels() = 0;
     virtual std::unordered_map<std::string, double> DumpObservers() = 0;
+
+    virtual int GetNumSimulationFunctions() = 0;
+    virtual void CaptureState() = 0;
+    virtual void ResetState() = 0;
+    virtual bool RunSimulationId(int simId) = 0;
 
     virtual std::string GetDOTGraph() = 0;
 };
