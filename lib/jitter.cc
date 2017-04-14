@@ -458,7 +458,7 @@ std::unique_ptr<llvm::Module> Jitter::BuildModule()
     }
  
     // Output asm
-    if(1)
+    if(0)
     {
         std::string out;
         llvm::raw_string_ostream rawout(out);

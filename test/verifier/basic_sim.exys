@@ -1,27 +1,63 @@
+; There might seem to be some off-by-one
+; errors in these tests but because
+; we are using the unadulterated input
+; we need to check for the previous input
+; to know when to stop
 (begin
     (input double single)
-    ;(input list double simlist 5)
+    (input list double simlist 5)
     (observe single single)
-    ;(observe simlist simlist)
+    (observe simlist simlist)
 
     ; sim function 0 - zero single
     (sim-apply single 0 1)
 
-    ; sim function 1 - zero simlist
-    ;(sim-apply simlist (iota 5 0 0) 1)
+    ; sim function 1 - increment up to five
+    (sim-apply single (+ single 1) (>= single 4))
 
-    ; sim function 2 - increment up to five
-    (sim-apply single (+ single 1) (>= single 5))
+    ; sim function 2 - decrement down to zero
+    (sim-apply single (- single 1) (<= single 1))
+
+    ; sim function 3 - zero simlist
+    (sim-apply simlist (iota 5 0 0) 1)
 
     ; sim function 3 - increment up to five
-    ;(sim-apply simlist (map (lambda (x) (+ x 1)) simlist) (>= (car simlist) 5))
+    (sim-apply simlist (map (lambda (x) (+ x 1)) simlist) (>= (car simlist) 4))
+
+    ; sim function 4 - decrement down to zero
+    (sim-apply simlist (map (lambda (x) (- x 1)) simlist) (<= (car simlist) 1))
 )
 
-(test SingleZero
+(test test-single-input
     (inject single 1)
     (stabilize)
     (expect single 1)
     (sim-run 0)
     (stabilize)
     (expect single 0)
+
+    (sim-run 1)
+    (stabilize)
+    (expect single 5)
+
+    (sim-run 2)
+    (stabilize)
+    (expect single 0)
+)
+
+(test test-list-input
+    (inject simlist (0 1 2 3 4))
+    (stabilize)
+    (expect simlist (0 1 2 3 4))
+    (sim-run 3)
+    (stabilize)
+    (expect simlist (0 0 0 0 0))
+
+    (sim-run 4)
+    (stabilize)
+    (expect simlist (5 5 5 5 5))
+
+    (sim-run 5)
+    (stabilize)
+    (expect simlist (0 0 0 0 0))
 )
