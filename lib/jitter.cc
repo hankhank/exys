@@ -210,6 +210,48 @@ llvm::Value* JitCopy(llvm::Module*, llvm::IRBuilder<>& builder, const JitPoint& 
     return (*p)->mValue;
 }
 
+void SimApplyValid(Node::Ptr node)
+{
+    auto args = node->mParents;
+    if(args.size() != 3)
+    {
+        std::stringstream err;
+        err << "Incorrect number of args. Got " << args.size() <<
+            " Expected 3";
+        throw GraphBuildException(err.str(), Cell());
+    }
+
+    ValidateArgsNotNull(node);
+
+    auto target = std::static_pointer_cast<Node>(args[0]);
+    auto overwrite = std::static_pointer_cast<Node>(args[1]);
+    auto doneFlag = std::static_pointer_cast<Node>(args[2]);
+
+    if(!(overwrite->mKind & (Node::KIND_CONST|Node::KIND_VAR|Node::KIND_LIST|Node::KIND_PROC)))
+    {
+        std::stringstream err;
+        err << "Incorrect overwrite argument type for function." <<
+            " Got " << overwrite->mKind << ". Expected Const, Var, List";
+        throw GraphBuildException(err.str(), Cell());
+    }
+
+    if((target->mKind == Node::KIND_LIST) && (target->mKind != overwrite->mKind))
+    {
+        std::stringstream err;
+        err << "Overwrite did not match target kind for '" << target->mToken << 
+            "'. Expected kind " << target->mKind << " Got " << overwrite->mKind;
+        throw GraphBuildException(err.str(), Cell());
+    }
+
+    if((target->mKind == Node::KIND_LIST) && target->mParents.size() != overwrite->mParents.size())
+    {
+        std::stringstream err;
+        err << "Overwrite incorrect size for target '" << target->mToken << 
+            "'. Expected size " << target->mParents.size() << " Got " << overwrite->mParents.size();
+        throw GraphBuildException(err.str(), Cell());
+    }
+}
+
 #define WRAP(__FUNC) \
     [this](llvm::Module* m, llvm::IRBuilder<>& b, const JitPoint& p) -> llvm::Value* \
     {return this->__FUNC(m,b,p);}
@@ -236,7 +278,7 @@ static JitPointProcessor AVAILABLE_PROCS[] =
     {{"ln",        CountValueValidator<1,1>},   JitDoubleLn},
     {{"not",       CountValueValidator<1,1>},   JitDoubleNot},
     {{"copy",      CountValueValidator<1,1>},   JitCopy},
-    {{"sim-apply", CountValueValidator<2,3>},   JitCopy}
+    {{"sim-apply", SimApplyValid},              JitCopy}
 };
 
 Jitter::Jitter()
@@ -292,6 +334,7 @@ llvm::Value* Jitter::JitNode(llvm::Module* M, llvm::IRBuilder<>&  builder,
         {
             if(jp.mNode->mToken.compare(proc.procedure.id) == 0)
             {
+                assert(std::all_of(jp.mParents.begin(), jp.mParents.end(), [](JitPoint* p){return p->mValue != 0;}));
                 ret = proc.func(M, builder, jp);
             }
         }

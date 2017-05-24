@@ -265,32 +265,6 @@ Node::Ptr Graph::Nth(Node::Ptr node)
     return nullptr;
 }
 
-Node::Ptr Graph::SimApply(Node::Ptr node)
-{
-    // ValidateFunctionArgs("sim-apply", node, {KIND_VAR|KIND_LIST, KIND_VAR|KIND_LIST, KIND_VAR});
-    auto args = node->mParents;
-    auto target = std::static_pointer_cast<Node>(args[0]);
-    auto overwrite = std::static_pointer_cast<Node>(args[1]);
-    auto doneFlag = std::static_pointer_cast<Node>(args[2]);
-    
-    if(target->mKind != overwrite->mKind)
-    {
-        std::stringstream err;
-        err << "Overwrite did not match target kind for '" << target->mToken << 
-            "'. Expected kind " << target->mKind << " Got " << overwrite->mKind;
-        throw GraphBuildException(err.str(), Cell());
-    }
-
-    if((target->mKind == KIND_LIST) && target->mParents.size() != overwrite->mParents.size())
-    {
-        std::stringstream err;
-        err << "Overwrite incorrect size for target '" << target->mToken << 
-            "'. Expected size " << target->mParents.size() << " Got " << overwrite->mParents.size();
-        throw GraphBuildException(err.str(), Cell());
-    }
-    return node;
-}
-
 #define WRAP(__FUNC) \
     [this](Node::Ptr ptr) -> Node::Ptr{return this->__FUNC(ptr);}
 
@@ -311,7 +285,6 @@ Graph::Graph(Graph* parent)
     AddProcFactory("apply",     WRAP(Apply));
     AddProcFactory("append",    WRAP(Append));
     AddProcFactory("nth",       WRAP(Nth));
-    AddProcFactory("sim-apply", WRAP(SimApply));
 }
 
 Graph::Graph(std::vector<Node::Ptr> nodes)
@@ -855,15 +828,6 @@ std::vector<Node::Ptr> Graph::GetLayout() const
     return layout;
 }
 
-void CollectParents(Node::Ptr node, std::set<Node::Ptr>& nodes)
-{
-    for(auto parent : node->mParents)
-    {
-        nodes.insert(parent);
-        CollectParents(parent, nodes);
-    }
-}
-
 template<typename T>
 void Graph::RemoveNodes(T& nodes)
 {
@@ -890,9 +854,21 @@ void Graph::RemoveNodes(T& nodes)
                     {
                         return false;
                     }
-                    return c->second == 1;
+                    return (!n->mIsInput && (c->second == 1));
                     }), 
             mAllNodes.end());
+}
+
+void CollectParentsNoInputs(Node::Ptr node, std::set<Node::Ptr>& nodes)
+{
+    for(auto parent : node->mParents)
+    {
+        if(!parent->mIsInput)
+        {
+            nodes.insert(parent);
+            CollectParentsNoInputs(parent, nodes);
+        }
+    }
 }
 
 std::vector<std::unique_ptr<Graph>> Graph::SplitOutBy(Node::Kind kind, const std::string& token)
@@ -900,16 +876,10 @@ std::vector<std::unique_ptr<Graph>> Graph::SplitOutBy(Node::Kind kind, const std
     std::vector<std::unique_ptr<Graph>> graphs;
     std::set<Node::Ptr> nodes;
 
-    // Collect inputs
-    std::vector<Node::Ptr> flatInputs;
-    std::vector<Node::Ptr> rootInputs;
+    std::vector<Node::Ptr> inputs;
     for(auto an : mAllNodes)
     {
-        if(an->mIsInput) 
-        {
-            rootInputs.push_back(an);
-            CollectListMembers(an, flatInputs);
-        }
+        if(an->mIsInput) CollectListMembers(an, inputs);
     }
 
     for(auto n : mAllNodes)
@@ -917,21 +887,11 @@ std::vector<std::unique_ptr<Graph>> Graph::SplitOutBy(Node::Kind kind, const std
         if((n->mKind == Node::KIND_PROC) && (n->mToken.compare(token) == 0))
         {
             std::vector<Node::Ptr> graphNodes;
-            graphNodes.insert(graphNodes.end(), rootInputs.begin(), rootInputs.end());
+            graphNodes.insert(graphNodes.end(), inputs.begin(), inputs.end());
             graphNodes.push_back(n);
 
             std::set<Node::Ptr> simParents;
-            CollectParents(n, simParents);
-
-            // remove inputs
-            for(auto n : flatInputs)
-            {
-                simParents.erase(n);
-            }
-            for(auto n : rootInputs)
-            {
-                simParents.erase(n);
-            }
+            CollectParentsNoInputs(n, simParents);
 
             graphNodes.insert(graphNodes.end(), simParents.begin(), simParents.end());
 
@@ -956,17 +916,10 @@ std::vector<Node::Ptr> Graph::GetSimApplyLayout() const
 { 
     // Flatten collected nodes into continous block
     // Step 1 - Add inputs
-    std::vector<Node::Ptr> inputs;
+    uint64_t maxOffset = 0;
     for(auto an : mAllNodes)
     {
-        if(an->mIsInput) CollectListMembers(an, inputs);
-    }
-
-    uint64_t inputOffset = 0;
-    for(auto in : inputs)
-    {
-        in->mIsInput = true;
-        in->mOffset = inputOffset++;
+        if(an->mIsInput) maxOffset = std::max(an->mOffset, maxOffset);
     }
 
     std::vector<Node::Ptr> simnodes;
@@ -994,7 +947,7 @@ std::vector<Node::Ptr> Graph::GetSimApplyLayout() const
         doneFlag->mHeight = 0;
         doneFlag->mToken = doneFlag->mToken;
         doneFlag->mInputLabels.push_back("sim-done");
-        doneFlag->mOffset = inputOffset; // Want it to be last
+        doneFlag->mOffset = maxOffset+1; // Want it to be last
         expandedSimApply.push_back(doneFlag);
 
         if(target->mKind == KIND_LIST)

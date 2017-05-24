@@ -3,52 +3,69 @@
     (input double execId)
     (input double ttmult)
     (input double mindeltas)
-    (input list double depth 2 5 2)
+    (input list double depth 2 5 2) ; side price vol
     (input list double tt 3) ; vol price isbid
-
+    
     (define bids (car depth))
-    (define asks (cdr (car depth)))
+    (define asks (car (cdr depth)))
+
+    (define isbid (nth 2 tt))
+
+    (define level-price 
+        (lambda (level) (car level)))
+
+    (define level-vol 
+        (lambda (level) (car (cdr level))))
 
     (define mindelta-price
         (lambda (mindeltas side)
             (begin
                 (define deltasCrossed 0)
-                (define dPrice (car (car side)))
+                (define dPrice (level-price (car side)))
                 (for-each
                     (lambda (level) 
                         (begin
-                            (set! deltasCrossed (+ deltasCrossed (car (cdr level))))
-                            (set! dPrice (? (> deltasCrossed mindeltas) dPrice (car level)))))
+                            (set! deltasCrossed (+ deltasCrossed (level-vol level)))
+                            (set! dPrice (? (> deltasCrossed mindeltas) dPrice (level-price level)))))
                     side)
                 dPrice)))
 
     (define tt-offset
         (lambda (tt side) (- (nth 1 tt) (car (car side)))))
     
-    (define isbid (nth 2 tt))
     (define tt-adjust (* ttmult (? isbid (tt-offset tt asks) (tt-offset tt bids))))
-    (observe minDp (mindelta-price mindeltas bids))
-    (observe minDpAdj (+ tt-adjust (mindelta-price mindeltas bids)))
+    (define minBid (mindelta-price mindeltas bids))
+    (define minAsk (mindelta-price mindeltas asks))
+    (define minDp (/ (+ minBid minAsk) 2))
+    (define minDpAdj (+ tt-adjust minDp))
+
+    (observe minBid minBid)
+    (observe minAsk minAsk)
+    (observe minDp minDp)
+    (observe minDpAdj minDpAdj)
+    (observe tt-adjust tt-adjust)
     
     ; Simulations
-    ;(define fully-traded-tt-generator
-    ;    (lambda (side isbid)
-    ;        (map (lambda (level) (list (append level isbid) 1)) side)))
+    (define fully-traded-tt-generator
+        (lambda (side isbid)
+            (map (lambda (level) (list (level-vol level) (level-price level) isbid)) side)))
 
-    ;(define tt-generator-from-price
-    ;    (lambda (size price dir vol isbid) (for-each (lambda (offset) (list vol (+ price offset) isbid)) (iota size 0 dir))))
+    (define tt-generator-from-price
+        (lambda (size price vol dir) 
+            (map 
+                (lambda (offset) (list vol (+ price offset) (? (== dir -1) 1 0))) 
+                (iota size 0 dir))))
 
-    ;(define sim-apply-for (lambda (target overwrites fin)
-    ;    (for-each (lambda (x) (sim-apply target x fin)) overwrites)))
+    (define sim-apply-for 
+        (lambda (target overwrites fin)
+            (for-each (lambda (x) (sim-apply target x fin)) overwrites)))
 
-    ;(observe tt (+ 1 (car tt)))
-    (sim-apply tt (list 1 2 3) 9)
-    (sim-apply tt (list 4 5 6) 8)
-    ;(sim-apply-for tt (apply fully-traded-tt-generator (list (list bids 1) (list asks 1))))
-    ;(sim-apply tt (apply fully-traded-tt-generator (bids 1) (asks 1)))
+    (sim-apply-for tt (fully-traded-tt-generator bids 0) 1)
+    (sim-apply-for tt (fully-traded-tt-generator asks 1) 1)
 
     ; We want to be able to make simulations dynamic based upon inputs
-    ;(sim-apply tt (tt-generator-from-price 10 (car (cdr (car bids)) -1 10 1)))
+    (sim-apply-for tt (tt-generator-from-price 5 (level-price (nth 0 asks)) 10 1) 1)
+    (sim-apply-for tt (tt-generator-from-price 5 (level-price (nth 0 bids)) 10 -1) 1)
 )
 
 (test test-1
@@ -58,18 +75,24 @@
     (inject depth
     (
         (
-            (50 1)
-            (49 1)
+            (50 2)
+            (49 2)
             (48 2)
             (47 2)
             (46 2)
         )
         (
-            (51 2)
-            (52 2)
-            (53 2)
+            (51 1)
+            (52 1)
+            (53 1)
             (54 2)
             (55 2)
         )))
+    (inject tt (10 50 0))
     (stabilize)
+    (expect tt-adjust 0)
+    (stabilize)
+    (sim-run 1)
+    (stabilize)
+    (expect tt-adjust 0)
     )

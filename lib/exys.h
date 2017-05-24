@@ -85,6 +85,7 @@ public:
     virtual std::vector<std::string> GetObserverPointLabels() = 0;
     virtual std::unordered_map<std::string, double> DumpObservers() = 0;
 
+    virtual bool SupportSimulation() = 0;
     virtual int GetNumSimulationFunctions() = 0;
     virtual void CaptureState() = 0;
     virtual void ResetState() = 0;

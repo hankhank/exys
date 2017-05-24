@@ -60,6 +60,7 @@ void JitWrap::BuildJitEngine(std::unique_ptr<llvm::Module> module)
     {
         for(const auto& label : id->mInputLabels)
         {
+            assert(id->mOffset < inputDesc.size());
             auto& ip = mPoints[id->mOffset];
             mInputs[label] = &ip;
             ip.mLength = id->mLength;
@@ -69,6 +70,8 @@ void JitWrap::BuildJitEngine(std::unique_ptr<llvm::Module> module)
     {
         for(const auto& label : od->mObserverLabels)
         {
+            int obOffset = inputDesc.size()+1+od->mOffset;
+            assert(obOffset < mPoints.size());
             auto& op = mPoints[inputDesc.size()+1+od->mOffset];
             mObservers[label] = &op;
             op.mLength = od->mLength;
@@ -174,6 +177,11 @@ std::unordered_map<std::string, double> JitWrap::DumpObservers()
         ret[ip.first] = ip.second->mVal;
     }
     return ret;
+}
+
+bool JitWrap::SupportSimulation() 
+{
+    return true;
 }
 
 int JitWrap::GetNumSimulationFunctions()

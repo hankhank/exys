@@ -10,7 +10,7 @@
     (observe simlist simlist)
 
     ; sim function 0 - zero single
-    (sim-apply single 0 1)
+    (sim-apply single 0 5)
 
     ; sim function 1 - increment up to five
     (sim-apply single (+ single 1) (>= single 4))
@@ -21,10 +21,10 @@
     ; sim function 3 - zero simlist
     (sim-apply simlist (iota 5 0 0) 1)
 
-    ; sim function 3 - increment up to five
+    ; sim function 4 - increment up to five
     (sim-apply simlist (map (lambda (x) (+ x 1)) simlist) (>= (car simlist) 4))
 
-    ; sim function 4 - decrement down to zero
+    ; sim function 5 - decrement down to zero
     (sim-apply simlist (map (lambda (x) (- x 1)) simlist) (<= (car simlist) 1))
 )
 
@@ -51,7 +51,7 @@
     (expect simlist (0 1 2 3 4))
     (sim-run 3)
     (stabilize)
-    (expect simlist (0 0 0 0 0))
+    (expect simlist (0))
 
     (sim-run 4)
     (stabilize)

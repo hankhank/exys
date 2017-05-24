@@ -47,6 +47,7 @@ public:
     std::vector<std::string> GetObserverPointLabels() override;
     std::unordered_map<std::string, double> DumpObservers() override;
 
+    bool SupportSimulation() override;
     int GetNumSimulationFunctions() override;
     void CaptureState() override;
     void ResetState() override;

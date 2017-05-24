@@ -176,7 +176,7 @@ static InterPointProcessor AVAILABLE_PROCS[] =
     {{"flip-flop",  CountValueValidator<2,2>},   FlipFlop},
     {{"tick",       MinCountValueValidator<0>},  Tick},
     {{"copy",       MinCountValueValidator<1>},  Wrap(Copy)},
-    {{"sim-apply",  MinCountValueValidator<2>},  Wrap(Null)}
+    {{"sim-apply",  DummyValidator},  Wrap(Null)}
 };
 
 Interpreter::Interpreter(std::unique_ptr<Graph> graph)
@@ -379,24 +379,27 @@ std::unordered_map<std::string, double> Interpreter::DumpObservers()
     return ret;
 }
 
+bool Interpreter::SupportSimulation() 
+{
+    return false;
+}
+
 int Interpreter::GetNumSimulationFunctions() 
 {
-    assert(false && "Not implemented");
+    return 0;
 }
 
 void Interpreter::CaptureState()
 {
-    assert(false && "Not implemented");
 }
 
 void Interpreter::ResetState()
 {
-    assert(false && "Not implemented");
 }
 
 bool Interpreter::RunSimulationId(int simId)
 {
-    assert(false && "Not implemented");
+    return true;
 }
 
 static std::unique_ptr<Graph> BuildAndLoadGraph()

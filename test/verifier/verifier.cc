@@ -14,6 +14,7 @@ int main(int argc, char* argv[])
     enum { INTERPRETER, JITTER, GPU } mode = INTERPRETER;
     
     int opt;
+
     while ((opt = getopt(argc, argv, "ijg")) != -1) 
     {
         switch (opt) 
@@ -33,6 +34,7 @@ int main(int argc, char* argv[])
         exit(EXIT_FAILURE);
     }
     
+    int ret = 0;
     for(int i = optind; i < argc; ++i)
     {
         std::cout << "Testing " << argv[i] << " - ";
@@ -57,7 +59,7 @@ int main(int argc, char* argv[])
             }
             auto results = Exys::Execute(*engine, buffer.str());
             std::cout << std::get<1>(results) << "\n";
-            if(!std::get<0>(results)) return -1;
+            if(!std::get<0>(results)) ret = -1;
         }
         catch (const Exys::ParseException& e)
         {
@@ -69,5 +71,5 @@ int main(int argc, char* argv[])
         }
 
     }
-    return 0;
+    return ret;
 }

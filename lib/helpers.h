@@ -23,6 +23,54 @@ inline void DummyValidator(Node::Ptr)
 {
 }
 
+inline void CheckKindForPrimitive(Node::Ptr point)
+{
+    Cell cell;
+    std::stringstream err;
+    err << "Incorrect type for primitive - "
+        << point->mToken << ". Needs to be constant or double. Got ";
+    int i = 0;
+    for(const auto p : point->mParents)
+    {
+        switch(p->mKind)
+        {
+            case Node::KIND_CONST: 
+            case Node::KIND_VAR: 
+            case Node::KIND_PROC: 
+                break; // expected
+
+            case Node::KIND_LIST: 
+            {
+                err << "List for argument " << i;
+                throw GraphBuildException(err.str(), cell);
+            }
+            break;
+
+            case Node::KIND_PROC_FACTORY: 
+            {
+                err << "Procedure Factory for argument " << i;
+                throw GraphBuildException(err.str(), cell);
+            }
+            break;
+            case Node::KIND_GRAPH: 
+            {
+                err << "Graph for argument " << i;
+                throw GraphBuildException(err.str(), cell);
+            }
+            break;
+
+            default:
+            case Node::KIND_UNKNOWN: 
+            {
+                err << "Unknown for argument " << i;
+                throw GraphBuildException(err.str(), cell);
+            }
+            break;
+        }
+        ++i;
+    }
+}
+
 template<size_t N>
 inline void MinCountValueValidator(Node::Ptr point)
 {
@@ -34,6 +82,7 @@ inline void MinCountValueValidator(Node::Ptr point)
             << N << " Got " << point->mParents.size();
         throw GraphBuildException(err.str(), cell);
     }
+    CheckKindForPrimitive(point);
 }
 
 template<size_t N1, size_t N2>
@@ -55,6 +104,23 @@ inline void CountValueValidator(Node::Ptr point)
         err << "Too many items in list for function. Expected at most "
             << N2 << " Got " << point->mParents.size();
         throw GraphBuildException(err.str(), cell);
+    }
+    CheckKindForPrimitive(point);
+}
+
+inline void ValidateArgsNotNull(Node::Ptr point)
+{
+    int i = 0;
+    for(auto n : point->mParents)
+    {
+        if(!n)
+        {
+            Cell cell;
+            std::stringstream err;
+            err << "Argument " << i << " is null";
+            throw GraphBuildException(err.str(), cell);
+        }
+        ++i;
     }
 }
 
