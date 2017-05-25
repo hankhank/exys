@@ -109,6 +109,7 @@ struct _NAME \
 
 FUNCTOR_TWO_ARG(MinFunc, double, std::min);
 FUNCTOR_TWO_ARG(MaxFunc, double, std::max);
+FUNCTOR_TWO_ARG(ModFunc, double, std::fmod);
 FUNCTOR(ExpFunc, double, std::exp);
 FUNCTOR(LogFunc, double, std::log);
 
@@ -158,7 +159,7 @@ static InterPointProcessor AVAILABLE_PROCS[] =
     {{"-",          MinCountValueValidator<2>},  Wrap(LoopOperator<std::minus<double>>)},
     {{"/",          MinCountValueValidator<2>},  Wrap(LoopOperator<std::divides<double>>)},
     {{"*",          MinCountValueValidator<2>},  Wrap(LoopOperator<std::multiplies<double>>)},
-    //{{"%",          DummyValidator},Wrap(  LoopOperator<std::modulus<double>>)},
+    {{"%",          MinCountValueValidator<2>},  Wrap(LoopOperator<ModFunc>)},
     {{"<",          CountValueValidator<2,2>},   Wrap(PairOperator<std::less<double>>)},
     {{"<=",         CountValueValidator<2,2>},   Wrap(PairOperator<std::less_equal<double>>)},
     {{">",          CountValueValidator<2,2>},   Wrap(PairOperator<std::greater<double>>)},

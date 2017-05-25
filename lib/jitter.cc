@@ -188,6 +188,7 @@ DEFINE_LOOP_OPERATOR(JitDoubleAdd, CreateFAdd);
 DEFINE_LOOP_OPERATOR(JitDoubleSub, CreateFSub);
 DEFINE_LOOP_OPERATOR(JitDoubleMul, CreateFMul);
 DEFINE_LOOP_OPERATOR(JitDoubleDiv, CreateFDiv);
+DEFINE_LOOP_OPERATOR(JitDoubleMod, CreateFRem);
 DEFINE_LOOP_OPERATOR(JitDoubleLT,  CreateFCmpOLT);
 DEFINE_LOOP_OPERATOR(JitDoubleLE,  CreateFCmpOLE);
 DEFINE_LOOP_OPERATOR(JitDoubleGT,  CreateFCmpOGT);
@@ -263,7 +264,7 @@ static JitPointProcessor AVAILABLE_PROCS[] =
     {{"-",         MinCountValueValidator<2>},  JitDoubleSub},
     {{"/",         MinCountValueValidator<2>},  JitDoubleDiv},
     {{"*",         MinCountValueValidator<2>},  JitDoubleMul},
-    ////{{"%",       DummyValidator},Wrap(  LoLoopOperator<std::modulus<double>>},
+    {{"%",         MinCountValueValidator<2>},  JitDoubleMod},
     {{"<",         CountValueValidator<2,2>},   JitDoubleLT},
     {{"<=",        CountValueValidator<2,2>},   JitDoubleLE},
     {{">",         CountValueValidator<2,2>},   JitDoubleGT},
