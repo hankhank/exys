@@ -847,7 +847,7 @@ void Graph::RemoveNodes(T& nodes)
     }
 
     mAllNodes.erase(std::remove_if(mAllNodes.begin(), mAllNodes.end(), 
-                [&useCount] (auto n) 
+                [&useCount] (Node::Ptr n) 
                 { 
                     auto c = useCount.find(n);
                     if(c == useCount.end())
