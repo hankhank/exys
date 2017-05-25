@@ -37,15 +37,15 @@ public:
     void Stabilize(bool force=false) override;
     bool IsDirty() override;
 
-    bool HasInputPoint(const std::string& label) override;
+    bool HasInputPoint(const std::string& label) const override;
     Point& LookupInputPoint(const std::string& label) override;
-    std::vector<std::string> GetInputPointLabels() override;
-    std::unordered_map<std::string, double> DumpInputs() override;
+    std::vector<std::string> GetInputPointLabels() const override;
+    std::vector<std::pair<std::string, double>> DumpInputs() const override;
 
-    bool HasObserverPoint(const std::string& label) override;
+    bool HasObserverPoint(const std::string& label) const override;
     Point& LookupObserverPoint(const std::string& label) override;
-    std::vector<std::string> GetObserverPointLabels() override;
-    std::unordered_map<std::string, double> DumpObservers() override;
+    std::vector<std::string> GetObserverPointLabels() const override;
+    std::vector<std::pair<std::string, double>> DumpObservers() const override;
 
     bool SupportSimulation() override;
     int GetNumSimulationFunctions() override;

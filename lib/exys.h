@@ -75,15 +75,15 @@ public:
     virtual void Stabilize(bool force=false) = 0;
     virtual bool IsDirty() = 0;
 
-    virtual bool HasInputPoint(const std::string& label) = 0;
+    virtual bool HasInputPoint(const std::string& label) const = 0;
     virtual Point& LookupInputPoint(const std::string& label) = 0;
-    virtual std::vector<std::string> GetInputPointLabels() = 0;
-    virtual std::unordered_map<std::string, double> DumpInputs() = 0;
+    virtual std::vector<std::string> GetInputPointLabels() const = 0;
+    virtual std::vector<std::pair<std::string, double>> DumpInputs() const = 0;
 
-    virtual bool HasObserverPoint(const std::string& label) = 0;
+    virtual bool HasObserverPoint(const std::string& label) const = 0;
     virtual Point& LookupObserverPoint(const std::string& label) = 0;
-    virtual std::vector<std::string> GetObserverPointLabels() = 0;
-    virtual std::unordered_map<std::string, double> DumpObservers() = 0;
+    virtual std::vector<std::string> GetObserverPointLabels() const = 0;
+    virtual std::vector<std::pair<std::string, double>> DumpObservers() const = 0;
 
     virtual bool SupportSimulation() = 0;
     virtual int GetNumSimulationFunctions() = 0;

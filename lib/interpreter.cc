@@ -314,7 +314,7 @@ void Interpreter::Stabilize(bool force)
     mRecomputeHeap.clear();
 }
 
-bool Interpreter::HasInputPoint(const std::string& label)
+bool Interpreter::HasInputPoint(const std::string& label) const
 {
     auto niter = mInputs.find(label);
     return niter != mInputs.end();
@@ -327,7 +327,7 @@ Point& Interpreter::LookupInputPoint(const std::string& label)
     return *niter->second;
 }
 
-std::vector<std::string> Interpreter::GetInputPointLabels()
+std::vector<std::string> Interpreter::GetInputPointLabels() const
 {
     std::vector<std::string> ret;
     for(const auto& ip : mInputs)
@@ -337,17 +337,17 @@ std::vector<std::string> Interpreter::GetInputPointLabels()
     return ret;
 }
 
-std::unordered_map<std::string, double> Interpreter::DumpInputs()
+std::vector<std::pair<std::string, double>> Interpreter::DumpInputs() const
 {
-    std::unordered_map<std::string, double> ret;
+    std::vector<std::pair<std::string, double>> ret;
     for(const auto& ip : mInputs)
     {
-        ret[ip.first] = ip.second->mVal;
+        ret.push_back(std::make_pair(ip.first, ip.second->mVal));
     }
     return ret;
 }
 
-bool Interpreter::HasObserverPoint(const std::string& label)
+bool Interpreter::HasObserverPoint(const std::string& label) const
 {
     auto niter = mObservers.find(label);
     return niter != mObservers.end();
@@ -360,7 +360,7 @@ Point& Interpreter::LookupObserverPoint(const std::string& label)
     return *niter->second;
 }
 
-std::vector<std::string> Interpreter::GetObserverPointLabels()
+std::vector<std::string> Interpreter::GetObserverPointLabels() const
 {
     std::vector<std::string> ret;
     for(const auto& ip : mObservers)
@@ -370,12 +370,12 @@ std::vector<std::string> Interpreter::GetObserverPointLabels()
     return ret;
 }
 
-std::unordered_map<std::string, double> Interpreter::DumpObservers()
+std::vector<std::pair<std::string, double>> Interpreter::DumpObservers() const
 {
-    std::unordered_map<std::string, double> ret;
+    std::vector<std::pair<std::string, double>> ret;
     for(const auto& ip : mObservers)
     {
-        ret[ip.first] = ip.second->mVal;
+        ret.push_back(std::make_pair(ip.first, ip.second->mVal));
     }
     return ret;
 }

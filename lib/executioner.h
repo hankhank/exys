@@ -5,6 +5,7 @@
 #include <fstream>
 #include <sstream>
 #include <map>
+#include <algorithm>
 
 namespace Exys
 {
@@ -130,6 +131,26 @@ inline std::tuple<bool, std::string, std::string> RunTest(IEngine& exysInstance,
         else if(firstElem.details.text == "sim-reset")
         {
             exysInstance.ResetState();
+        }
+        else if(firstElem.details.text == "dump-inputs")
+        {
+            auto inputs = exysInstance.DumpInputs();
+            std::sort(inputs.begin(), inputs.end());
+            std::cout << "Input values:\n";
+            for(auto& input : inputs)
+            {
+                std::cout << input.first << " = " << input.second << "\n";
+            }
+        }
+        else if(firstElem.details.text == "dump-observers")
+        {
+            auto observers = exysInstance.DumpObservers();
+            std::sort(observers.begin(), observers.end());
+            std::cout << "Observer values:\n";
+            for(auto& observer : observers)
+            {
+                std::cout << observer.first << " = " << observer.second << "\n";
+            }
         }
         else if(firstElem.details.text == "sim-run")
         {

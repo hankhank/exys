@@ -113,7 +113,7 @@ void JitWrap::Stabilize(bool force)
     }
 }
 
-bool JitWrap::HasInputPoint(const std::string& label)
+bool JitWrap::HasInputPoint(const std::string& label) const
 {
     auto niter = mInputs.find(label);
     return niter != mInputs.end();
@@ -126,7 +126,7 @@ Point& JitWrap::LookupInputPoint(const std::string& label)
     return *niter->second;
 }
 
-std::vector<std::string> JitWrap::GetInputPointLabels()
+std::vector<std::string> JitWrap::GetInputPointLabels() const
 {
     std::vector<std::string> ret;
     for(const auto& ip : mInputs)
@@ -136,17 +136,17 @@ std::vector<std::string> JitWrap::GetInputPointLabels()
     return ret;
 }
 
-std::unordered_map<std::string, double> JitWrap::DumpInputs()
+std::vector<std::pair<std::string, double>> JitWrap::DumpInputs() const
 {
-    std::unordered_map<std::string, double> ret;
+    std::vector<std::pair<std::string, double>> ret;
     for(const auto& ip : mInputs)
     {
-        ret[ip.first] = ip.second->mVal;
+        ret.push_back(std::make_pair(ip.first, ip.second->mVal));
     }
     return ret;
 }
 
-bool JitWrap::HasObserverPoint(const std::string& label)
+bool JitWrap::HasObserverPoint(const std::string& label) const
 {
     auto niter = mObservers.find(label);
     return niter != mObservers.end();
@@ -159,7 +159,7 @@ Point& JitWrap::LookupObserverPoint(const std::string& label)
     return *niter->second;
 }
 
-std::vector<std::string> JitWrap::GetObserverPointLabels()
+std::vector<std::string> JitWrap::GetObserverPointLabels() const
 {
     std::vector<std::string> ret;
     for(const auto& ip : mObservers)
@@ -169,12 +169,12 @@ std::vector<std::string> JitWrap::GetObserverPointLabels()
     return ret;
 }
 
-std::unordered_map<std::string, double> JitWrap::DumpObservers()
+std::vector<std::pair<std::string, double>> JitWrap::DumpObservers() const
 {
-    std::unordered_map<std::string, double> ret;
+    std::vector<std::pair<std::string, double>> ret;
     for(const auto& ip : mObservers)
     {
-        ret[ip.first] = ip.second->mVal;
+        ret.push_back(std::make_pair(ip.first, ip.second->mVal));
     }
     return ret;
 }

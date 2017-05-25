@@ -55,10 +55,20 @@
             (map 
                 (lambda (offset) (list vol (+ price offset) (? (== dir -1) 1 0))) 
                 (iota size 0 dir))))
+    
+    (define floor
+        (lambda (num) (- num (% num 1))))
+
+    (define top-level-pulls
+        (lambda (tl ratios)
+            (map
+                (lambda (ratio) (list (level-price tl) (* (level-vol tl) ratio))) ratios)))
 
     (define sim-apply-for 
         (lambda (target overwrites fin)
             (for-each (lambda (x) (sim-apply target x fin)) overwrites)))
+
+    (sim-apply-for (car bids) (top-level-pulls (car bids) (iota 4 1 -0.33)) 1)
 
     (sim-apply-for tt (fully-traded-tt-generator bids 0) 1)
     (sim-apply-for tt (fully-traded-tt-generator asks 1) 1)
@@ -92,7 +102,15 @@
     (stabilize)
     (expect tt-adjust 0)
     (stabilize)
+    (sim-run 0)
+    (dump-inputs)
     (sim-run 1)
+    (dump-inputs)
+    (sim-run 2)
+    (dump-inputs)
+    (sim-run 3)
+    (dump-inputs)
     (stabilize)
     (expect tt-adjust 0)
+    (expect minBid 49)
     )
