@@ -16,6 +16,12 @@
 
     (define level-vol 
         (lambda (level) (car (cdr level))))
+    
+    (define floor
+        (lambda (num) (- num (% num 1))))
+
+    (define ceil
+        (lambda (num) (+ num (- 1 (% num 1)))))
 
     (define mindelta-price
         (lambda (mindeltas side)
@@ -55,14 +61,11 @@
             (map 
                 (lambda (offset) (list vol (+ price offset) (? (== dir -1) 1 0))) 
                 (iota size 0 dir))))
-    
-    (define floor
-        (lambda (num) (- num (% num 1))))
 
     (define top-level-pulls
         (lambda (tl ratios)
             (map
-                (lambda (ratio) (list (level-price tl) (* (level-vol tl) ratio))) ratios)))
+                (lambda (ratio) (list (level-price tl) (floor (* (level-vol tl) ratio)))) ratios)))
 
     (define sim-apply-for 
         (lambda (target overwrites fin)
