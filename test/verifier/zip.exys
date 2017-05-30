@@ -1,5 +1,4 @@
 (begin
-
     (observe out1 (zip (list 1 3 5) (list 2 4 6)))
 )
     
