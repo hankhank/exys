@@ -1,0 +1,33 @@
+(begin
+    (input double in1 in2 in3)
+    (observe out1 (apply max (list 1 2 3)))
+    
+    (define list-select
+        (lambda (flag list1 list2)
+            (map (lambda (x) (? flag (car x) (car (cdr x)))) (zip list1 list2))))
+
+    (observe out2 (apply max (list-select in1 (list 100 in2) (list 500 in3)))))
+
+(test test-1
+    (stabilize)
+    (expect out1 3))
+
+(test test-2
+    (inject in1 0)
+    (inject in2 1)
+    (inject in3 1)
+
+    (stabilize)
+    (expect out2 500)
+
+    (inject in3 501)
+    (stabilize)
+    (expect out2 501)
+
+    (inject in1 1)
+    (stabilize)
+    (expect out2 100)
+
+    (inject in2 1000)
+    (stabilize)
+    (expect out2 1000))
