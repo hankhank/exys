@@ -66,6 +66,21 @@ public:
     }
 };
 
+inline std::ostream& operator<<(std::ostream& os, Node::Kind kind)
+{
+    switch(kind)
+    {
+        case Node::Kind::KIND_UNKNOWN:      os << "unknown";           break;
+        case Node::Kind::KIND_CONST:        os << "const";             break;
+        case Node::Kind::KIND_VAR:          os << "variable";          break;
+        case Node::Kind::KIND_LIST:         os << "list";              break;
+        case Node::Kind::KIND_PROC:         os << "procedure";         break;
+        case Node::Kind::KIND_PROC_FACTORY: os << "procedure Factory"; break;
+        case Node::Kind::KIND_GRAPH:        os << "graph";             break;
+    }
+    return os;
+}
+
 typedef std::function<Node::Ptr (Node::Ptr)> ProcNodeFactoryFunc;
 
 class ProcNodeFactory : public Node
@@ -143,6 +158,7 @@ private:
     std::unordered_map<std::string, Node::Ptr> mVarNodes;
 
     Graph* mParent;
+    Cell mCurrentCell;
 };
 
 

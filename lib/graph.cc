@@ -473,7 +473,15 @@ void Graph::Construct(const Cell &cell)
             const auto& l = c.list;
             if(l.size() > 1 && l[0].details.text == "begin")
             {
-                Build(c);
+                try
+                {
+                    Build(c);
+                }
+                catch (Exys::GraphBuildException e)
+                {
+                    e.mCell = mCurrentCell;
+                    throw e;
+                }
                 return;
             }
         }
@@ -483,6 +491,7 @@ void Graph::Construct(const Cell &cell)
 
 Node::Ptr Graph::Build(const Cell &cell)
 {
+    mCurrentCell = cell;
     Node::Ptr ret = nullptr;
     if(cell.type == Cell::Type::SYMBOL)
     {
