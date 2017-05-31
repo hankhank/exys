@@ -27,8 +27,8 @@ inline void CheckKindForPrimitive(Node::Ptr point)
 {
     Cell cell;
     std::stringstream err;
-    err << "Incorrect type for primitive - "
-        << point->mToken << ". Needs to be constant or double. Got ";
+    err << "Incorrect type for primitive operation. "
+        << "Needs to be constant or double. Got ";
     int i = 0;
     for(const auto p : point->mParents)
     {
@@ -39,30 +39,13 @@ inline void CheckKindForPrimitive(Node::Ptr point)
             case Node::KIND_PROC: 
                 break; // expected
 
-            case Node::KIND_LIST: 
-            {
-                err << "List for argument " << i;
-                throw GraphBuildException(err.str(), cell);
-            }
-            break;
-
-            case Node::KIND_PROC_FACTORY: 
-            {
-                err << "Procedure Factory for argument " << i;
-                throw GraphBuildException(err.str(), cell);
-            }
-            break;
-            case Node::KIND_GRAPH: 
-            {
-                err << "Graph for argument " << i;
-                throw GraphBuildException(err.str(), cell);
-            }
-            break;
-
             default:
+            case Node::KIND_LIST: 
+            case Node::KIND_PROC_FACTORY: 
+            case Node::KIND_GRAPH: 
             case Node::KIND_UNKNOWN: 
             {
-                err << "Unknown for argument " << i;
+                err << p->mKind << " for argument " << i;
                 throw GraphBuildException(err.str(), cell);
             }
             break;
