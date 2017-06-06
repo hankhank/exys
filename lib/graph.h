@@ -8,6 +8,7 @@
 #include <deque>
 #include <limits>
 #include <set>
+#include <ostream>
 #include <unordered_map>
 
 #include "parser.h"

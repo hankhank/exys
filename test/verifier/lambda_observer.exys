@@ -1,0 +1,15 @@
+(begin
+    
+    (input list double input-list 5)
+
+    (define gen-list-to-observe
+        (lambda (input-list)
+            (map (lambda (x) x) input-list)))
+
+    (observe output (gen-list-to-observe input-list)))
+
+(test test-1
+    (inject input-list (1 2 3 4 5))
+    (stabilize)
+    (expect output (1 2 3 4 5)))
+                

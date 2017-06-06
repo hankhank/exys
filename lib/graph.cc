@@ -42,6 +42,19 @@ void ValidateParamListLength(const std::vector<Cell> params1, const Node::Ptr no
     }
 }
 
+template <int N>
+void ValidateMinListLength(const Node::Ptr node)
+{
+    size_t argsize = node->mParents.size();
+    if(argsize < N)
+    {
+        std::stringstream err;
+        err << "Not enough items in list."
+            " Expected at least " << N << " Got " << argsize;
+        throw GraphBuildException(err.str(), Cell());
+    }
+}
+
 template <typename T>
 void ValidateFunctionArgs(const std::string& name, const Node::Ptr node, const std::initializer_list<T> args)
 {
@@ -159,6 +172,7 @@ Node::Ptr Graph::Car(Node::Ptr node)
 {
     ValidateFunctionArgs("car", node, {KIND_LIST});
     auto arg = node->mParents[0];
+    ValidateMinListLength<1>(arg);
     return arg->mParents[0];
 }
 
@@ -450,7 +464,7 @@ void Graph::LabelListRoot(Node::Ptr node, std::string label, uint16_t length, bo
         {
             node->mObserverLabels.push_back(label);
         }
-        node->mLength = length;
+        node->mLength = std::max(node->mLength, length);
         return;
     }
     if(node->mParents.size())
@@ -638,6 +652,12 @@ Node::Ptr Graph::Build(const Cell &cell)
                 LabelObserver(varNode, outputToken);
                 LabelListRoot(varNode, outputToken, GetListLength(varNode), false);
                 varNode->mIsObserver = true;
+                if(std::find(mAllNodes.begin(), mAllNodes.end(), varNode) == mAllNodes.end())
+                {
+                    // If node belongs to a sub graph we need to add it to our 
+                    // list of nodes to ensure we can find it later for layouts
+                    mAllNodes.push_back(varNode);
+                }
             }
             else // procedure call
             {

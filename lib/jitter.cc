@@ -339,12 +339,12 @@ llvm::Value* Jitter::JitNode(llvm::Module* M, llvm::IRBuilder<>&  builder,
                 ret = proc.func(M, builder, jp);
             }
         }
-        assert(ret);
     }
+
+    assert(ret);
 
     if(jp.mNode->mIsObserver)
     {
-        assert(ret);
         if(ret->getType() != builder.getDoubleTy())
         {
             ret = builder.CreateUIToFP(ret, builder.getDoubleTy());
@@ -361,6 +361,7 @@ llvm::Value* Jitter::JitNode(llvm::Module* M, llvm::IRBuilder<>&  builder,
         llvm::Value* flag = builder.CreateGEP(observers, gepIndex);
         builder.CreateStore(dirtyFlag, flag);
     }
+
     return ret;
 }
 

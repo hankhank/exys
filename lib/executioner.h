@@ -146,7 +146,7 @@ inline std::tuple<bool, std::string, std::string> RunTest(IEngine& exysInstance,
         {
             auto observers = exysInstance.DumpObservers();
             std::sort(observers.begin(), observers.end());
-            std::cout << "Observer values:\n";
+            std::cout << "\nObserver values:\n";
             for(auto& observer : observers)
             {
                 std::cout << observer.first << " = " << observer.second << "\n";
@@ -165,7 +165,7 @@ inline std::tuple<bool, std::string, std::string> RunTest(IEngine& exysInstance,
             if(id >= exysInstance.GetNumSimulationFunctions())
             {
 				ret &= false;
-				resultStr += "Simulation id does not exist\n";
+				resultStr += "Simulation id " + std::to_string(id) + " does not exist\n";
 				break;
             }
 
