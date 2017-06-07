@@ -6,8 +6,10 @@
 (begin
     (input double single)
     (input list double simlist 5)
+    (input list double multdimlist 2 2 2)
     (observe single single)
     (observe simlist simlist)
+    (observe multdimlist multdimlist)
 
     ; sim function 0 - zero single
     (sim-apply single 0 5)
@@ -26,6 +28,9 @@
 
     ; sim function 5 - decrement down to zero
     (sim-apply simlist (map (lambda (x) (- x 1)) simlist) (<= (car simlist) 1))
+
+    ; sim function 6 - set mul dim list to know values
+    (sim-apply multdimlist (list (list (list 1 2) (list 3 4)) (list (list 5 6) (list 7 8))) 1)
 )
 
 (test test-single-input
@@ -61,3 +66,31 @@
     (stabilize)
     (expect simlist (0 0 0 0 0))
 )
+
+(test test-mult-dim-list-input
+    (inject multdimlist
+    (
+        (
+            (50 2)
+            (49 2)
+        )
+        (
+            (51 1)
+            (52 1)
+        )))
+    (stabilize)
+    (sim-run 6)
+    (stabilize)
+    (expect multdimlist
+    (
+        (
+            (1 2)
+            (3 4)
+        )
+        (
+            (5 6)
+            (7 8)
+        )))
+)
+
+

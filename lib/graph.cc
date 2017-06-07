@@ -981,16 +981,25 @@ std::vector<Node::Ptr> Graph::GetSimApplyLayout() const
 
         if(target->mKind == KIND_LIST)
         {
-            for(int i = 0; i < target->mParents.size(); ++i)
+            std::vector<Node::Ptr> simListNodes;
+            CollectListMembers(target, simListNodes);
+
+            std::vector<Node::Ptr> overwriteNodes;
+            CollectListMembers(overwrite, overwriteNodes);
+
+            assert(simListNodes.size() == overwriteNodes.size() && 
+                "Sim output to list doesn't match target");
+
+            for(int i = 0; i < simListNodes.size(); ++i)
             {
                 auto simapply = std::make_shared<Node>(Node::KIND_PROC);
                 simapply->mIsObserver = true;
                 simapply->mHeight = 0;
                 simapply->mToken = "sim-apply";
-                simapply->mObserverLabels = target->mParents[i]->mInputLabels;
-                simapply->mOffset = target->mParents[i]->mOffset;
+                simapply->mObserverLabels = simListNodes[i]->mInputLabels;
+                simapply->mOffset = simListNodes[i]->mOffset;
                 simapply->mLength = 1;
-                simapply->mParents.push_back(overwrite->mParents[i]);
+                simapply->mParents.push_back(overwriteNodes[i]);
                 expandedSimApply.push_back(simapply);
             }
         }
