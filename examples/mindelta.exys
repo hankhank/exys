@@ -67,9 +67,29 @@
             (map
                 (lambda (ratio) (list (level-price tl) (floor (* (level-vol tl) ratio)))) ratios)))
 
+    (define list-select
+        (lambda (flag list1 list2)
+            (map (lambda (x) (? flag (car x) (car (cdr x)))) (zip list1 list2))))
+
+    (define list-size
+        (lambda (l)
+            (fold (lambda (last x) (+ 1 last)) 0 l)))
+
+    (define pull-x-levels
+        (lambda (levelsToPull side)
+            (map
+                (lambda (id_level) 
+                    (begin
+                        (define id (car id_level))
+                        (define level (car (cdr id_level)))
+                        (list (level-price level) (? (< id levelsToPull) 0 (level-vol level)))))
+                 (zip (iota 5 0 1) side))))
+
     (define sim-apply-for 
         (lambda (target overwrites fin)
             (for-each (lambda (x) (sim-apply target x fin)) overwrites)))
+
+    (sim-apply bids (pull-x-levels 6 bids) 1)
 
     (sim-apply-for (car bids) (top-level-pulls (car bids) (iota 4 1 -0.33)) 1)
 
@@ -102,18 +122,20 @@
             (55 2)
         )))
     (inject tt (10 50 0))
-    (stabilize)
-    (expect tt-adjust 0)
-    (stabilize)
     (sim-run 0)
-    (dump-inputs)
-    (sim-run 1)
-    (dump-inputs)
-    (sim-run 2)
-    (dump-inputs)
-    (sim-run 3)
-    (dump-inputs)
     (stabilize)
-    (expect tt-adjust 0)
-    (expect minBid 49)
+    (dump-inputs)
+    ;(expect tt-adjust 0)
+    ;(stabilize)
+    ;(sim-run 0)
+    ;(dump-inputs)
+    ;(sim-run 1)
+    ;(dump-inputs)
+    ;(sim-run 2)
+    ;(dump-inputs)
+    ;(sim-run 3)
+    ;(dump-inputs)
+    ;(stabilize)
+    ;(expect tt-adjust 0)
+    ;(expect minBid 48)
     )
