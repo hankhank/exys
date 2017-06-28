@@ -1,0 +1,58 @@
+(begin
+
+    (input list double book 2 5 2)
+    (input double timeNow feedback_lastSampleTime)
+
+    (define value-store
+        (lambda (size gate incomingval)
+                (map 
+                    (lambda (x) 
+                        (begin
+                            (set! incomingval (flip-flop gate incomingval))
+                            incomingval))
+                    (iota size 0 1))))
+
+    (define midpoint (lambda (bids asks) (/ (- (car (car asks)) (car (car bids))) 2)))
+
+    (define midpoint-diff
+        (lambda (bids asks)
+            (begin
+                (define mp (midpoint bids asks))
+                (- mp (flip-flop (tick) mp)))))
+
+    (define midpoint-move-store
+        (lambda (size threshold bids asks)
+                (begin
+                    (define mpdiff (midpoint-diff bids asks))
+                    (define mpdiff_bps (* 100 (/ mpdiff (car (car bids)))))
+                    (value-store size (? (> mpdiff_bps threshold) (tick) 0) mpdiff)))) 
+    
+    (define calc_max_move
+        (lambda (bids asks)
+            (begin 
+                (define moves (midpoint-move-store 10 2.0 bids asks))
+                (define max_move_up (apply max moves))
+                (define max_move_down (apply max (map (lambda (x) (* -1 x)) moves)))
+                (list max_move_up max_move_down))))
+
+    (define calc_trend
+        (lambda (numSamples captureSample input)
+            (begin
+                (define samples (value-store numSamples captureSample input))
+                (define slopeSum 0)
+                (define last (car samples))
+                (for-each 
+                    (lambda (val) 
+                        (begin
+                            (set! slopeSum (+ slopeSum (- val last)))
+                            (set! last val)))
+                    samples)
+                (/ slopeSum numSamples))))
+
+    (define captureSample (> (- timeNow feedback_lastSampleTime) 1000))
+    (set! feedback_lastSampleTime (latch captureSample timeNow))
+
+    (observe slope (calc_trend 10 captureSample (car (car (car book)))))
+    (observe slope (calc_trend 10 captureSample (car (car (car (cdr book))))))
+    (observe feedback_lastSampleTime feedback_lastSampleTime)
+)
