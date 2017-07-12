@@ -1,0 +1,14 @@
+(begin
+    (input double in1)
+    (define out1 (copy in1))
+    (observe out1 out1))
+
+(test test-1
+    (inject in1 1)
+    (stabilize)
+    (expect out1 1)
+
+    (inject in1 -99)
+    (stabilize)
+    (expect out1 -99)
+)

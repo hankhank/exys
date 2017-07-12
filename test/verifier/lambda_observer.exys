@@ -1,15 +1,59 @@
 (begin
     
     (input list double input-list 5)
+    (input list double input-muldim-list 5 2)
 
     (define gen-list-to-observe
         (lambda (input-list)
             (map (lambda (x) x) input-list)))
 
-    (observe output (gen-list-to-observe input-list)))
+    (observe output-list (gen-list-to-observe input-list))
+
+    (define gen-value-to-observe
+        (lambda (input-list)
+            (begin
+                (define weight-func-1
+                    (lambda (x) (* x 2)))
+
+                (define weight-func-2
+                    (lambda (x) (/ x 2)))
+
+                (define list-sum-1
+                    (lambda (x weight-func) (fold (lambda (x y) (+ x (weight-func y))) 0 x)))
+
+                (define list-mul-1
+                    (lambda (x) (fold * 1 x)))
+
+            (+ (list-sum-1 input-list weight-func-1) 
+                (list-sum-1 input-list weight-func-2) 
+                (list-mul-1 input-list)))))
+
+    (observe output-value (gen-value-to-observe input-list))
+
+    (define gen-value-to-observe-muldim
+        (lambda (input-list)
+            (begin
+                (define weight-func-1
+                    (lambda (x) (* (car x) (car (cdr x)))))
+
+                (define weight-func-2
+                    (lambda (x) (/ (car x) (car (cdr x)))))
+
+                (define list-sum-1
+                    (lambda (x weight-func) (fold (lambda (x y) (+ x (weight-func y))) 0 x)))
+
+            (+ (list-sum-1 input-list weight-func-1) 
+                (list-sum-1 input-list weight-func-2)))))
+
+    (observe output-value-muldim (gen-value-to-observe-muldim input-muldim-list))
+)
 
 (test test-1
     (inject input-list (1 2 3 4 5))
+    (inject input-muldim-list ((1 10) (2 20) (3 30) (4 40) (5 50)))
     (stabilize)
-    (expect output (1 2 3 4 5)))
+    (expect output-list (1 2 3 4 5))
+    (expect output-value 157.5)
+    (expect output-value-muldim 550.5)
+)
                 

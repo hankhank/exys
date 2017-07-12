@@ -1,0 +1,73 @@
+(begin
+
+    (input list double condValList 3 2)
+
+    (define switch 
+        (lambda (condValList elseVal)
+            (fold
+                (lambda (prev condVal) (? (car condVal) (car (cdr condVal)) prev))
+                elseVal
+                condValList)))
+
+    (observe out (switch condValList 99))
+)
+
+(test test-1
+    (stabilize)
+    (expect out 99)
+
+    (inject condValList
+        ((1 1)
+        (0 2)
+        (0 3)))
+    (stabilize)
+    (expect out 1)
+
+    (inject condValList
+        ((0 1)
+        (1 2)
+        (0 3)))
+    (stabilize)
+    (expect out 2)
+
+    (inject condValList
+        ((0 1)
+        (0 2)
+        (1 3)))
+    (stabilize)
+    (expect out 3)
+
+    (inject condValList
+        ((1 1)
+        (1 2)
+        (0 3)))
+    (stabilize)
+    (expect out 2)
+
+    (inject condValList
+        ((1 1)
+        (1 2)
+        (1 3)))
+    (stabilize)
+    (expect out 3)
+
+    (inject condValList
+        ((0 1)
+        (1 2)
+        (1 3)))
+    (stabilize)
+    (expect out 3)
+
+    (inject condValList
+        ((0 1)
+        (0 2)
+        (1 3)))
+    (stabilize)
+    (expect out 3)
+    (inject condValList
+        ((0 1)
+        (0 2)
+        (0 3)))
+    (stabilize)
+    (expect out 99)
+)
