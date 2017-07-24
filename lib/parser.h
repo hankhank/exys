@@ -47,6 +47,14 @@ struct Cell
         return c;
     }
 
+    static Cell Symbol(const std::string& token) 
+    {
+        Cell c;
+        c.type = SYMBOL;
+        c.details.text = token;
+        return c;
+    }
+
     static Cell Number(const TokenDetails& details) 
     {
         Cell c;

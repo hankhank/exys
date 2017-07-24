@@ -1,0 +1,14 @@
+(begin
+    (input double alpha)
+    (defvar xvar 0)
+    (set! xvar (+ xvar alpha))
+    (observe x xvar))
+
+(test test-1
+    (inject alpha 1)
+    (stabilize)
+    (expect x 1)
+    (inject alpha 1.5)
+    (stabilize)
+    (expect x 2.5)
+    )

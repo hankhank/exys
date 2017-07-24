@@ -23,11 +23,12 @@ public:
     {
         KIND_UNKNOWN      = 1<<0,
         KIND_CONST        = 1<<1,
-        KIND_VAR          = 1<<2,
-        KIND_LIST         = 1<<3,
-        KIND_PROC         = 1<<4,
-        KIND_PROC_FACTORY = 1<<5,
-        KIND_GRAPH        = 1<<6
+        KIND_BIND         = 1<<2,
+        KIND_VAR          = 1<<3,
+        KIND_LIST         = 1<<4,
+        KIND_PROC         = 1<<5,
+        KIND_PROC_FACTORY = 1<<6,
+        KIND_GRAPH        = 1<<7
     };
 
     enum Type
@@ -56,6 +57,7 @@ public:
     uint16_t mLength=1;
     bool mIsObserver = false;
     bool mIsInput = false;
+    bool mForceKeep = false;
     
     // For use in later stages
     uint64_t mHeight = 0;
@@ -74,6 +76,7 @@ inline std::ostream& operator<<(std::ostream& os, Node::Kind kind)
         case Node::Kind::KIND_UNKNOWN:      os << "unknown";           break;
         case Node::Kind::KIND_CONST:        os << "const";             break;
         case Node::Kind::KIND_VAR:          os << "variable";          break;
+        case Node::Kind::KIND_BIND:         os << "binding";           break;
         case Node::Kind::KIND_LIST:         os << "list";              break;
         case Node::Kind::KIND_PROC:         os << "procedure";         break;
         case Node::Kind::KIND_PROC_FACTORY: os << "procedure Factory"; break;

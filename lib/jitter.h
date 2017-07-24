@@ -93,6 +93,8 @@ private:
         const JitPoint& jp, llvm::Value* inputs, llvm::Value* observers);
     llvm::Value* JitLatch(llvm::Module*, llvm::IRBuilder<>&, const JitPoint&);
     llvm::Value* JitFlipFlop(llvm::Module*, llvm::IRBuilder<>&, const JitPoint&);
+    llvm::Value* JitStore(llvm::Module*, llvm::IRBuilder<>&, const JitPoint&);
+    llvm::Value* JitLoad(llvm::Module*, llvm::IRBuilder<>&, const JitPoint&);
     llvm::Value* JitTick(llvm::Module*, llvm::IRBuilder<>&, const JitPoint&);
 };
 

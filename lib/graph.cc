@@ -410,7 +410,7 @@ void Graph::BuildInputList(Node::Ptr child, std::string token, std::deque<int> d
 
     for(int i = 0; i < dim; i++)
     {
-        auto interList = BuildNode(dims.empty() ? KIND_VAR : KIND_LIST);
+        auto interList = BuildNode(dims.empty() ? KIND_BIND : KIND_LIST);
 
         interList->mToken = token + "[" + std::to_string(i) + "]";
         interList->mInputLabels.push_back(interList->mToken);
@@ -510,6 +510,13 @@ Node::Ptr Graph::Build(const Cell &cell)
     if(cell.type == Cell::Type::SYMBOL)
     {
         ret = LookupSymbol(cell);
+        if(ret->mKind == KIND_VAR)
+        {
+            auto loadVar = BuildNode(KIND_PROC);
+            loadVar->mToken = "load";
+            loadVar->mParents.push_back(ret);
+            ret = loadVar;
+        }
     }
     else if(cell.type == Cell::Type::NUMBER)
     {
@@ -543,6 +550,18 @@ Node::Ptr Graph::Build(const Cell &cell)
                 // Build parents and adopt their type
                 DefineNode(varToken, exp);
             }
+            else if(firstElem.details.text == "defvar")
+            {
+                ValidateListLength(cell, 3);
+
+                auto& varToken = cell.list[1].details.text;
+                auto& exp = cell.list[2];
+
+                // Build parents and adopt their type
+                auto varNode = BuildNode(KIND_VAR);
+                varNode->mToken = varToken;
+                DefineNode(varToken, varNode);
+            }
             else if(firstElem.details.text == "set!")
             {
                 ValidateListLength(cell, 3);
@@ -550,10 +569,25 @@ Node::Ptr Graph::Build(const Cell &cell)
                 // Add check that token already exists
                 auto& var = cell.list[1];
                 auto& exp = cell.list[2];
-
-                // Build parents and adopt their type
+        
+                auto sym = LookupSymbol(var);
                 auto parent = Build(exp);
-                SetSymbol(var, parent);
+                
+                if(sym->mKind == KIND_VAR)
+                {
+                    // Build parents and adopt their type
+                    auto storeNode = BuildNode(KIND_PROC);
+                    storeNode->mToken = "store";
+                    storeNode->mForceKeep = true;
+                    storeNode->mParents.push_back(sym);
+                    storeNode->mParents.push_back(Build(exp));
+                    SetSymbol(var, storeNode);
+                }
+                else
+                {
+                    SetSymbol(var, parent);
+                }
+
             }
             else if(firstElem.details.text == "lambda")
             {
@@ -625,7 +659,7 @@ Node::Ptr Graph::Build(const Cell &cell)
 
                         // check input hasn't already been declared
                         
-                        auto inputNode = BuildNode(KIND_VAR);
+                        auto inputNode = BuildNode(KIND_BIND);
                         inputNode->mToken = inputToken;
                         inputNode->mInputLabels.push_back(inputToken);
                         inputNode->mIsInput = true;
@@ -700,6 +734,7 @@ std::string Graph::GetDOTGraph() const
         {
             default: break;
             case KIND_CONST:
+            case KIND_BIND:
             case KIND_VAR:
             case KIND_PROC:
             {
@@ -735,6 +770,7 @@ std::string Graph::GetDOTGraph() const
             case KIND_GRAPH:
             case KIND_CONST:
             case KIND_VAR:
+            case KIND_BIND:
             case KIND_PROC:
             ret += NodeToDotLabel(nodeptr) + "\n"; break;
         }
@@ -774,6 +810,7 @@ std::vector<Node::Ptr> Graph::GetLayout() const
 
     // Collect observers including one level deep for list members
     std::vector<std::vector<Node::Ptr>> observers;
+    std::vector<Node::Ptr> forceKeep;
     for(const auto an : mAllNodes)
     {
         if(an->mIsObserver)
@@ -782,9 +819,13 @@ std::vector<Node::Ptr> Graph::GetLayout() const
             CollectListMembers(an, nodes);
             observers.push_back(nodes);
         }
+        else if(an->mForceKeep)
+        {
+            CollectListMembers(an, forceKeep);
+        }
     }
     
-    // Find the necessary nodes - nodes connected to an observer
+    // Find the necessary nodes - nodes connected to an observer or forcekeep
     std::set<Node::Ptr> necessaryNodes;
     for(auto ob : observers)
     {
@@ -794,6 +835,11 @@ std::vector<Node::Ptr> Graph::GetLayout() const
             uint64_t height=1;
             TraverseNodes(node, height, necessaryNodes);
         }
+    }
+    for(auto fk : forceKeep)
+    {
+        uint64_t height=1;
+        TraverseNodes(fk, height, necessaryNodes);
     }
 
     // Flatten collected nodes into continous block

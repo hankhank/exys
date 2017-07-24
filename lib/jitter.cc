@@ -40,7 +40,6 @@ struct JitPoint
 
 llvm::Value* JitTernary(llvm::Module*, llvm::IRBuilder<>& builder, const JitPoint& point)
 {
-    assert(point.mParents.size() == 3);
     llvm::Value* cmp = point.mParents[0]->mValue;
     if(cmp->getType() == builder.getDoubleTy())
     {
@@ -55,7 +54,6 @@ llvm::Value* JitTernary(llvm::Module*, llvm::IRBuilder<>& builder, const JitPoin
 
 llvm::Value* JitDoubleNot(llvm::Module*, llvm::IRBuilder<>& builder, const JitPoint& point)
 {
-    assert(point.mParents.size() == 1);
     llvm::Value* cmp = point.mParents[0]->mValue;
     llvm::Value* zero = llvm::ConstantFP::get(builder.getDoubleTy(), 0.0);
     llvm::Value* one = llvm::ConstantFP::get(builder.getDoubleTy(), 1.0);
@@ -77,8 +75,6 @@ llvm::Value* Jitter::JitGV(llvm::Module* M, llvm::IRBuilder<>& builder)
 
 llvm::Value* Jitter::JitLatch(llvm::Module* M, llvm::IRBuilder<>& builder, const JitPoint& point)
 {
-    assert(point.mParents.size() == 2);
-
     auto* gv = JitGV(M, builder);
 
     llvm::Value* cmp = point.mParents[0]->mValue;
@@ -96,8 +92,6 @@ llvm::Value* Jitter::JitLatch(llvm::Module* M, llvm::IRBuilder<>& builder, const
 
 llvm::Value* Jitter::JitFlipFlop(llvm::Module* M, llvm::IRBuilder<>& builder, const JitPoint& point)
 {
-    assert(point.mParents.size() == 2);
-
     auto* gv = JitGV(M, builder);
 
     llvm::Value* cmp = point.mParents[0]->mValue;
@@ -113,10 +107,22 @@ llvm::Value* Jitter::JitFlipFlop(llvm::Module* M, llvm::IRBuilder<>& builder, co
     return loadGv;
 }
 
+llvm::Value* Jitter::JitLoad(llvm::Module* M, llvm::IRBuilder<>& builder, const JitPoint& point)
+{
+    return builder.CreateLoad(point.mParents[0]->mValue);
+}
+
+llvm::Value* Jitter::JitStore(llvm::Module* M, llvm::IRBuilder<>& builder, const JitPoint& point)
+{
+    llvm::Value* dst = point.mParents[0]->mValue;
+    llvm::Value* src = point.mParents[1]->mValue;
+
+    builder.CreateStore(src, dst);
+    return src;
+}
+
 llvm::Value* Jitter::JitTick(llvm::Module* M, llvm::IRBuilder<>& builder, const JitPoint& point)
 {
-    assert(point.mParents.size() == 2);
-
     auto* gv = JitGV(M, builder);
 
     llvm::Value* one = llvm::ConstantFP::get(builder.getDoubleTy(), 1.0);
@@ -228,7 +234,7 @@ void SimApplyValid(Node::Ptr node)
     auto overwrite = std::static_pointer_cast<Node>(args[1]);
     auto doneFlag = std::static_pointer_cast<Node>(args[2]);
 
-    if(!(overwrite->mKind & (Node::KIND_CONST|Node::KIND_VAR|Node::KIND_LIST|Node::KIND_PROC)))
+    if(!(overwrite->mKind & (Node::KIND_CONST|Node::KIND_BIND|Node::KIND_LIST|Node::KIND_PROC)))
     {
         std::stringstream err;
         err << "Incorrect overwrite argument type for function." <<
@@ -290,6 +296,8 @@ Jitter::Jitter()
     }
     mPointProcessors.push_back({{"latch",      CountValueValidator<2,2>},   WRAP(JitLatch)});
     mPointProcessors.push_back({{"flip-flop",  CountValueValidator<2,2>},   WRAP(JitFlipFlop)});
+    mPointProcessors.push_back({{"store",      CountValueValidator<2,2>},   WRAP(JitStore)});
+    mPointProcessors.push_back({{"load",       CountValueValidator<1,1>},   WRAP(JitLoad)});
     mPointProcessors.push_back({{"tick",       MinCountValueValidator<0>},  WRAP(JitTick)});
 }
     //auto OwnerClone = std::unique_ptr<llvm::Module>(llvm::CloneModule(M));
@@ -320,6 +328,10 @@ llvm::Value* Jitter::JitNode(llvm::Module* M, llvm::IRBuilder<>&  builder,
     if(jp.mNode->mKind == Node::KIND_CONST)
     {
       ret = llvm::ConstantFP::get(builder.getDoubleTy(), std::stod(jp.mNode->mToken));
+    }
+    else if(jp.mNode->mKind == Node::KIND_VAR)
+    {
+      ret = JitGV(M, builder);
     }
     else if(jp.mNode->mIsInput)
     {

@@ -39,6 +39,19 @@ void Copy(InterPoint& ipoint)
     *ipoint.mPoint = *ipoint.mParents[0]->mPoint;
 }
 
+void Load(InterPoint& ipoint)
+{
+    assert(ipoint.mParents.size() == 1);
+    ipoint.mPoint = ipoint.mParents[0]->mPoint;
+}
+
+void Store(InterPoint& ipoint)
+{
+    assert(ipoint.mParents.size() == 2);
+    *ipoint.mParents[0]->mPoint = *ipoint.mParents[1]->mPoint;
+    *ipoint.mPoint = *ipoint.mParents[1]->mPoint;
+}
+
 ComputeFunction Latch()
 {
     Point lastPoint;
@@ -173,10 +186,13 @@ static InterPointProcessor AVAILABLE_PROCS[] =
     {{"exp",        CountValueValidator<1,1>},   Wrap(UnaryOperator<ExpFunc>)},
     {{"ln",         CountValueValidator<1,1>},   Wrap(UnaryOperator<LogFunc>)},
     {{"not",        CountValueValidator<1,1>},   Wrap(UnaryOperator<std::logical_not<double>>)},
+    {{"not",        CountValueValidator<1,1>},   Wrap(UnaryOperator<std::logical_not<double>>)},
     {{"latch",      CountValueValidator<2,2>},   Latch},
     {{"flip-flop",  CountValueValidator<2,2>},   FlipFlop},
     {{"tick",       MinCountValueValidator<0>},  Tick},
     {{"copy",       MinCountValueValidator<1>},  Wrap(Copy)},
+    {{"load",       CountValueValidator<1,1>},   Wrap(Load)},
+    {{"store",      CountValueValidator<2,2>},   Wrap(Store)},
     {{"sim-apply",  DummyValidator},  Wrap(Null)}
 };
 
@@ -195,6 +211,7 @@ ComputeFunction Interpreter::LookupComputeFunction(Node::Ptr node)
     switch(node->mKind)
     {
         case Node::KIND_CONST:
+        case Node::KIND_BIND:
         case Node::KIND_VAR:
         case Node::KIND_LIST:
             return ConstDummy;
@@ -251,6 +268,11 @@ void Interpreter::CompleteBuild()
         {
             *point.mPoint = std::stod(node->mToken);
         }
+        else if(node->mKind == Node::KIND_VAR)
+        {
+            *point.mPoint = 0;
+        }
+
         if(node->mIsInput)
         {
             for(const auto& label : node->mInputLabels)

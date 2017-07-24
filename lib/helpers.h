@@ -35,7 +35,7 @@ inline void CheckKindForPrimitive(Node::Ptr point)
         switch(p->mKind)
         {
             case Node::KIND_CONST: 
-            case Node::KIND_VAR: 
+            case Node::KIND_BIND: 
             case Node::KIND_PROC: 
                 break; // expected
 
