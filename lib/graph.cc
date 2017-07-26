@@ -362,6 +362,12 @@ Node::Ptr Graph::LookupSymbol(const Cell& cell)
     auto niter = mVarNodes.find(cell.details.text);
     if (niter != mVarNodes.end())
     {
+        if(!niter->second)
+        {
+            std::stringstream err;
+            err << "Symbol not available for use. Is it a valid expression - " << cell.details.text;
+            throw GraphBuildException(err.str(), cell);
+        }
         return niter->second;
     }
     if(mParent) return mParent->LookupSymbol(cell);
@@ -376,7 +382,7 @@ Node::Ptr Graph::LookupSymbol(const Cell& cell)
 ProcNodeFactoryFunc Graph::LookupProcedure(const Cell& cell)
 {
     auto node = LookupSymbol(cell);
-    if (node->mKind != Node::KIND_PROC_FACTORY)
+    if (!node || node->mKind != Node::KIND_PROC_FACTORY)
     {
         std::stringstream err;
         err << "Not a valid procedure - " << cell.details.text;
@@ -581,13 +587,15 @@ Node::Ptr Graph::Build(const Cell &cell)
                     storeNode->mForceKeep = true;
                     storeNode->mParents.push_back(sym);
                     storeNode->mParents.push_back(Build(exp));
+                    ValidateFunctionArgs("store", storeNode, {KIND_VAR, KIND_UNKNOWN});
                     SetSymbol(var, storeNode);
+                    ret = storeNode;
                 }
                 else
                 {
                     SetSymbol(var, parent);
+                    ret = parent;
                 }
-
             }
             else if(firstElem.details.text == "lambda")
             {
@@ -822,6 +830,11 @@ std::vector<Node::Ptr> Graph::GetLayout() const
         else if(an->mForceKeep)
         {
             CollectListMembers(an, forceKeep);
+        }
+        else if(an->mKind == KIND_GRAPH)
+        {
+            auto g = static_cast<Graph*>(an.get());
+            for(auto fk : g->GetForceKeep()) forceKeep.push_back(fk);
         }
     }
     
@@ -1079,6 +1092,19 @@ std::vector<Node::Ptr> Graph::GetSimApplyLayout() const
     }
 
     return layout;
+}
+
+std::vector<Node::Ptr> Graph::GetForceKeep() const
+{
+    std::vector<Node::Ptr> forceKeep;
+    for(const auto an : mAllNodes)
+    {
+        if(an->mForceKeep)
+        {
+            forceKeep.push_back(an);
+        }
+    }
+    return forceKeep;
 }
 
 GraphBuildException::GraphBuildException(const std::string& error, Cell cell)

@@ -69,6 +69,8 @@ public:
     }
 };
 
+inline Node::Kind operator|(Node::Kind a, Node::Kind b) {return static_cast<Node::Kind>(static_cast<int>(a) | static_cast<int>(b));}
+
 inline std::ostream& operator<<(std::ostream& os, Node::Kind kind)
 {
     switch(kind)
@@ -117,6 +119,7 @@ public:
     std::string GetDOTGraph() const;
     std::vector<Node::Ptr> GetLayout() const;
     std::vector<Node::Ptr> GetSimApplyLayout() const;
+    std::vector<Node::Ptr> GetForceKeep() const;
 
     std::vector<std::unique_ptr<Graph>> SplitOutBy(Node::Kind kind, const std::string& token);
 

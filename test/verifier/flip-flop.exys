@@ -1,5 +1,13 @@
 (begin
     (input double in gate)
+    
+    (define flip-flop
+        (lambda (gate var)
+            (begin
+                (defvar val 0)
+                (define ret val)
+                (set! val (? gate var ret))
+                ret)))
 
     (define step1 (flip-flop gate in))
     (define step2 (flip-flop gate step1))

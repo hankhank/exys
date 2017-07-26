@@ -1,6 +1,15 @@
 (begin
     (input double in)
     (input double gate)
+
+    (define latch
+        (lambda (gate in)
+            (begin
+                (defvar val 0)
+                (define ret (? gate in val))
+                (set! val ret)
+                ret)))
+
     (observe out (latch gate in)))
 
 (test test-1
