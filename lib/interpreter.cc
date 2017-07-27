@@ -23,12 +23,6 @@
 namespace Exys
 {
 
-struct InterPointProcessor
-{
-    Procedure procedure;
-    std::function<ComputeFunction ()> func;
-};
-
 void ConstDummy(InterPoint& /*point*/)
 {
 }
@@ -42,14 +36,15 @@ void Copy(InterPoint& ipoint)
 void Load(InterPoint& ipoint)
 {
     assert(ipoint.mParents.size() == 1);
-    ipoint.mPoint = ipoint.mParents[0]->mPoint;
+    *ipoint.mPoint = *ipoint.mParents[0]->mPoint;
 }
 
-void Store(InterPoint& ipoint)
+void Interpreter::Store(InterPoint& ipoint)
 {
     assert(ipoint.mParents.size() == 2);
     *ipoint.mParents[0]->mPoint = *ipoint.mParents[1]->mPoint;
     *ipoint.mPoint = *ipoint.mParents[1]->mPoint;
+    mDirtyStores.push_back(ipoint.mParents[0]);
 }
 
 ComputeFunction Latch()
@@ -165,6 +160,9 @@ std::function<ComputeFunction ()> Wrap(ComputeFunction func)
     return [func]() -> ComputeFunction {return func;};
 }
 
+#define WRAP(__FUNC) \
+    [this]() -> ComputeFunction {return [this](InterPoint& ipoint) {this->__FUNC(ipoint);};} \
+
 static InterPointProcessor AVAILABLE_PROCS[] =
 {
     {{"?",          CountValueValidator<3,3>},   Wrap(Ternary)},
@@ -191,14 +189,18 @@ static InterPointProcessor AVAILABLE_PROCS[] =
     {{"flip-flop",  CountValueValidator<2,2>},   FlipFlop},
     {{"tick",       MinCountValueValidator<0>},  Tick},
     {{"copy",       MinCountValueValidator<1>},  Wrap(Copy)},
-    {{"load",       CountValueValidator<1,1>},   Wrap(Load)},
-    {{"store",      CountValueValidator<2,2>},   Wrap(Store)},
+    {{"load",       CountValueValidator<1,1>},   Wrap(Copy)},
     {{"sim-apply",  DummyValidator},  Wrap(Null)}
 };
 
-Interpreter::Interpreter(std::unique_ptr<Graph> graph)
-:mGraph(std::move(graph))
-{
+Interpreter::Interpreter()
+{ 
+    for(auto& jpp : AVAILABLE_PROCS)
+    {
+        mPointProcessors.push_back(jpp);
+    }
+    mPointProcessors.push_back({{"store",      CountValueValidator<2,2>},   WRAP(Store)});
+
 }
 
 std::string Interpreter::GetDOTGraph()
@@ -217,7 +219,7 @@ ComputeFunction Interpreter::LookupComputeFunction(Node::Ptr node)
             return ConstDummy;
         default:
         {
-            for(auto& proc : AVAILABLE_PROCS)
+            for(auto& proc : mPointProcessors)
             {
                 if(node->mToken.compare(proc.procedure.id) == 0)
                 {
@@ -320,6 +322,15 @@ void Interpreter::Stabilize(bool force)
             point.Clean();
         }
     }
+
+    for(const auto ds : mDirtyStores)
+    {
+        for(auto* child : ds->mChildren)
+        {
+            mRecomputeHeap.emplace(HeightPtrPair{child->mHeight, child});
+        }
+    }
+    mDirtyStores.clear();
     for(auto& hpp : mRecomputeHeap)
     {
         auto& interpoint = *hpp.point;
@@ -425,22 +436,28 @@ bool Interpreter::RunSimulationId(int simId)
     return true;
 }
 
-static std::unique_ptr<Graph> BuildAndLoadGraph()
+std::unique_ptr<Graph> Interpreter::BuildAndLoadGraph()
 {
     auto graph = std::unique_ptr<Graph>(new Graph);
     std::vector<Procedure> procedures;
-    for(const auto &proc : AVAILABLE_PROCS) procedures.push_back(proc.procedure);
+    for(const auto &proc : mPointProcessors) procedures.push_back(proc.procedure);
     graph->SetSupportedProcedures(procedures);
     return graph;
 }
 
+void Interpreter::AssignGraph(std::unique_ptr<Graph>& graph)
+{
+    mGraph.swap(graph);
+}
+
 std::unique_ptr<IEngine> Interpreter::Build(const std::string& text)
 {
-    auto graph = BuildAndLoadGraph();
+    auto interpreter = std::unique_ptr<Interpreter>(new Interpreter());
+    auto graph = interpreter->BuildAndLoadGraph();
     graph->Construct(Parse(text));
-    auto engine = std::unique_ptr<Interpreter>(new Interpreter(std::move(graph)));
-    engine->CompleteBuild();
-    return std::unique_ptr<IEngine>(std::move(engine));
+    interpreter->AssignGraph(graph);
+    interpreter->CompleteBuild();
+    return std::unique_ptr<IEngine>(std::move(interpreter));
 }
 
 }

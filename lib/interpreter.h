@@ -15,6 +15,12 @@ struct InterPoint;
 
 typedef std::function<void (InterPoint&)> ComputeFunction;
 
+struct InterPointProcessor
+{
+    Procedure procedure;
+    std::function<ComputeFunction ()> func;
+};
+
 struct InterPoint
 {
     int64_t mHeight;
@@ -30,7 +36,7 @@ struct InterPoint
 class Interpreter : public IEngine
 {
 public:
-    Interpreter(std::unique_ptr<Graph> graph);
+    Interpreter();
 
     virtual ~Interpreter() {}
 
@@ -58,16 +64,21 @@ public:
     static std::unique_ptr<IEngine> Build(const std::string& text);
 
 private:
+    void AssignGraph(std::unique_ptr<Graph>& graph);
     void CompleteBuild();
     void TraverseNodes(Node::Ptr node, uint64_t& height, std::set<Node::Ptr>& necessaryNodes);
     void CollectListMembers(Node::Ptr node, std::vector<Node::Ptr>& nodes);
     ComputeFunction LookupComputeFunction(Node::Ptr node);
+    std::unique_ptr<Graph> BuildAndLoadGraph();
+
+    void Store(InterPoint& ipoint);
     
     std::unordered_map<std::string, Point*> mObservers;
     std::unordered_map<std::string, Point*> mInputs;
 
     std::vector<InterPoint> mInterPointGraph;
     std::vector<Point> mPoints;
+    std::vector<InterPoint*> mDirtyStores;
 
     struct HeightPtrPair
     {
@@ -81,6 +92,7 @@ private:
     };
     std::set<HeightPtrPair> mRecomputeHeap; // height -> Nodes
     std::unique_ptr<Graph> mGraph;
+    std::vector<InterPointProcessor> mPointProcessors;
 };
 
 };
