@@ -177,13 +177,12 @@ static InterPointProcessor AVAILABLE_PROCS[] =
     {{">=",         CountValueValidator<2,2>},   Wrap(PairOperator<std::greater_equal<double>>)},
     {{"==",         CountValueValidator<2,2>},   Wrap(PairOperator<std::equal_to<double>>)},
     {{"!=",         CountValueValidator<2,2>},   Wrap(PairOperator<std::not_equal_to<double>>)},
-    {{"&&",         CountValueValidator<2,2>},   Wrap(PairOperator<std::logical_and<double>>)},
-    {{"||",         CountValueValidator<2,2>},   Wrap(PairOperator<std::logical_or<double>>)},
+    {{"&&",         MinCountValueValidator<2>},  Wrap(LoopOperator<std::logical_and<double>>)},
+    {{"||",         MinCountValueValidator<2>},  Wrap(LoopOperator<std::logical_or<double>>)},
     {{"min",        MinCountValueValidator<2>},  Wrap(LoopOperator<MinFunc>)},
     {{"max",        MinCountValueValidator<2>},  Wrap(LoopOperator<MaxFunc>)},
     {{"exp",        CountValueValidator<1,1>},   Wrap(UnaryOperator<ExpFunc>)},
     {{"ln",         CountValueValidator<1,1>},   Wrap(UnaryOperator<LogFunc>)},
-    {{"not",        CountValueValidator<1,1>},   Wrap(UnaryOperator<std::logical_not<double>>)},
     {{"not",        CountValueValidator<1,1>},   Wrap(UnaryOperator<std::logical_not<double>>)},
     {{"latch",      CountValueValidator<2,2>},   Latch},
     {{"flip-flop",  CountValueValidator<2,2>},   FlipFlop},
@@ -200,7 +199,6 @@ Interpreter::Interpreter()
         mPointProcessors.push_back(jpp);
     }
     mPointProcessors.push_back({{"store",      CountValueValidator<2,2>},   WRAP(Store)});
-
 }
 
 std::string Interpreter::GetDOTGraph()

@@ -1,0 +1,34 @@
+(begin
+    (input double in1 in2)
+    (define out (% in1 in2))
+    (observe out out))
+
+(test Test-1
+    (inject in1 0)
+    (inject in2 0)
+    (stabilize)
+    (expect out 0))
+
+(test Test-2
+    (inject in1 1)
+    (inject in2 1)
+    (stabilize)
+    (expect out 0))
+
+(test Test-3
+    (inject in1 1)
+    (inject in2 2)
+    (stabilize)
+    (expect out 1))
+
+(test Test-4
+    (inject in1 3)
+    (inject in2 2)
+    (stabilize)
+    (expect out 1))
+
+(test Test-5
+    (inject in1 23)
+    (inject in2 10)
+    (stabilize)
+    (expect out 3))

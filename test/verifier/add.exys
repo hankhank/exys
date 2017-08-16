@@ -1,0 +1,29 @@
+(begin
+    (input double in1 in2 in3)
+    (observe const (+ 1 10))
+    (observe out1 (+ in1 in2))
+    (observe out2 (+ in1 in2 in3))
+    (observe constvar (+ 10 in1))
+)
+
+(test const
+    (stabilize)
+    (expect const 11))
+
+(test two-var
+    (inject in1 1)
+    (inject in2 2)
+    (stabilize)
+    (expect out1 3))
+
+(test three-var
+    (inject in1 1)
+    (inject in2 2)
+    (inject in3 10)
+    (stabilize)
+    (expect out2 13))
+
+(test const-var
+    (inject in1 600000)
+    (stabilize)
+    (expect constvar 600010))

@@ -1,0 +1,64 @@
+(begin
+    (input double in1 in2 in3)
+    (observe andConstTrue (&& 1 5))
+    (observe andConstFalse (&& 0 10))
+    (observe andOut1 (&& in1 in2))
+    (observe andOut2 (&& in1 in2 in3))
+
+    (observe orConstTrue (|| 1 5))
+    (observe orConstFalse (|| 0 0))
+    (observe orOut1 (|| in1 in2))
+    (observe orOut2 (|| in1 in2 in3))
+)
+
+(test andConst
+    (stabilize)
+    (expect andConstTrue 1)
+    (expect andConstFalse 0))
+
+(test orConst
+    (stabilize)
+    (expect andConstTrue 1)
+    (expect andConstFalse 0))
+
+(test twoVars
+    (inject in1 0)
+    (inject in2 0)
+    (stabilize)
+    (expect andOut1 0)
+    (expect orOut1 0)
+
+    (inject in1 1)
+    (stabilize)
+    (expect andOut1 0)
+    (expect orOut1 1)
+
+    (inject in2 1)
+    (stabilize)
+    (expect andOut1 1)
+    (expect orOut1 1)
+)
+
+(test threeVars
+    (inject in1 0)
+    (inject in2 0)
+    (inject in3 0)
+    (stabilize)
+    (expect andOut2 0)
+    (expect orOut2 0)
+
+    (inject in1 1)
+    (stabilize)
+    (expect andOut2 0)
+    (expect orOut2 1)
+
+    (inject in2 1)
+    (stabilize)
+    (expect andOut2 0)
+    (expect orOut2 1)
+
+    (inject in3 1)
+    (stabilize)
+    (expect andOut2 1)
+    (expect orOut2 1)
+)
