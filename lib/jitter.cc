@@ -8,6 +8,7 @@
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ExecutionEngine/MCJIT.h"
 #include "llvm/IR/Constants.h"
+#include "llvm/IR/Verifier.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/LLVMContext.h"
@@ -201,8 +202,35 @@ DEFINE_LOOP_OPERATOR(JitDoubleGT,  CreateFCmpOGT);
 DEFINE_LOOP_OPERATOR(JitDoubleGE,  CreateFCmpOGE);
 DEFINE_LOOP_OPERATOR(JitDoubleEQ,  CreateFCmpOEQ);
 DEFINE_LOOP_OPERATOR(JitDoubleNE,  CreateFCmpONE);
-DEFINE_LOOP_OPERATOR(JitDoubleAnd, CreateAnd);
-DEFINE_LOOP_OPERATOR(JitDoubleOr,  CreateOr);
+
+// Here we compare all doubles with zero before combining them logically
+#define DEFINE_LOGICAL_LOOP_OPERATOR(__FUNCNAME, __MEMFUNC) \
+llvm::Value* __FUNCNAME(llvm::Module*, llvm::IRBuilder<>& builder, const JitPoint& point) \
+{ \
+    assert(point.mParents.size() >= 2); \
+    auto p = point.mParents.begin(); \
+    llvm::Value *val = (*p)->mValue; \
+    llvm::Value* zero = llvm::ConstantFP::get(builder.getDoubleTy(), 0.0); \
+    if(val->getType() == builder.getDoubleTy()) \
+    { \
+        val = builder.CreateFCmpONE(val, zero); \
+    } \
+    for(++p; p != point.mParents.end(); ++p) \
+    { \
+        llvm::Value *other = (*p)->mValue; \
+        if(other->getType() == builder.getDoubleTy()) \
+        { \
+            other = builder.CreateFCmpONE(other, zero); \
+        } \
+        assert(val); \
+        assert((*p)->mValue); \
+        val = (builder.__MEMFUNC)(val, other); \
+    } \
+    return val; \
+}
+
+DEFINE_LOGICAL_LOOP_OPERATOR(JitDoubleAnd, CreateAnd);
+DEFINE_LOGICAL_LOOP_OPERATOR(JitDoubleOr,  CreateOr);
 
 #define DEFINE_UNARY_OPERATOR(__FUNCNAME, __MEMFUNC) \
 llvm::Value* __FUNCNAME(llvm::Module*, llvm::IRBuilder<>& builder, const JitPoint& point) \
@@ -277,8 +305,8 @@ static JitPointProcessor AVAILABLE_PROCS[] =
     {{">=",        CountValueValidator<2,2>},   JitDoubleGE},
     {{"==",        CountValueValidator<2,2>},   JitDoubleEQ},
     {{"!=",        CountValueValidator<2,2>},   JitDoubleNE},
-    {{"&&",        CountValueValidator<2,2>},   JitDoubleAnd},
-    {{"||",        CountValueValidator<2,2>},   JitDoubleOr},
+    {{"&&",        MinCountValueValidator<2>},  JitDoubleAnd},
+    {{"||",        MinCountValueValidator<2>},  JitDoubleOr},
     {{"min",       MinCountValueValidator<2>},  JitDoubleMin},
     {{"max",       MinCountValueValidator<2>},  JitDoubleMax},
     {{"exp",       CountValueValidator<1,1>},   JitDoubleExp},
@@ -515,14 +543,13 @@ std::unique_ptr<llvm::Module> Jitter::BuildModule()
     }
  
     // Output asm
-    if(0)
+    std::string out;
+    llvm::raw_string_ostream rawout(out);
+    if(llvm::verifyModule(*M, &rawout))
     {
-        std::string out;
-        llvm::raw_string_ostream rawout(out);
-
         rawout << *stabilizeFunc;
         rawout << *simFunc;
-        std::cout << rawout.str();
+        throw GraphBuildException(rawout.str(), Cell());
     }
     return module;
 }

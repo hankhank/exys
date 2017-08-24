@@ -1,0 +1,11 @@
+(begin
+    (input list double simlist 100)
+    (input double single)
+    (observe single single)
+)
+
+(test test-list-input
+    (inject single 4)
+    (stabilize)
+    (expect single 4)
+)
