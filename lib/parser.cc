@@ -89,6 +89,7 @@ Cell Atom(TokenDetails token)
 {
     if
     (
+        (token.text == "INF") ||
         (token.text == "NAN") ||
         (token.text.size() && std::isdigit(token.text[0])) || 
         (token.text.size() > 1 && token.text[0] == '-' && std::isdigit(token.text[1]))

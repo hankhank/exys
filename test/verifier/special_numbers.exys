@@ -1,0 +1,17 @@
+(begin
+    (input double in1 in2)
+    (observe nanCheck (!= in1 in1))
+    (observe infCheck (== in2 (/ 1 0)))
+)
+
+(test nanCheckTest
+    (inject in1 NAN)
+    (stabilize)
+    (expect nanCheck 1)
+)
+
+(test infCheckTest
+    (inject in2 INF)
+    (stabilize)
+    (expect infCheck 1)
+)
