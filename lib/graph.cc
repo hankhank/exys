@@ -887,15 +887,9 @@ std::vector<Node::Ptr> Graph::GetLayout() const
     uint64_t observerOffset = 0;
     for(auto oi : observers)
     {
-        if(oi.size() == 1)
+        for(auto node : oi)
         {
-            oi[0]->mIsObserver = true;
-            oi[0]->mOffset = observerOffset++;
-            // No need to add as already in layout as necessary node
-        }
-        else
-        {
-            for(auto node : oi)
+            if((oi.size() > 1) || node->mIsInput)
             {
                 auto nodeCopy = std::make_shared<Node>(Node::KIND_PROC);
                 nodeCopy->mHeight = 0;
@@ -910,6 +904,11 @@ std::vector<Node::Ptr> Graph::GetLayout() const
                 
                 // No longer an observer
                 node->mIsObserver = false; 
+            }
+            else
+            {
+                node->mIsObserver = true;
+                node->mOffset = observerOffset++;
             }
         }
     }

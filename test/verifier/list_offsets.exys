@@ -1,11 +1,15 @@
 (begin
     (input list double simlist 100)
+    (input list double triple 3)
     (input double single)
     (observe single single)
+    (observe tripleFirst (car triple))
 )
 
 (test test-list-input
     (inject single 4)
+    (inject triple (1 2 3))
     (stabilize)
     (expect single 4)
+    (expect tripleFirst 1)
 )

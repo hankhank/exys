@@ -11,8 +11,8 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set (CMAKE_CXX_STANDARD 14)
 
 option(JIT "JIT" ON)
-if (NOT JIT)
-   add_definitions(-DNO_JIT)
+if (JIT)
+    add_definitions(-DEXYS_JIT=1)
 endif()
 
 add_subdirectory(lib)

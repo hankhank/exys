@@ -49,7 +49,7 @@ int main(int argc, char* argv[])
             {
                 engine = Exys::Interpreter::Build(buffer.str());
             }
-#ifdef JIT
+#ifdef EXYS_JIT
             else if(mode == JITTER)
             {
                 engine = Exys::JitWrap::Build(buffer.str());
