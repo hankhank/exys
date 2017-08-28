@@ -566,6 +566,7 @@ Node::Ptr Graph::Build(const Cell &cell)
                 // Build parents and adopt their type
                 auto varNode = BuildNode(KIND_VAR);
                 varNode->mToken = varToken;
+                varNode->mInitValue = std::stod(exp.details.text);
                 DefineNode(varToken, varNode);
             }
             else if(firstElem.details.text == "set!")

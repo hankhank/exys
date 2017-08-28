@@ -49,6 +49,7 @@ private:
     void BuildJitEngine(std::unique_ptr<llvm::Module> module);
     void CompleteBuild();
 
+    InitFunc mInitFunc = nullptr;
     StabilizationFunc mRawStabilizeFunc = nullptr;
     SimFunc mRawSimFunc = nullptr;
     

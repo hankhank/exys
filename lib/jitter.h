@@ -23,6 +23,7 @@ namespace llvm
 
 namespace 
 {
+    const std::string INIT_FUNC_NAME = "ExysInit";
     const std::string STAB_FUNC_NAME = "ExysStabilize";
     const std::string SIM_FUNC_NAME  = "ExysSim";
     const std::string POINT_NAME     = "Point";
@@ -31,6 +32,7 @@ namespace
 namespace Exys
 {
 
+typedef void (*InitFunc)(double* state);
 typedef void (*StabilizationFunc)(Point* inputs, Point* observers, double* state);
 typedef void (*SimFunc)(Point* inputs, Point* inputsAndDone, double* state, int simId);
 
@@ -80,6 +82,7 @@ private:
     
     std::vector<Node::Ptr> mInputs;
     std::vector<Node::Ptr> mObservers;
+    std::vector<std::pair<int, double>> mStateInitializers;
 
     std::unique_ptr<Graph> mGraph;
     std::vector<JitPointProcessor> mPointProcessors;

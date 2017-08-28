@@ -355,11 +355,13 @@ llvm::Value* Jitter::JitNode(llvm::Module* M, llvm::IRBuilder<>&  builder,
 
     if(jp.mNode->mKind == Node::KIND_CONST)
     {
-      ret = llvm::ConstantFP::get(builder.getDoubleTy(), std::stod(jp.mNode->mToken));
+        ret = llvm::ConstantFP::get(builder.getDoubleTy(), std::stod(jp.mNode->mToken));
     }
     else if(jp.mNode->mKind == Node::KIND_VAR)
     {
-      ret = JitGV(M, builder);
+        mStateInitializers.push_back(
+            std::make_pair(mNumStatePtr, jp.mNode->mInitValue));
+        ret = JitGV(M, builder);
     }
     else if(jp.mNode->mIsInput)
     {
@@ -541,6 +543,68 @@ std::unique_ptr<llvm::Module> Jitter::BuildModule()
         switchBuilder.SetInsertPoint(end);
         switchBuilder.CreateRetVoid();
     }
+
+    // Create initialization function
+    auto initFuncName = MangleName(INIT_FUNC_NAME, M->getDataLayout());
+    std::vector<llvm::Type*> initArgsDef;
+    initArgsDef.push_back(pointerToDouble); // state variables
+    auto* initFunc =
+    llvm::cast<llvm::Function>(M->getOrInsertFunction(initFuncName,
+                    llvm::FunctionType::get(
+                        llvm::Type::getVoidTy(*mLlvmContext), // void return
+                        initArgsDef,
+                        false))); // no var args
+
+    llvm::Function::arg_iterator initArgs = initFunc->arg_begin();
+    llvm::Value* initStatePtr = &(*initArgs);
+
+    auto *initEntry = llvm::BasicBlock::Create(*mLlvmContext, "init-entry", initFunc);
+    llvm::IRBuilder<> initBuilder(initEntry);
+    for(const auto initPairs : mStateInitializers)
+    {
+        llvm::Value* val = llvm::ConstantFP::get(initBuilder.getDoubleTy(), initPairs.second);
+        llvm::Value* stateIndex = llvm::ConstantInt::get(llvm::Type::getInt32Ty(*mLlvmContext), initPairs.first);
+        std::vector<llvm::Value*> gepIndex;
+        gepIndex.push_back(stateIndex);
+        auto* addr = initBuilder.CreateGEP(initStatePtr, gepIndex);
+        initBuilder.CreateStore(val, addr);
+    }
+    initBuilder.CreateRetVoid();
+
+
+#if 0
+    // Optimisation passes
+    llvm::legacy::PassManager *PM2 = new llvm::legacy::PassManager();
+    llvm::legacy::FunctionPassManager *FM = new llvm::legacy::FunctionPassManager(M);
+
+    llvm::PassManagerBuilder PMB;
+    PMB.OptLevel = 3;
+    PMB.DisableUnitAtATime = false;
+    PMB.DisableUnrollLoops = false;
+    PMB.BBVectorize = true;;
+    PMB.SLPVectorize = true;;
+    PMB.LoopVectorize = true;;
+    PMB.RerollLoops = true;
+    PMB.LoadCombine = true;
+    PMB.DisableGVNLoadPRE = true;
+    PMB.VerifyInput = true;
+    PMB.VerifyOutput = true;
+    PMB.MergeFunctions = true;
+    PMB.PrepareForLTO = false;
+    PMB.populateModulePassManager(*PM2);
+    PMB.populateFunctionPassManager(*FM);
+
+    llvm::DebugFlag=true;
+    FM->doInitialization();
+    for (llvm::Function &F : *M) 
+    {
+        std::cout << "Mod func " << FM->run(F);
+    }
+    FM->doFinalization();
+
+    std::cout << "Mod module " << PM2->run(*M);
+    llvm::DebugFlag=false;
+#endif
  
     // Output asm
     std::string out;
@@ -549,6 +613,7 @@ std::unique_ptr<llvm::Module> Jitter::BuildModule()
     {
         rawout << *stabilizeFunc;
         rawout << *simFunc;
+        rawout << *initFunc;
         throw GraphBuildException(rawout.str(), Cell());
     }
     return module;

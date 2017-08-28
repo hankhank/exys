@@ -62,6 +62,7 @@ public:
     // For use in later stages
     uint64_t mHeight = 0;
     uint64_t mOffset = 0;
+    double mInitValue = 0.0;
 
     bool operator<(const Node& rhs) const
     {

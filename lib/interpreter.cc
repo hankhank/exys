@@ -270,7 +270,7 @@ void Interpreter::CompleteBuild()
         }
         else if(node->mKind == Node::KIND_VAR)
         {
-            *point.mPoint = 0;
+            *point.mPoint = node->mInitValue;
         }
 
         if(node->mIsInput)

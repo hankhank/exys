@@ -43,6 +43,7 @@ void JitWrap::BuildJitEngine(std::unique_ptr<llvm::Module> module)
     }
 
     mRawStabilizeFunc = reinterpret_cast<StabilizationFunc>(llvmExecEngine->getPointerToNamedFunction(STAB_FUNC_NAME));
+    mInitFunc = reinterpret_cast<InitFunc>(llvmExecEngine->getPointerToNamedFunction(INIT_FUNC_NAME));
     if(mJitter->GetSimFuncCount() > 0)
     {
         mRawSimFunc = reinterpret_cast<SimFunc>(llvmExecEngine->getPointerToNamedFunction(SIM_FUNC_NAME));
@@ -80,6 +81,7 @@ void JitWrap::BuildJitEngine(std::unique_ptr<llvm::Module> module)
     mInputPtr = &mPoints.front();
     mObserverPtr = &mPoints.front() + inputDesc.size() + 1;
     mInputSize = inputDesc.size();
+    mInitFunc(mState.data());
     // we shift the observers by one so we can fit done flag
     // at the end
 }

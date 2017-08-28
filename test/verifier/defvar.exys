@@ -5,7 +5,13 @@
     (set! xvar (+ laggingXvar alpha))
     (observe x xvar)
     (observe lx laggingXvar)
-    )
+
+    (defvar initvalue1 101)
+    (observe initvalueout1 initvalue1)
+
+    (defvar initvalue2 nan)
+    (observe initvalueout2 initvalue2)
+)
 
 (test test-1
     (inject alpha 1)
@@ -16,4 +22,10 @@
     (stabilize)
     (expect x 2.5)
     (expect lx 1)
-    )
+)
+
+(test initValueTest
+    (stabilize)
+    (expect initvalueout1 101)
+    (expect initvalueout2 nan)
+)
