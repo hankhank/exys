@@ -108,7 +108,7 @@ bool JitWrap::IsDirty()
 
 void JitWrap::Stabilize(bool force)
 {
-    if(force || IsDirty())
+    if(force || mJitter->GetStateSpaceSize() || IsDirty())
     {
         mRawStabilizeFunc(mInputPtr, mObserverPtr, mState.data());
         for(auto& p : mPoints) p.Clean();

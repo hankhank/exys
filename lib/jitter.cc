@@ -196,12 +196,12 @@ DEFINE_LOOP_OPERATOR(JitDoubleSub, CreateFSub);
 DEFINE_LOOP_OPERATOR(JitDoubleMul, CreateFMul);
 DEFINE_LOOP_OPERATOR(JitDoubleDiv, CreateFDiv);
 DEFINE_LOOP_OPERATOR(JitDoubleMod, CreateFRem);
-DEFINE_LOOP_OPERATOR(JitDoubleLT,  CreateFCmpOLT);
-DEFINE_LOOP_OPERATOR(JitDoubleLE,  CreateFCmpOLE);
-DEFINE_LOOP_OPERATOR(JitDoubleGT,  CreateFCmpOGT);
-DEFINE_LOOP_OPERATOR(JitDoubleGE,  CreateFCmpOGE);
-DEFINE_LOOP_OPERATOR(JitDoubleEQ,  CreateFCmpOEQ);
-DEFINE_LOOP_OPERATOR(JitDoubleNE,  CreateFCmpONE);
+DEFINE_LOOP_OPERATOR(JitDoubleLT,  CreateFCmpULT);
+DEFINE_LOOP_OPERATOR(JitDoubleLE,  CreateFCmpULE);
+DEFINE_LOOP_OPERATOR(JitDoubleGT,  CreateFCmpUGT);
+DEFINE_LOOP_OPERATOR(JitDoubleGE,  CreateFCmpUGE);
+DEFINE_LOOP_OPERATOR(JitDoubleEQ,  CreateFCmpUEQ);
+DEFINE_LOOP_OPERATOR(JitDoubleNE,  CreateFCmpUNE);
 
 // Here we compare all doubles with zero before combining them logically
 #define DEFINE_LOGICAL_LOOP_OPERATOR(__FUNCNAME, __MEMFUNC) \
