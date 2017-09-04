@@ -45,7 +45,7 @@ llvm::Value* JitTernary(llvm::Module*, llvm::IRBuilder<>& builder, const JitPoin
     if(cmp->getType() == builder.getDoubleTy())
     {
         llvm::Value* zero = llvm::ConstantFP::get(builder.getDoubleTy(), 0.0);
-        cmp = builder.CreateFCmpONE(point.mParents[0]->mValue, zero);
+        cmp = builder.CreateFCmpUNE(point.mParents[0]->mValue, zero);
     }
 
     return builder.CreateSelect(cmp,
@@ -60,7 +60,7 @@ llvm::Value* JitDoubleNot(llvm::Module*, llvm::IRBuilder<>& builder, const JitPo
     llvm::Value* one = llvm::ConstantFP::get(builder.getDoubleTy(), 1.0);
     if(cmp->getType() == builder.getDoubleTy())
     {
-        cmp = builder.CreateFCmpONE(point.mParents[0]->mValue, zero);
+        cmp = builder.CreateFCmpUNE(point.mParents[0]->mValue, zero);
     }
 
     return builder.CreateSelect(cmp, zero, one);
@@ -82,7 +82,7 @@ llvm::Value* Jitter::JitLatch(llvm::Module* M, llvm::IRBuilder<>& builder, const
     llvm::Value* zero = llvm::ConstantFP::get(builder.getDoubleTy(), 0.0);
     if(cmp->getType() == builder.getDoubleTy())
     {
-        cmp = builder.CreateFCmpONE(point.mParents[0]->mValue, zero);
+        cmp = builder.CreateFCmpUNE(point.mParents[0]->mValue, zero);
     }
     
     auto* loadGv = builder.CreateLoad(gv);
@@ -99,7 +99,7 @@ llvm::Value* Jitter::JitFlipFlop(llvm::Module* M, llvm::IRBuilder<>& builder, co
     llvm::Value* zero = llvm::ConstantFP::get(builder.getDoubleTy(), 0.0);
     if(cmp->getType() == builder.getDoubleTy())
     {
-        cmp = builder.CreateFCmpONE(point.mParents[0]->mValue, zero);
+        cmp = builder.CreateFCmpUNE(point.mParents[0]->mValue, zero);
     }
     
     auto* loadGv = builder.CreateLoad(gv);
@@ -213,14 +213,14 @@ llvm::Value* __FUNCNAME(llvm::Module*, llvm::IRBuilder<>& builder, const JitPoin
     llvm::Value* zero = llvm::ConstantFP::get(builder.getDoubleTy(), 0.0); \
     if(val->getType() == builder.getDoubleTy()) \
     { \
-        val = builder.CreateFCmpONE(val, zero); \
+        val = builder.CreateFCmpUNE(val, zero); \
     } \
     for(++p; p != point.mParents.end(); ++p) \
     { \
         llvm::Value *other = (*p)->mValue; \
         if(other->getType() == builder.getDoubleTy()) \
         { \
-            other = builder.CreateFCmpONE(other, zero); \
+            other = builder.CreateFCmpUNE(other, zero); \
         } \
         assert(val); \
         assert((*p)->mValue); \

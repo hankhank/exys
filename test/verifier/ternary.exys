@@ -1,6 +1,7 @@
 (begin
     (input double in1 in2 in3)
     (observe rawout (? in1 in2 in3))
+    (observe nanout (? NAN 8 0))
     (observe cmpout (? (== in1 0) in2 in3)))
 
 (test Test-1
@@ -18,3 +19,7 @@
     (stabilize)
     (expect rawout 2)
     (expect cmpout 3))
+
+(test nanCond
+    (stabilize)
+    (expect nanout 8))

@@ -1,13 +1,14 @@
 (begin
     (observe not1 (not 0))
     (observe not2 (not 1))
-    (observe not3 (not -1.1)))
+    (observe not3 (not -1.1))
+    (observe notNAN (not NAN)))
 
 (test test-1
     (stabilize)
     (expect not1 1)
     (expect not2 0)
     (expect not3 0)
-
+    (expect notNAN 0)
 )
     
