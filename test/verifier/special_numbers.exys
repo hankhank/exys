@@ -1,7 +1,7 @@
 (begin
-    (input double in1 in2)
-    (observe nanCheck (!= NAN NAN))
-    (observe infCheck (== in2 (/ 1 0)))
+    (input double in1)
+    (observe nanCheck (!= in1 in1))
+    (observe infCheck (== in1 (/ 1 0)))
 
     (observe nanAndZero (&& NAN 0))
     (observe nanAndOne (&& NAN 1))
@@ -13,18 +13,25 @@
     (observe nanGte (>= NAN 1))
     (observe nanLt (< NAN 1))
     (observe nanLte (<= NAN 1))
+
+    (observe infGt (> INF 1))
+    (observe infGte (>= INF 1))
+    (observe infLt (< INF 1))
+    (observe infLte (<= INF 1))
 )
 
 (test nanCheckTest
     (inject in1 NAN)
     (stabilize)
+    (expect infCheck 0)
     (expect nanCheck 1)
 )
 
 (test infCheckTest
-    (inject in2 INF)
+    (inject in1 INF)
     (stabilize)
     (expect infCheck 1)
+    (expect nanCheck 0)
 )
 
 (test nanComparisons
@@ -36,8 +43,13 @@
     (expect nanOrOne 1)
 
     ; IEEE 754
-    (observe nanGt 0)
-    (observe nanGte 0)
-    (observe nanLt 0)
-    (observe nanLte 0)
+    (expect nanGt 0)
+    (expect nanGte 0)
+    (expect nanLt 0)
+    (expect nanLte 0)
+
+    (expect infGt 1)
+    (expect infGte 1)
+    (expect infLt 0)
+    (expect infLte 0)
 )
