@@ -3,8 +3,11 @@ add_library(exys STATIC interpreter.cc graph.cc parser.cc)
 target_include_directories (exys PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} )
 
 if (JIT)
+target_sources(exys PRIVATE jitwrap.cc jitter.cc)
 
-target_sources(exys PRIVATE jitwrap.cc jitter.cc gputer.cc)
+if (GPU)
+target_sources(exys PRIVATE gputer.cc)
+endif()
 
 #set (LLVM_BUILD_ROOT LLVMConfig.cmake /home/andrew/Projects/llvm-3.8.1.src/build/share/llvm/cmake)
 find_package(LLVM REQUIRED CONFIG)
