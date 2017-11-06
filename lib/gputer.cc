@@ -8,6 +8,7 @@
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/IR/LegacyPassManager.h"
+#include "llvm/Transforms/IPO/PassManagerBuilder.h"
 
 #include "gputer.h"
 
@@ -66,6 +67,7 @@ void Gputer::CompleteBuild()
     llvm::raw_string_ostream OS(mPtxBuf);
     {
         // TODO: put these in the constructor
+        //
         llvm::legacy::PassManager *PM2 = new llvm::legacy::PassManager();
         llvm::buffer_ostream FOS(OS);
         ptxTargetMachine->addPassesToEmitFile(*PM2, FOS, llvm::TargetMachine::CGFT_AssemblyFile);

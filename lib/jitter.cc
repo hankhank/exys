@@ -16,7 +16,11 @@
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/TargetSelect.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/Transforms/Utils/Cloning.h"
+#include "llvm/IR/LegacyPassManager.h"
+#include "llvm/Transforms/IPO/PassManagerBuilder.h"
+#include "llvm/Transforms/IPO.h"
 
 #include "jitter.h"
 #include "helpers.h"
@@ -544,6 +548,12 @@ std::unique_ptr<llvm::Module> Jitter::BuildModule()
         switchBuilder.SetInsertPoint(end);
         switchBuilder.CreateRetVoid();
     }
+    else
+    {
+        auto *end = llvm::BasicBlock::Create(*mLlvmContext, "switch-end", simFunc);
+        llvm::IRBuilder<> endBuilder(end);
+        endBuilder.CreateRetVoid();
+    }
 
     // Create initialization function
     auto initFuncName = MangleName(INIT_FUNC_NAME, M->getDataLayout());
@@ -572,17 +582,16 @@ std::unique_ptr<llvm::Module> Jitter::BuildModule()
     }
     initBuilder.CreateRetVoid();
 
-
-#if 0
     // Optimisation passes
     llvm::legacy::PassManager *PM2 = new llvm::legacy::PassManager();
-    llvm::legacy::FunctionPassManager *FM = new llvm::legacy::FunctionPassManager(M);
+    llvm::legacy::FunctionPassManager *FM = new llvm::legacy::FunctionPassManager(module.get());
 
     llvm::PassManagerBuilder PMB;
     PMB.OptLevel = 3;
     PMB.DisableUnitAtATime = false;
     PMB.DisableUnrollLoops = false;
     PMB.BBVectorize = true;;
+    PMB.SLPVectorize = true;;
     PMB.SLPVectorize = true;;
     PMB.LoopVectorize = true;;
     PMB.RerollLoops = true;
@@ -592,20 +601,18 @@ std::unique_ptr<llvm::Module> Jitter::BuildModule()
     PMB.VerifyOutput = true;
     PMB.MergeFunctions = true;
     PMB.PrepareForLTO = false;
+    PMB.Inliner = llvm::createFunctionInliningPass();
     PMB.populateModulePassManager(*PM2);
     PMB.populateFunctionPassManager(*FM);
 
-    llvm::DebugFlag=true;
+    //llvm::DebugFlag=true;
     FM->doInitialization();
-    for (llvm::Function &F : *M) 
+    for (llvm::Function &F : *module.get()) 
     {
-        std::cout << "Mod func " << FM->run(F);
+        FM->run(F);
     }
     FM->doFinalization();
-
-    std::cout << "Mod module " << PM2->run(*M);
-    llvm::DebugFlag=false;
-#endif
+    PM2->run(*module.get());
  
     // Output asm
     std::string out;

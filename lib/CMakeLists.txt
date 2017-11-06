@@ -15,7 +15,7 @@ message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
 include_directories(${LLVM_INCLUDE_DIRS})
 add_definitions(${LLVM_DEFINITIONS})
 
-llvm_map_components_to_libnames(llvm_libs support core irreader executionengine interpreter mcjit mc nativecodegen nvptxcodegen bitreader asmparser)
+llvm_map_components_to_libnames(llvm_libs support core irreader executionengine interpreter mcjit mc nativecodegen nvptxcodegen bitreader asmparser passes)
 message(STATUS "Using LLVMConfig.cmake in: ${llvm_libs}")
 target_link_libraries (exys ${llvm_libs} )
 
