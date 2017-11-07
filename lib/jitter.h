@@ -65,6 +65,7 @@ public:
     const std::vector<Node::Ptr>& GetObserverDesc() const { return mObservers; }
     int GetStateSpaceSize() const { return mNumStatePtr; }
     int GetSimFuncCount() const { return mNumSimFunc; }
+    const std::vector<std::string>& GetSimFuncTargets() const { return mSimTargets; }
 
     std::unique_ptr<llvm::Module> BuildModule();
 
@@ -79,6 +80,7 @@ private:
     llvm::Value* mStatePtr = nullptr;
     int mNumStatePtr = 0;
     int mNumSimFunc = 0;
+    std::vector<std::string> mSimTargets;
     
     std::vector<Node::Ptr> mInputs;
     std::vector<Node::Ptr> mObservers;

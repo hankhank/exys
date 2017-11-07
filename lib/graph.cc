@@ -1020,14 +1020,14 @@ std::vector<Node::Ptr> Graph::GetSimApplyLayout() const
         }
     }
 
-    assert(simnodes.size()==1);
+    assert(simnodes.size()==1 && "Split out simapplys into own graph before getting the layout");
     
     std::vector<Node::Ptr> expandedSimApply;
     // Expand sim apply
     {
         auto n = simnodes[0];
         auto args = n->mParents;
-        auto target = std::static_pointer_cast<ProcNodeFactory>(args[0]);
+        auto target = std::static_pointer_cast<Node>(args[0]);
         auto overwrite = std::static_pointer_cast<Node>(args[1]);
         auto doneFlag = std::static_pointer_cast<Node>(args[2]);
 
@@ -1092,6 +1092,21 @@ std::vector<Node::Ptr> Graph::GetSimApplyLayout() const
     }
 
     return layout;
+}
+
+std::string Graph::GetSimApplyTarget() const
+{ 
+    std::vector<Node::Ptr> simnodes;
+    for(auto n : mAllNodes)
+    {
+        if((n->mKind == Node::KIND_PROC) && (n->mToken.compare("sim-apply") == 0))
+        {
+            simnodes.push_back(n);
+        }
+    }
+
+    assert(simnodes.size()==1 && "Split out simapplys into own graph before getting the layout");
+    return std::static_pointer_cast<Node>(simnodes[0]->mParents[0])->mToken;
 }
 
 std::vector<Node::Ptr> Graph::GetForceKeep() const

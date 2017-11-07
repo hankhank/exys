@@ -434,6 +434,11 @@ bool Interpreter::RunSimulationId(int simId)
     return true;
 }
 
+std::string Interpreter::GetNumSimulationTarget(int simId)
+{
+    return "";
+}
+
 std::unique_ptr<Graph> Interpreter::BuildAndLoadGraph()
 {
     auto graph = std::unique_ptr<Graph>(new Graph);

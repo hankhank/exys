@@ -537,6 +537,8 @@ std::unique_ptr<llvm::Module> Jitter::BuildModule()
         auto swinstr = switchBuilder.CreateSwitch(simId, switchBlock, sims.size());
         for(auto& sim : sims)
         {
+            mSimTargets.push_back(sim->GetSimApplyTarget());
+
             auto* id = llvm::ConstantInt::get(llvm::Type::getInt32Ty(M->getContext()), mNumSimFunc++);
             auto layout = sim->GetSimApplyLayout();
             auto* block = BuildBlock("sim-switch", layout, simFunc, M, simInputsPtr, simObserversPtr, simStatePtr, true);

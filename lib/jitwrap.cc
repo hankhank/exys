@@ -215,6 +215,18 @@ bool JitWrap::RunSimulationId(int simId)
     return mInputPtr[mInputSize] != 0.0;
 }
 
+std::string JitWrap::GetNumSimulationTarget(int simId)
+{
+    const auto& targets = mJitter->GetSimFuncTargets();
+    assert(simId >= targets.size() && "simid index out of range");
+    if(simId < targets.size())
+    {
+        return targets[simId];
+    }
+
+    return "";
+}
+
 std::unique_ptr<IEngine> JitWrap::Build(const std::string& text)
 {
     auto jitter = Jitter::Build(text);

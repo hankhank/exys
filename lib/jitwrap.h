@@ -40,6 +40,7 @@ public:
     void CaptureState() override;
     void ResetState() override;
     bool RunSimulationId(int simId) override;
+    std::string GetNumSimulationTarget(int simId) override;
 
     std::string GetDOTGraph() override;
 

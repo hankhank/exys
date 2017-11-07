@@ -122,6 +122,8 @@ public:
     std::vector<Node::Ptr> GetSimApplyLayout() const;
     std::vector<Node::Ptr> GetForceKeep() const;
 
+    std::string GetSimApplyTarget() const;
+
     std::vector<std::unique_ptr<Graph>> SplitOutBy(Node::Kind kind, const std::string& token);
 
 private:

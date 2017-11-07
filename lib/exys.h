@@ -90,6 +90,7 @@ public:
     virtual void CaptureState() = 0;
     virtual void ResetState() = 0;
     virtual bool RunSimulationId(int simId) = 0;
+    virtual std::string GetNumSimulationTarget(int simId) = 0;
 
     virtual std::string GetDOTGraph() = 0;
 };
