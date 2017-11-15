@@ -19,6 +19,7 @@ class JitWrap : public IEngine
 {
 public:
     JitWrap(std::unique_ptr<Jitter> graph);
+    JitWrap(JitWrap& jw);
 
     virtual ~JitWrap();
 
@@ -44,15 +45,21 @@ public:
 
     std::string GetDOTGraph() const override;
 
+    void CopyState(JitWrap& jw);
+
     static std::unique_ptr<IEngine> Build(const std::string& text);
 
 private:
     void BuildJitEngine(std::unique_ptr<llvm::Module> module);
+    void SetPointPtrs();
     void CompleteBuild();
 
     InitFunc mInitFunc = nullptr;
     StabilizationFunc mRawStabilizeFunc = nullptr;
     SimFunc mRawSimFunc = nullptr;
+
+    int mSimFuncCount = 0;
+    std::vector<std::string> mSimFuncTargets;
     
     std::vector<double> mState;
     std::vector<double> mStateCapture;

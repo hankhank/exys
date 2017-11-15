@@ -13,8 +13,35 @@ namespace Exys
 {
 
 JitWrap::JitWrap(std::unique_ptr<Jitter> jitter)
-:mJitter(std::move(jitter))
+: mJitter(std::move(jitter))
 {
+}
+
+// Use this constructor if you want run the simulations
+// against a second memory location i.e. in a thread
+JitWrap::JitWrap(JitWrap& jw)
+: mRawStabilizeFunc(jw.mRawStabilizeFunc)
+, mRawSimFunc(jw.mRawSimFunc)
+, mSimFuncCount(jw.mSimFuncCount)
+, mSimFuncTargets(jw.mSimFuncTargets)
+, mState(jw.mState)
+, mPoints(jw.mPoints)
+, mInputSize(jw.mInputSize)
+, mObserverOffsets(jw.mObserverOffsets)
+, mInputOffsets(jw.mInputOffsets)
+{
+    SetPointPtrs();
+}
+
+// Copy to capture so calling convention is simplified slightly
+// where you can always call reset before a simulation
+void JitWrap::CopyState(JitWrap& jw)
+{
+    std::copy(jw.mState.begin(), jw.mState.end(),
+        std::back_inserter(mStateCapture));
+    std::copy(jw.mPoints.begin(), jw.mPoints.end(),
+        std::back_inserter(mPointsCapture));
+    SetPointPtrs();
 }
 
 JitWrap::~JitWrap()
@@ -23,7 +50,8 @@ JitWrap::~JitWrap()
 
 std::string JitWrap::GetDOTGraph() const
 {
-    return mJitter->GetDOTGraph();
+    if(mJitter) return mJitter->GetDOTGraph();
+    return "";
 }
 
 void JitWrap::BuildJitEngine(std::unique_ptr<llvm::Module> module)
@@ -78,20 +106,29 @@ void JitWrap::BuildJitEngine(std::unique_ptr<llvm::Module> module)
             op.mLength = od->mLength;
         }
     }
-    mInputPtr = &mPoints.front();
-    mObserverPtr = &mPoints.front() + inputDesc.size() + 1;
     mInputSize = inputDesc.size();
     mInitFunc(mState.data());
+    SetPointPtrs();
     // we shift the observers by one so we can fit done flag
     // at the end
 }
 
+void JitWrap::SetPointPtrs()
+{
+    mInputPtr = &mPoints.front();
+    mObserverPtr = &mPoints.front() + mInputSize + 1;
+}
+
 void JitWrap::CompleteBuild()
 {
+    assert(mJitter && "Can only build with underlying jitter");
     LLVMInitializeNativeTarget();
     LLVMInitializeNativeAsmPrinter();
     
     BuildJitEngine(mJitter->BuildModule());
+
+    mSimFuncCount = mJitter->GetSimFuncCount();
+    mSimFuncTargets = mJitter->GetSimFuncTargets();
 
     Stabilize(true);
 }
@@ -188,7 +225,7 @@ bool JitWrap::SupportSimulation() const
 
 int JitWrap::GetNumSimulationFunctions() const
 {
-    return mJitter->GetSimFuncCount();
+    return mSimFuncCount;
 }
 
 void JitWrap::CaptureState()
@@ -217,11 +254,10 @@ bool JitWrap::RunSimulationId(int simId)
 
 std::string JitWrap::GetNumSimulationTarget(int simId) const
 {
-    const auto& targets = mJitter->GetSimFuncTargets();
-    assert(simId >= targets.size() && "simid index out of range");
-    if(simId < targets.size())
+    assert(simId >= mSimFuncTargets.size() && "simid index out of range");
+    if(simId < mSimFuncTargets.size())
     {
-        return targets[simId];
+        return mSimFuncTargets[simId];
     }
 
     return "";
