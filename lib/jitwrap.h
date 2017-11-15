@@ -61,11 +61,12 @@ private:
     Point* mInputPtr = nullptr;
     Point* mObserverPtr = nullptr;
     int mInputSize = 0;
-    std::unordered_map<std::string, Point*> mObservers;
-    std::unordered_map<std::string, Point*> mInputs;
+    std::unordered_map<std::string, int> mObserverOffsets;
+    std::unordered_map<std::string, int> mInputOffsets;
 
     std::unique_ptr<Jitter> mJitter;
 };
+
 
 };
 #endif

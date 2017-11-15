@@ -62,8 +62,8 @@ void JitWrap::BuildJitEngine(std::unique_ptr<llvm::Module> module)
         for(const auto& label : id->mInputLabels)
         {
             assert(id->mOffset < inputDesc.size());
+            mInputOffsets[label] = id->mOffset;
             auto& ip = mPoints[id->mOffset];
-            mInputs[label] = &ip;
             ip.mLength = id->mLength;
         }
     }
@@ -73,8 +73,8 @@ void JitWrap::BuildJitEngine(std::unique_ptr<llvm::Module> module)
         {
             int obOffset = inputDesc.size()+1+od->mOffset;
             assert(obOffset < mPoints.size());
+            mObserverOffsets[label] = obOffset;
             auto& op = mPoints[inputDesc.size()+1+od->mOffset];
-            mObservers[label] = &op;
             op.mLength = od->mLength;
         }
     }
@@ -98,9 +98,9 @@ void JitWrap::CompleteBuild()
 
 bool JitWrap::IsDirty() const
 {
-    for(const auto& namep : mInputs)
+    for(const auto& namep : mInputOffsets)
     {
-        auto& point = *namep.second;
+        const auto& point = mPoints[namep.second];
         if(point.IsDirty()) return true;
     }
     return false;
@@ -117,21 +117,21 @@ void JitWrap::Stabilize(bool force)
 
 bool JitWrap::HasInputPoint(const std::string& label) const
 {
-    auto niter = mInputs.find(label);
-    return niter != mInputs.end();
+    auto niter = mInputOffsets.find(label);
+    return niter != mInputOffsets.end();
 }
 
 Point& JitWrap::LookupInputPoint(const std::string& label)
 {
     assert(HasInputPoint(label));
-    auto niter = mInputs.find(label);
-    return *niter->second;
+    auto niter = mInputOffsets.find(label);
+    return mPoints[niter->second];
 }
 
 std::vector<std::string> JitWrap::GetInputPointLabels() const
 {
     std::vector<std::string> ret;
-    for(const auto& ip : mInputs)
+    for(const auto& ip : mInputOffsets)
     {
         ret.push_back(ip.first);
     }
@@ -141,30 +141,30 @@ std::vector<std::string> JitWrap::GetInputPointLabels() const
 std::vector<std::pair<std::string, double>> JitWrap::DumpInputs() const
 {
     std::vector<std::pair<std::string, double>> ret;
-    for(const auto& ip : mInputs)
+    for(const auto& ip : mInputOffsets)
     {
-        ret.push_back(std::make_pair(ip.first, ip.second->mVal));
+        ret.push_back(std::make_pair(ip.first, mPoints[ip.second].mVal));
     }
     return ret;
 }
 
 bool JitWrap::HasObserverPoint(const std::string& label) const
 {
-    auto niter = mObservers.find(label);
-    return niter != mObservers.end();
+    auto niter = mObserverOffsets.find(label);
+    return niter != mObserverOffsets.end();
 }
 
 Point& JitWrap::LookupObserverPoint(const std::string& label)
 {
     assert(HasObserverPoint(label));
-    auto niter = mObservers.find(label);
-    return *niter->second;
+    auto niter = mObserverOffsets.find(label);
+    return mPoints[niter->second];
 }
 
 std::vector<std::string> JitWrap::GetObserverPointLabels() const
 {
     std::vector<std::string> ret;
-    for(const auto& ip : mObservers)
+    for(const auto& ip : mObserverOffsets)
     {
         ret.push_back(ip.first);
     }
@@ -174,9 +174,9 @@ std::vector<std::string> JitWrap::GetObserverPointLabels() const
 std::vector<std::pair<std::string, double>> JitWrap::DumpObservers() const
 {
     std::vector<std::pair<std::string, double>> ret;
-    for(const auto& ip : mObservers)
+    for(const auto& ip : mObserverOffsets)
     {
-        ret.push_back(std::make_pair(ip.first, ip.second->mVal));
+        ret.push_back(std::make_pair(ip.first, mPoints[ip.second].mVal));
     }
     return ret;
 }
