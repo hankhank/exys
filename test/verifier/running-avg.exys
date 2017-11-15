@@ -1,6 +1,14 @@
 (begin
     (input double incomingval)
     (input double gate)
+    (define flip-flop
+        (lambda (gate var)
+            (begin
+                (defvar val 0)
+                (define ret val)
+                (set! val (? gate var ret))
+                ret)))
+
     (define running-avg
         (lambda (size gate incomingval)
             (begin

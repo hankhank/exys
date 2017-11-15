@@ -78,40 +78,6 @@ llvm::Value* Jitter::JitGV(llvm::Module* M, llvm::IRBuilder<>& builder)
     return builder.CreateGEP(mStatePtr, gepIndex);
 }
 
-llvm::Value* Jitter::JitLatch(llvm::Module* M, llvm::IRBuilder<>& builder, const JitPoint& point)
-{
-    auto* gv = JitGV(M, builder);
-
-    llvm::Value* cmp = point.mParents[0]->mValue;
-    llvm::Value* zero = llvm::ConstantFP::get(builder.getDoubleTy(), 0.0);
-    if(cmp->getType() == builder.getDoubleTy())
-    {
-        cmp = builder.CreateFCmpUNE(point.mParents[0]->mValue, zero);
-    }
-    
-    auto* loadGv = builder.CreateLoad(gv);
-    auto* ret = builder.CreateSelect(cmp, point.mParents[1]->mValue, loadGv);
-    builder.CreateStore(ret, gv);
-    return ret;
-}
-
-llvm::Value* Jitter::JitFlipFlop(llvm::Module* M, llvm::IRBuilder<>& builder, const JitPoint& point)
-{
-    auto* gv = JitGV(M, builder);
-
-    llvm::Value* cmp = point.mParents[0]->mValue;
-    llvm::Value* zero = llvm::ConstantFP::get(builder.getDoubleTy(), 0.0);
-    if(cmp->getType() == builder.getDoubleTy())
-    {
-        cmp = builder.CreateFCmpUNE(point.mParents[0]->mValue, zero);
-    }
-    
-    auto* loadGv = builder.CreateLoad(gv);
-    auto* ret = builder.CreateSelect(cmp, point.mParents[1]->mValue, loadGv);
-    builder.CreateStore(ret, gv);
-    return loadGv;
-}
-
 llvm::Value* Jitter::JitLoad(llvm::Module* M, llvm::IRBuilder<>& builder, const JitPoint& point)
 {
     return builder.CreateLoad(point.mParents[0]->mValue);
@@ -327,8 +293,6 @@ Jitter::Jitter()
     {
         mPointProcessors.push_back(jpp);
     }
-    mPointProcessors.push_back({{"latch",      CountValueValidator<2,2>},   WRAP(JitLatch)});
-    mPointProcessors.push_back({{"flip-flop",  CountValueValidator<2,2>},   WRAP(JitFlipFlop)});
     mPointProcessors.push_back({{"store",      CountValueValidator<2,2>},   WRAP(JitStore)});
     mPointProcessors.push_back({{"load",       CountValueValidator<1,1>},   WRAP(JitLoad)});
     mPointProcessors.push_back({{"tick",       MinCountValueValidator<0>},  WRAP(JitTick)});
@@ -343,7 +307,7 @@ Jitter::~Jitter()
     //llvm::llvm_shutdown();
 }
 
-std::string Jitter::GetDOTGraph()
+std::string Jitter::GetDOTGraph() const
 {
     return "digraph " + mGraph->GetDOTGraph();
 }

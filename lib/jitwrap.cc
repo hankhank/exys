@@ -21,7 +21,7 @@ JitWrap::~JitWrap()
 {
 }
 
-std::string JitWrap::GetDOTGraph()
+std::string JitWrap::GetDOTGraph() const
 {
     return mJitter->GetDOTGraph();
 }
@@ -96,7 +96,7 @@ void JitWrap::CompleteBuild()
     Stabilize(true);
 }
 
-bool JitWrap::IsDirty()
+bool JitWrap::IsDirty() const
 {
     for(const auto& namep : mInputs)
     {
@@ -181,12 +181,12 @@ std::vector<std::pair<std::string, double>> JitWrap::DumpObservers() const
     return ret;
 }
 
-bool JitWrap::SupportSimulation() 
+bool JitWrap::SupportSimulation() const
 {
     return true;
 }
 
-int JitWrap::GetNumSimulationFunctions()
+int JitWrap::GetNumSimulationFunctions() const
 {
     return mJitter->GetSimFuncCount();
 }
@@ -215,7 +215,7 @@ bool JitWrap::RunSimulationId(int simId)
     return mInputPtr[mInputSize] != 0.0;
 }
 
-std::string JitWrap::GetNumSimulationTarget(int simId)
+std::string JitWrap::GetNumSimulationTarget(int simId) const
 {
     const auto& targets = mJitter->GetSimFuncTargets();
     assert(simId >= targets.size() && "simid index out of range");

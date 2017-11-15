@@ -73,7 +73,7 @@ public:
     virtual ~IEngine() {}
 
     virtual void Stabilize(bool force=false) = 0;
-    virtual bool IsDirty() = 0;
+    virtual bool IsDirty() const = 0;
 
     virtual bool HasInputPoint(const std::string& label) const = 0;
     virtual Point& LookupInputPoint(const std::string& label) = 0;
@@ -85,14 +85,14 @@ public:
     virtual std::vector<std::string> GetObserverPointLabels() const = 0;
     virtual std::vector<std::pair<std::string, double>> DumpObservers() const = 0;
 
-    virtual bool SupportSimulation() = 0;
-    virtual int GetNumSimulationFunctions() = 0;
+    virtual bool SupportSimulation() const = 0;
+    virtual int GetNumSimulationFunctions() const = 0;
     virtual void CaptureState() = 0;
     virtual void ResetState() = 0;
     virtual bool RunSimulationId(int simId) = 0;
-    virtual std::string GetNumSimulationTarget(int simId) = 0;
+    virtual std::string GetNumSimulationTarget(int simId) const = 0;
 
-    virtual std::string GetDOTGraph() = 0;
+    virtual std::string GetDOTGraph() const = 0;
 };
 
 };

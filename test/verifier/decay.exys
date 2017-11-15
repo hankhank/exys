@@ -4,6 +4,14 @@
     (input double input)
     (input double time)
 
+    (define latch
+        (lambda (gate in)
+            (begin
+                (defvar val 0)
+                (define ret (? gate in val))
+                (set! val ret)
+                ret)))
+
     ; N0 * e ^ - t/T
     (define half-life-decay
         (lambda (naturalhalflife gate input time)

@@ -23,7 +23,7 @@ public:
     virtual ~JitWrap();
 
     void Stabilize(bool force=false) override;
-    bool IsDirty() override;
+    bool IsDirty() const override;
 
     bool HasInputPoint(const std::string& label) const override;
     Point& LookupInputPoint(const std::string& label) override;
@@ -35,14 +35,14 @@ public:
     std::vector<std::string> GetObserverPointLabels() const override;
     std::vector<std::pair<std::string, double>> DumpObservers() const override;
 
-    bool SupportSimulation() override;
-    int GetNumSimulationFunctions() override;
+    bool SupportSimulation() const override;
+    int GetNumSimulationFunctions() const override;
     void CaptureState() override;
     void ResetState() override;
     bool RunSimulationId(int simId) override;
-    std::string GetNumSimulationTarget(int simId) override;
+    std::string GetNumSimulationTarget(int simId) const override;
 
-    std::string GetDOTGraph() override;
+    std::string GetDOTGraph() const override;
 
     static std::unique_ptr<IEngine> Build(const std::string& text);
 

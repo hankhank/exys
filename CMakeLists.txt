@@ -15,6 +15,11 @@ if (JIT)
     add_definitions(-DEXYS_JIT=1)
 endif()
 
+option(GPU "GPU" ON)
+if (GPU)
+    add_definitions(-DEXYS_GPU=1)
+endif()
+
 add_subdirectory(lib)
 add_subdirectory(editor)
 add_subdirectory(test)

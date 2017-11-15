@@ -47,34 +47,6 @@ void Interpreter::Store(InterPoint& ipoint)
     mDirtyStores.push_back(ipoint.mParents[0]);
 }
 
-ComputeFunction Latch()
-{
-    Point lastPoint;
-    return [lastPoint](InterPoint& ipoint) mutable
-    {
-        assert(ipoint.mParents.size() == 2);
-        if (ipoint.mParents[0]->mPoint->mVal)
-        {
-            lastPoint = *ipoint.mParents[1]->mPoint;
-            *ipoint.mPoint = lastPoint;
-        }
-    };
-}
-
-ComputeFunction FlipFlop()
-{
-    Point lastPoint;
-    return [lastPoint](InterPoint& ipoint) mutable
-    {
-        assert(ipoint.mParents.size() == 2);
-        if (ipoint.mParents[0]->mPoint->mVal)
-        {
-            *ipoint.mPoint = lastPoint;
-            lastPoint = *ipoint.mParents[1]->mPoint;
-        }
-    };
-}
-
 ComputeFunction Tick()
 {
     uint64_t tick=0;
@@ -184,8 +156,6 @@ static InterPointProcessor AVAILABLE_PROCS[] =
     {{"exp",        CountValueValidator<1,1>},   Wrap(UnaryOperator<ExpFunc>)},
     {{"ln",         CountValueValidator<1,1>},   Wrap(UnaryOperator<LogFunc>)},
     {{"not",        CountValueValidator<1,1>},   Wrap(UnaryOperator<std::logical_not<double>>)},
-    {{"latch",      CountValueValidator<2,2>},   Latch},
-    {{"flip-flop",  CountValueValidator<2,2>},   FlipFlop},
     {{"tick",       MinCountValueValidator<0>},  Tick},
     {{"copy",       MinCountValueValidator<1>},  Wrap(Copy)},
     {{"load",       CountValueValidator<1,1>},   Wrap(Copy)},
@@ -201,7 +171,7 @@ Interpreter::Interpreter()
     mPointProcessors.push_back({{"store",      CountValueValidator<2,2>},   WRAP(Store)});
 }
 
-std::string Interpreter::GetDOTGraph()
+std::string Interpreter::GetDOTGraph() const
 {
     return "digraph " + mGraph->GetDOTGraph();
 }
@@ -295,7 +265,7 @@ void Interpreter::CompleteBuild()
     Stabilize();
 }
 
-bool Interpreter::IsDirty()
+bool Interpreter::IsDirty() const
 {
     for(const auto& namep : mInputs)
     {
@@ -411,12 +381,12 @@ std::vector<std::pair<std::string, double>> Interpreter::DumpObservers() const
     return ret;
 }
 
-bool Interpreter::SupportSimulation() 
+bool Interpreter::SupportSimulation() const
 {
     return false;
 }
 
-int Interpreter::GetNumSimulationFunctions() 
+int Interpreter::GetNumSimulationFunctions() const
 {
     return 0;
 }
@@ -434,7 +404,7 @@ bool Interpreter::RunSimulationId(int simId)
     return true;
 }
 
-std::string Interpreter::GetNumSimulationTarget(int simId)
+std::string Interpreter::GetNumSimulationTarget(int simId) const
 {
     return "";
 }

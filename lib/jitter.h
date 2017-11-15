@@ -69,7 +69,7 @@ public:
 
     std::unique_ptr<llvm::Module> BuildModule();
 
-    std::string GetDOTGraph();
+    std::string GetDOTGraph() const;
 private:
     void AssignGraph(std::unique_ptr<Graph>& graph);
     std::unique_ptr<Graph> BuildAndLoadGraph();
