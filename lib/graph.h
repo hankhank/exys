@@ -25,19 +25,11 @@ public:
         KIND_CONST        = 1<<1,
         KIND_BIND         = 1<<2,
         KIND_VAR          = 1<<3,
-        KIND_LIST         = 1<<4,
-        KIND_PROC         = 1<<5,
-        KIND_PROC_FACTORY = 1<<6,
-        KIND_GRAPH        = 1<<7
-    };
-
-    enum Type
-    {
-        TYPE_UNKNOWN=0,
-        TYPE_BOOL,
-        TYPE_INT,
-        TYPE_UINT,
-        TYPE_DOUBLE
+        KIND_STR          = 1<<4,
+        KIND_LIST         = 1<<5,
+        KIND_PROC         = 1<<6,
+        KIND_PROC_FACTORY = 1<<7,
+        KIND_GRAPH        = 1<<8
     };
 
     typedef std::shared_ptr<Node> Ptr;
@@ -48,7 +40,6 @@ public:
     const std::string& Label() {return mToken;}
 
     Kind mKind=KIND_UNKNOWN;
-    Type mType=TYPE_UNKNOWN;
 
     std::string mToken = "";
     std::vector<Ptr> mParents;
@@ -142,8 +133,7 @@ private:
     ProcNodeFactoryFunc LookupProcedure(const Cell& cell);
     void SetSymbol(const Cell& cell, Node::Ptr node);
     Node::Ptr BuildForProcedure(const Cell& token);
-    Node::Type InputType2Enum(const std::string& token);
-    void BuildInputList(Node::Ptr child, std::string token, std::deque<int> dims);
+    void BuildInputList(Node::Ptr child, const std::string& token, std::deque<int> dims);
     void LabelListRoot(Node::Ptr node, std::string label, uint16_t length, bool inputLabel);
     
     // Graph manipulation functions

@@ -1,6 +1,6 @@
 (begin
-    (input double in)
-    (input double gate)
+    (input in)
+    (input gate)
 
     (define latch
         (lambda (gate in)

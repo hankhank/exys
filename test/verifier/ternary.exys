@@ -1,5 +1,5 @@
 (begin
-    (input double in1 in2 in3)
+    (input in1 in2 in3)
     (observe rawout (? in1 in2 in3))
     (observe nanout (? NAN 8 0))
     (observe cmpout (? (== in1 0) in2 in3)))

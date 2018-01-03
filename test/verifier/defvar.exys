@@ -1,5 +1,5 @@
 (begin
-    (input double alpha)
+    (input alpha)
     (defvar xvar 0)
     (define laggingXvar xvar)
     (set! xvar (+ laggingXvar alpha))

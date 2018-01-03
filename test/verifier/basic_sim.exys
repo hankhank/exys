@@ -4,9 +4,9 @@
 ; we need to check for the previous input
 ; to know when to stop
 (begin
-    (input double single)
-    (input list double simlist 5)
-    (input list double multdimlist 2 2 2)
+    (input single)
+    (input-list simlist 5)
+    (input-list multdimlist 2 2 2)
     (observe single single)
     (observe simlist simlist)
     (observe multdimlist multdimlist)

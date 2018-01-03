@@ -1,5 +1,5 @@
 (begin
-    (input double in1)
+    (input in1)
     (define out1 (copy in1))
     (observe out1 out1))
 

@@ -24,6 +24,7 @@ struct Cell
         ROOT,
         LIST,
         SYMBOL,
+        STRING,
         NUMBER
     };
     
@@ -60,6 +61,15 @@ struct Cell
         Cell c;
         c.type = NUMBER;
         c.details = details;
+        return c;
+    }
+
+    static Cell String(const TokenDetails& details) 
+    {
+        Cell c;
+        c.type = STRING;
+        c.details = details;
+        c.details.text = details.text.substr(1, details.text.size()-2);
         return c;
     }
 

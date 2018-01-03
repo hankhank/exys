@@ -1,6 +1,6 @@
 (begin
 
-    (input list double condValList 3 2)
+    (input-list condValList 3 2)
 
     (define switch 
         (lambda (condValList elseVal)

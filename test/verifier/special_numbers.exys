@@ -1,5 +1,5 @@
 (begin
-    (input double in1)
+    (input in1)
     (observe nanCheck (!= in1 in1))
     (observe infCheck (== in1 (/ 1 0)))
 

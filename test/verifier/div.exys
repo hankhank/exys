@@ -1,5 +1,5 @@
 (begin
-    (input double in1 in2)
+    (input in1 in2)
     (define out (/ in1 in2))
     (observe out out))
 

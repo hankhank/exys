@@ -1,5 +1,5 @@
 (begin
-    (input double in1)
+    (input in1)
     (define out (fold + in1 (list 0 1 2 3)))
     (observe out out))
 

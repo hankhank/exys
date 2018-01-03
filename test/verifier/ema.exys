@@ -1,6 +1,6 @@
 (begin
 
-    (input double in gate)
+    (input in gate)
        
     (define ema
         (lambda (alpha gate signal)

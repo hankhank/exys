@@ -391,11 +391,6 @@ ProcNodeFactoryFunc Graph::LookupProcedure(const Cell& cell)
     return static_cast<ProcNodeFactory*>(node.get())->mFactory;
 }
 
-Node::Type Graph::InputType2Enum(const std::string& token)
-{
-    return Node::Type::TYPE_DOUBLE;
-}
-
 void Graph::DefineNode(const std::string& token, const Cell& exp)
 {
     auto parent = Build(exp);
@@ -407,7 +402,7 @@ void Graph::DefineNode(const std::string& token, Node::Ptr node)
     mVarNodes[token] = node;
 }
 
-void Graph::BuildInputList(Node::Ptr child, std::string token, std::deque<int> dims)
+void Graph::BuildInputList(Node::Ptr child, const std::string& token, std::deque<int> dims)
 {
     if(dims.size() == 0) return;
 
@@ -524,6 +519,12 @@ Node::Ptr Graph::Build(const Cell &cell)
             ret = loadVar;
         }
     }
+    else if(cell.type == Cell::Type::STRING)
+    {
+        auto cnode = BuildNode(KIND_STR);
+        cnode->mToken = cell.details.text;
+        ret = cnode;
+    }
     else if(cell.type == Cell::Type::NUMBER)
     {
         auto cnode = BuildNode(KIND_CONST);
@@ -550,8 +551,6 @@ Node::Ptr Graph::Build(const Cell &cell)
 
                 auto& varToken = cell.list[1].details.text;
                 auto& exp = cell.list[2];
-
-                // check whether its been defined in this scope
 
                 // Build parents and adopt their type
                 DefineNode(varToken, exp);
@@ -625,57 +624,75 @@ Node::Ptr Graph::Build(const Cell &cell)
             }
             else if(firstElem.details.text == "input")
             {
+                ValidateListLength(cell, 2);
+
+                // Add input node
+                for(auto iter = cell.list.begin()+1;
+                    iter != cell.list.end(); iter++)
+                {
+                    auto& token = iter->details.text;
+                    // check input hasn't already been declared
+                    auto inputNode = BuildNode(KIND_BIND);
+                    inputNode->mToken = token;
+                    inputNode->mInputLabels.push_back(token);
+                    inputNode->mIsInput = true;
+                    
+                    if(mVarNodes.find(token) != mVarNodes.end())
+                    {
+                        throw GraphBuildException("Input \"" + token + "\" overrides previously defined token", cell);
+                    }
+
+                    DefineNode(token, inputNode);
+                }
+            }
+            else if(firstElem.details.text == "input-list")
+            {
                 ValidateListLength(cell, 3);
 
-                // Check valid type
-                auto& inputTypeToken = cell.list[1].details.text;
-                if(inputTypeToken.compare("list") == 0)
+                // check input hasn't already been declared
+                auto& inputToken  = cell.list[1].details.text;
+                auto inputList = BuildNode(KIND_LIST);
+                inputList->mToken = inputToken;
+
+                DefineNode(inputToken, inputList);
+
+                // Add dimensions
+                std::deque<int> dims;
+                uint16_t length=1;
+                for(auto iter = cell.list.begin()+2;
+                    iter != cell.list.end(); iter++)
                 {
-                    //auto& listTypeToken = cell.list[2].details.text;
-                    //auto listType = InputType2Enum(inputTypeToken);
-
-                    // check input hasn't already been declared
-                    auto& inputToken  = cell.list[3].details.text;
-                    auto inputList = BuildNode(KIND_LIST);
-                    inputList->mToken = inputToken;
-
-                    DefineNode(inputToken, inputList);
-
-                    // Add dimensions
-                    std::deque<int> dims;
-                    uint16_t length=1;
-                    for(auto iter = cell.list.begin()+4;
-                        iter != cell.list.end(); iter++)
-                    {
-                        const auto dim = std::stoi(iter->details.text);
-                        dims.push_back(dim);
-                        length *= dim;
-                    }
-
-                    BuildInputList(inputList, inputToken, dims);
-                    LabelListRoot(inputList, inputToken, length, true);
-                    inputList->mIsInput = true;
+                    const auto dim = std::stoi(iter->details.text);
+                    dims.push_back(dim);
+                    length *= dim;
                 }
-                else
+
+                BuildInputList(inputList, inputToken, dims);
+                LabelListRoot(inputList, inputToken, length, true);
+                inputList->mIsInput = true;
+            }
+            else if(firstElem.details.text == "input-str")
+            {
+                ValidateListLength(cell, 3, 3);
+                
+                auto inputStr = Build(cell.list[1]);
+                auto token = cell.list[2].details.text;
+                if(inputStr->mKind != KIND_STR)
                 {
-                    //auto inputType = InputType2Enum(inputTypeToken);
-            
-                    // Add input node
-                    for(auto iter = cell.list.begin()+2;
-                        iter != cell.list.end(); iter++)
-                    {
-                        auto& inputToken = iter->details.text;
-
-                        // check input hasn't already been declared
-                        
-                        auto inputNode = BuildNode(KIND_BIND);
-                        inputNode->mToken = inputToken;
-                        inputNode->mInputLabels.push_back(inputToken);
-                        inputNode->mIsInput = true;
-
-                        DefineNode(inputToken, inputNode);
-                    }
+                    throw GraphBuildException("input-str expects a string as the first argument", cell);
                 }
+
+                auto inputNode = BuildNode(KIND_BIND);
+                inputNode->mToken = token;
+                inputNode->mInputLabels.push_back(inputStr->mToken);
+                inputNode->mIsInput = true;
+                
+                if(mVarNodes.find(token) != mVarNodes.end())
+                {
+                    throw GraphBuildException("Input \"" + token + "\" overrides previously defined token", cell);
+                }
+
+                DefineNode(token, inputNode);
             }
             else if(firstElem.details.text == "observe")
             {
@@ -743,6 +760,7 @@ std::string Graph::GetDOTGraph() const
         {
             default: break;
             case KIND_CONST:
+            case KIND_STR:
             case KIND_BIND:
             case KIND_VAR:
             case KIND_PROC:

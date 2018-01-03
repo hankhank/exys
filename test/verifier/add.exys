@@ -1,5 +1,6 @@
 (begin
-    (input double in1 in2 in3)
+    (input in1 in2 in3)
+
     (observe const (+ 1 10))
     (observe out1 (+ in1 in2))
     (observe out2 (+ in1 in2 in3))

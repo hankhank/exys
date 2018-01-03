@@ -1,8 +1,8 @@
 (begin
-    (input double naturalhalflife)
-    (input double gate)
-    (input double input)
-    (input double time)
+    (input naturalhalflife)
+    (input gate)
+    (input input)
+    (input time)
 
     (define latch
         (lambda (gate in)

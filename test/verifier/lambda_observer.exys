@@ -1,7 +1,7 @@
 (begin
     
-    (input list double input-list 5)
-    (input list double input-muldim-list 5 2)
+    (input-list input-list 5)
+    (input-list input-muldim-list 5 2)
 
     (define gen-list-to-observe
         (lambda (input-list)

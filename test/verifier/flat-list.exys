@@ -1,5 +1,5 @@
 (begin
-    (input list double testList 5)
+    (input-list testList 5)
     (observe out testList))
 
 (test test-1

@@ -16,10 +16,11 @@ std::list<TokenDetails> Tokenize(const std::string & str)
     std::list<TokenDetails> tokens;
 
     bool inComment = false;
+    bool inString = false;
 
     std::string tok;
     int lineNumber = 0;
-    int column = 0;
+    int column = -1;
     int startLineNumber = 0;
     int startColumn = 0;
 
@@ -34,21 +35,36 @@ std::list<TokenDetails> Tokenize(const std::string & str)
 
     for(auto s = str.begin(); s != str.end(); ++s)
     {
-        if(*s == ';')
+        ++column;
+        if(*s == '\\') // escape next char
+        {
+            ++s;
+        }
+        else if(*s == '"')
+        {
+            inString = !inString;
+        }
+        else if(inString)
+        {
+            // nop
+        }
+        else if(*s == ';')
         {
             inComment = true;
+            continue;
         }
         else if(*s == '\n')
         {
             trypushtoken();
             inComment = false;
             ++lineNumber;
-            column = 0;
+            column = -1;
             continue;
         }
         else if(inComment)
         {
             trypushtoken();
+            continue;
         }
         else if(*s == '(')
         {
@@ -57,6 +73,7 @@ std::list<TokenDetails> Tokenize(const std::string & str)
             startLineNumber = lineNumber;
             startColumn = column;
             trypushtoken();   
+            continue;
         }
         else if(*s == ')')
         {
@@ -65,21 +82,20 @@ std::list<TokenDetails> Tokenize(const std::string & str)
             startLineNumber = lineNumber;
             startColumn = column;
             trypushtoken();   
+            continue;
         }
         else if (iswspace(*s))
         {
             trypushtoken();   
+            continue;
         }
-        else
+
+        if(!tok.size())
         {
-            if(!tok.size())
-            {
-                startLineNumber = lineNumber;   
-                startColumn = column;   
-            }
-            tok.append(1, *s);
+            startLineNumber = lineNumber;   
+            startColumn = column;   
         }
-        ++column;
+        tok.append(1, *s);
     }
 
     return tokens;
@@ -96,6 +112,14 @@ Cell Atom(TokenDetails token)
     )
     {
         return Cell::Number(token);
+    }
+    else if (token.text.size() && token.text[0] == '"')
+    {
+        if(token.text[token.text.size()-1] != '"')
+        {
+            throw ParseException("Missing closing quote", token);
+        }
+        return Cell::String(token);
     }
     return Cell::Symbol(token);
 }

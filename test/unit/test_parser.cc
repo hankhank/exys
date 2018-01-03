@@ -37,7 +37,8 @@ std::list<std::string> GetOpenCloseParens()
 
 std::list<std::string> GetGeneralExample()
 {
-    return {"(", "begin", "(", "sum", "1", "2", "3", ")", "(", "reallllyyyylllonnngggnnnammeeE", ")", ")"};
+    return {"(", "begin", "(", "sum", "1", "2", "3", ")", "(", "reallllyyyylllonnngggnnnammeeE", ")", 
+            "(", "\"STRING\n\nSTRING STRING;STRING\"", ")", ")"};
 }
 
 std::pair<std::string, std::list<TokenDetails>> GenerateCompactTokenString(std::list<std::string> toks)
@@ -236,6 +237,35 @@ TEST(Tokenize, GeneralExample_Comments)
     RunTest(resultdata.first, resultdata.second);
 }
 
+TEST(Tokenize, StringExample)
+{   
+    std::string text = "(define teststr \"TEST\")";
+    std::vector<std::string> toks = {"(", "define", "teststr", "TEST", ")"};
+
+    auto details = Tokenize(text);
+    ASSERT_EQ(details.size(), toks.size());
+    int i = 0;
+    for(auto d : details)
+    {
+        ASSERT_EQ(d.text, toks[i++]);
+    }
+}
+
+
+TEST(Tokenize, StringExample_EscapedChar)
+{   
+    std::string text = "(define teststr \"TEST\\\"TEST\")";
+    std::vector<std::string> toks = {"(", "define", "teststr", "TEST\"TEST", ")"};
+
+    auto details = Tokenize(text);
+    ASSERT_EQ(details.size(), toks.size());
+    int i = 0;
+    for(auto d : details)
+    {
+        ASSERT_EQ(d.text, toks[i++]);
+    }
+}
+
 void CheckCellType(std::string tok, Cell::Type type)
 {
     TokenDetails d;
@@ -283,6 +313,13 @@ TEST(Atom, Floats)
     CheckCellType("-1.0", Cell::Type::NUMBER);
     CheckCellType("-1.00000", Cell::Type::NUMBER);
     CheckCellType("10000.00000", Cell::Type::NUMBER);
+    CheckCellType("INF", Cell::Type::NUMBER);
+    CheckCellType("NAN", Cell::Type::NUMBER);
+}
+
+TEST(Atom, Strings)
+{   
+    CheckCellType("\"ABC\"", Cell::Type::STRING);
 }
 
 TEST(ReadFromTokenDetails, empty)

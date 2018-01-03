@@ -1,5 +1,5 @@
 (begin
-    (input list double testList 5)
+    (input-list testList 5)
     ;(observe out (nth 0 testList))
     ;(observe out (car testList))
     

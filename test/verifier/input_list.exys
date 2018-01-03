@@ -1,8 +1,8 @@
 (begin
-    (input list double degen 1)
-    (input list double onedim 2)
-    (input list double twodim 2 2)
-    (input list double threedim 3 3 3)
+    (input-list degen 1)
+    (input-list onedim 2)
+    (input-list twodim 2 2)
+    (input-list threedim 3 3 3)
     (observe degen (car degen))
     (observe onedim (fold + 0 onedim))
     (define sum-fold (lambda (x) (fold + 0 x)))

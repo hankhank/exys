@@ -1,5 +1,5 @@
 (begin
-    (input double in)
+    (input in)
     (observe out (exp in)))
 
 (test test-1

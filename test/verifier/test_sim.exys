@@ -1,6 +1,6 @@
 (begin
-    (input double single)
-    (input list double simlist 5)
+    (input single)
+    (input-list simlist 5)
     (observe single single)
     (observe simlist simlist)
 

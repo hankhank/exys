@@ -1,7 +1,7 @@
 (begin
-    (input list double simlist 100)
-    (input list double triple 3)
-    (input double single)
+    (input-list simlist 100)
+    (input-list triple 3)
+    (input single)
     (observe single single)
     (observe tripleFirst (car triple))
 )
