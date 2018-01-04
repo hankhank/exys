@@ -149,7 +149,7 @@ private:
     Node::Ptr Apply(Node::Ptr node);
     Node::Ptr Append(Node::Ptr node);
     Node::Ptr Nth(Node::Ptr node);
-    Node::Ptr SimApply(Node::Ptr node);
+    Node::Ptr Format(Node::Ptr node);
 
     template<typename T=Node, typename... Args>
     std::shared_ptr<T> BuildNode(Args... as);

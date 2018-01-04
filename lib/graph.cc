@@ -279,6 +279,53 @@ Node::Ptr Graph::Nth(Node::Ptr node)
     return nullptr;
 }
 
+Node::Ptr Graph::Format(Node::Ptr node)
+{
+    auto formatargs = node->mParents;
+
+    if(formatargs[0]->mKind != Node::Kind::KIND_STR)
+    {
+        throw GraphBuildException("First argument to concat needs to be a string", Cell());
+    }
+
+    auto formatstr = formatargs[0]->mToken;
+    std::string str;
+    int i = 1;
+
+    for(auto s = formatstr.begin(); s != formatstr.end(); ++s)
+    {
+        if(*s == '%') // print arg
+        {
+            if(i > formatargs.size())
+            {
+                std::stringstream err;
+                err << "Not enough arguments for Format. Got " << formatargs.size() <<
+                    " Expected " << i;
+                throw GraphBuildException(err.str(), Cell());
+            }
+            auto arg = formatargs[i];
+            if((arg->mKind != Node::Kind::KIND_STR) && (arg->mKind != Node::Kind::KIND_CONST))
+            {
+                std::stringstream err;
+                err << "Incorrect argument " << i << " type for 'Format'."
+                    " Got " << arg->mKind << ". Constant or String";
+                throw GraphBuildException(err.str(), Cell());
+            }
+            str += arg->mToken;
+            ++i;
+        }
+        else
+        {
+            str.append(1, *s);
+        }
+    }
+
+    auto fstr = BuildNode(KIND_STR);
+    fstr->mToken = str;
+
+    return fstr;
+}
+
 #define WRAP(__FUNC) \
     [this](Node::Ptr ptr) -> Node::Ptr{return this->__FUNC(ptr);}
 
@@ -299,6 +346,7 @@ Graph::Graph(Graph* parent)
     AddProcFactory("apply",     WRAP(Apply));
     AddProcFactory("append",    WRAP(Append));
     AddProcFactory("nth",       WRAP(Nth));
+    AddProcFactory("format",    WRAP(Format));
 }
 
 Graph::Graph(std::vector<Node::Ptr> nodes)
