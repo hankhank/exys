@@ -1,0 +1,30 @@
+(begin
+    (input-str (format "noargs") noargs)
+    (input-str (format "oneargs_%.0f" 1) oneargs)
+
+    (define concat (lambda (str1 str2) (format "%s%s" str1 str2)))
+    (define join 
+        (lambda (init strList) 
+            (fold (lambda (str1 str2) (format "%s%s" str1 str2)) init strList)))
+
+    (input-str (concat "hello" "world") helloworld)
+    (input-str (join "start_" (map (lambda (x) (format "%.0f" x)) (iota 5 1 1))) start_12345)
+
+    (observe noargsOut (+ noargs 1))
+    (observe oneargsOut (+ oneargs 1))
+    (observe helloworld (+ helloworld 1))
+    (observe start_12345 (+ start_12345 1))
+)
+
+(test basic
+    (dump-inputs)
+    (inject "noargs" 1)
+    (inject "oneargs_1" 2)
+    (inject "helloworld" 4)
+    (inject "start_12345" 5)
+    (stabilize)
+    (expect noargsOut 2)
+    (expect oneargsOut 3)
+    (expect helloworld 5)
+    (expect start_12345 6)
+)

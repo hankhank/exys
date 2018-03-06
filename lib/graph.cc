@@ -279,6 +279,13 @@ Node::Ptr Graph::Nth(Node::Ptr node)
     return nullptr;
 }
 
+// Printf functionality
+// %[flags][width][.precision][length]specifier
+const char* flags = "-+0 #";
+const char* widthPrec = "0123456789.,*";
+const char* modifiers = "hlLzjt";
+const char* types = "diufFeEgGxXaAoscpn";
+
 Node::Ptr Graph::Format(Node::Ptr node)
 {
     auto formatargs = node->mParents;
@@ -303,6 +310,7 @@ Node::Ptr Graph::Format(Node::Ptr node)
                     " Expected " << i;
                 throw GraphBuildException(err.str(), Cell());
             }
+
             auto arg = formatargs[i];
             if((arg->mKind != Node::Kind::KIND_STR) && (arg->mKind != Node::Kind::KIND_CONST))
             {
@@ -311,7 +319,30 @@ Node::Ptr Graph::Format(Node::Ptr node)
                     " Got " << arg->mKind << ". Constant or String";
                 throw GraphBuildException(err.str(), Cell());
             }
-            str += arg->mToken;
+
+            auto offset = s - formatstr.begin();
+            auto after = formatstr.find_first_of(types, offset);
+            char formatchr = formatstr[after];
+            if((formatchr != 'f') && (formatchr != 's'))
+            {
+                std::stringstream err;
+                err << "Only %f and %s formatters are supported";
+                throw GraphBuildException(err.str(), Cell());
+            }
+
+            char buf[512];
+            if(formatchr == 'f')
+            {
+                snprintf(buf, sizeof(buf) / sizeof(buf[0]), 
+                        formatstr.substr(offset, after-offset+1).c_str(), std::stod(arg->mToken));
+            } 
+            else if (formatchr == 's')
+            {
+                snprintf(buf, sizeof(buf) / sizeof(buf[0]), 
+                        formatstr.substr(offset, after-offset+1).c_str(), arg->mToken.c_str());
+            }
+            str += buf;
+            s += after - offset;
             ++i;
         }
         else
