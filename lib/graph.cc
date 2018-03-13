@@ -828,61 +828,35 @@ std::string NodeToDotLabel(Node::Ptr node)
 
 std::string Graph::GetDOTGraph() const
 {
-    std::set<Node::Ptr> nodes;
+    auto nodeLayout = GetLayout();
 
     int i = 0;
     std::string ret = "{\n";
-    for(auto nodeptr : mAllNodes)
+    for(auto& nodeptr : nodeLayout)
     {
-        nodes.insert(nodeptr);
-        switch(nodeptr->mKind)
+        auto childLabel = NodeToPtrString(nodeptr);
+        for(auto parent : nodeptr->mParents)
         {
-            default: break;
-            case KIND_CONST:
-            case KIND_STR:
-            case KIND_BIND:
-            case KIND_VAR:
-            case KIND_PROC:
-            {
-                auto childLabel = NodeToPtrString(nodeptr);
-                for(auto parent : nodeptr->mParents)
-                {
-                    nodes.insert(parent);
-                    ret += NodeToPtrString(parent) + " -> " 
-                        + childLabel + "\n";
-                }
-            }
-            break;
+            ret += NodeToPtrString(parent) + " -> " 
+                + childLabel + "\n";
         }
         if(nodeptr->mIsObserver)
         {
             for(const auto& label : nodeptr->mObserverLabels)
             {
-                ret += NodeToPtrString(nodeptr) + " -> " 
-
+                ret += childLabel + " -> " 
                     + std::to_string(i) + "\n" 
-                    + std::to_string(i) + " [label=" + label
-                    + "]\n";
+                    + std::to_string(i) + " [label=\"" + label
+                    + "\"]\n";
             }
             ++i;
         }
-    }
-
-    for(auto nodeptr : nodes)
-    {
-        switch(nodeptr->mKind)
-        {
-            default: break;
-            case KIND_GRAPH:
-            case KIND_CONST:
-            case KIND_VAR:
-            case KIND_BIND:
-            case KIND_PROC:
-            ret += NodeToDotLabel(nodeptr) + "\n"; break;
-        }
+        ret += NodeToDotLabel(nodeptr) + "\n";
     }
 
     ret += "}";
+
+    std::cout << ret << "\n";
     return ret;
 }
 
