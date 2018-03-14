@@ -3,11 +3,10 @@
 #include <sstream>
 #include <set>
 #include <algorithm>
+#include <iostream>
 
 #include "graph.h"
 #include "helpers.h"
-
-// imports
 
 namespace Exys
 {
@@ -791,12 +790,29 @@ Node::Ptr Graph::Build(const Cell &cell)
                 LabelObserver(varNode, outputToken);
                 LabelListRoot(varNode, outputToken, GetListLength(varNode), false);
                 varNode->mIsObserver = true;
-                if(std::find(mAllNodes.begin(), mAllNodes.end(), varNode) == mAllNodes.end())
+            }
+            else if(firstElem.details.text == "observe-str")
+            {
+                ValidateListLength(cell, 3);
+
+                // Add check that token already exists
+                // Add check that we aren't already ouputing to this observer
+                auto& varToken = cell.list[2];
+                auto outputStr = Build(cell.list[1]);
+                if(outputStr->mKind != KIND_STR)
                 {
-                    // If node belongs to a sub graph we need to add it to our 
-                    // list of nodes to ensure we can find it later for layouts
-                    mAllNodes.push_back(varNode);
+                    throw GraphBuildException("observe-str expects a string as the first argument", cell);
                 }
+
+                // Register Observer
+                auto varNode = Build(varToken);
+                if(!varNode)
+                {
+                    throw GraphBuildException("Node isn't observerable", cell);
+                }
+                LabelObserver(varNode, outputStr->mToken);
+                LabelListRoot(varNode, outputStr->mToken, GetListLength(varNode), false);
+                varNode->mIsObserver = true;
             }
             else // procedure call
             {
@@ -855,8 +871,8 @@ std::string Graph::GetDOTGraph() const
     }
 
     ret += "}";
-
-    std::cout << ret << "\n";
+    
+    std::cout << ret;
     return ret;
 }
 
@@ -884,30 +900,51 @@ void CollectListMembers(Node::Ptr node, std::vector<Node::Ptr>& nodes)
     }
 }
 
+void Graph::CollectForceKeep(Node::Ptr node, std::vector<Node::Ptr>& nodes) const
+{
+    if(node->mKind == Node::KIND_GRAPH)
+    {
+        auto g = static_cast<Graph*>(node.get());
+        for(auto n : g->mAllNodes)
+        {
+            CollectForceKeep(n, nodes);
+        }
+    }
+    else if(node->mForceKeep)
+    {
+        CollectListMembers(node, nodes);
+    }
+}
+
+void Graph::CollectObservers(Node::Ptr node, std::vector<std::vector<Node::Ptr>>& observers) const
+{
+    if(node->mKind == Node::KIND_GRAPH)
+    {
+        auto g = static_cast<Graph*>(node.get());
+        for(auto n : g->mAllNodes)
+        {
+            CollectObservers(n, observers);
+        }
+    }
+    else if(node->mIsObserver)
+    {
+        std::vector<Node::Ptr> nodes;
+        CollectListMembers(node, nodes);
+        observers.push_back(nodes);
+    }
+}
+
 std::vector<Node::Ptr> Graph::GetLayout() const
 {
     std::vector<Node::Ptr> layout;
 
-    // Collect observers including one level deep for list members
+    // Find end points of DAG - observers and forcekeeps
     std::vector<std::vector<Node::Ptr>> observers;
     std::vector<Node::Ptr> forceKeep;
     for(const auto an : mAllNodes)
     {
-        if(an->mIsObserver)
-        {
-            std::vector<Node::Ptr> nodes;
-            CollectListMembers(an, nodes);
-            observers.push_back(nodes);
-        }
-        else if(an->mForceKeep)
-        {
-            CollectListMembers(an, forceKeep);
-        }
-        else if(an->mKind == KIND_GRAPH)
-        {
-            auto g = static_cast<Graph*>(an.get());
-            for(auto fk : g->GetForceKeep()) forceKeep.push_back(fk);
-        }
+        CollectObservers(an, observers);
+        CollectForceKeep(an, forceKeep);
     }
     
     // Find the necessary nodes - nodes connected to an observer or forcekeep
@@ -961,6 +998,7 @@ std::vector<Node::Ptr> Graph::GetLayout() const
     {
         for(auto node : oi)
         {
+            uint64_t initObserverOffset = observerOffset;
             if((oi.size() > 1) || node->mIsInput)
             {
                 auto nodeCopy = std::make_shared<Node>(Node::KIND_PROC);
@@ -975,7 +1013,9 @@ std::vector<Node::Ptr> Graph::GetLayout() const
                 layout.push_back(nodeCopy);
                 
                 // No longer an observer
-                node->mIsObserver = false; 
+                //node->mIsObserver = false; 
+                node->mOffset = initObserverOffset;
+                //layout.erase(std::find(layout.begin(), layout.end(), node));
             }
             else
             {
@@ -1178,19 +1218,6 @@ std::string Graph::GetSimApplyTarget() const
 
     assert(simnodes.size()==1 && "Split out simapplys into own graph before getting the layout");
     return std::static_pointer_cast<Node>(simnodes[0]->mParents[0])->mToken;
-}
-
-std::vector<Node::Ptr> Graph::GetForceKeep() const
-{
-    std::vector<Node::Ptr> forceKeep;
-    for(const auto an : mAllNodes)
-    {
-        if(an->mForceKeep)
-        {
-            forceKeep.push_back(an);
-        }
-    }
-    return forceKeep;
 }
 
 GraphBuildException::GraphBuildException(const std::string& error, Cell cell)

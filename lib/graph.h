@@ -37,7 +37,10 @@ public:
     Node(Kind k) : mKind(k) {}
     virtual ~Node() {}
 
-    const std::string& Label() {return mToken;}
+    const std::string& Label() 
+    {
+        return mToken;
+    }
 
     Kind mKind=KIND_UNKNOWN;
 
@@ -111,7 +114,6 @@ public:
     std::string GetDOTGraph() const;
     std::vector<Node::Ptr> GetLayout() const;
     std::vector<Node::Ptr> GetSimApplyLayout() const;
-    std::vector<Node::Ptr> GetForceKeep() const;
 
     std::string GetSimApplyTarget() const;
 
@@ -135,6 +137,8 @@ private:
     Node::Ptr BuildForProcedure(const Cell& token);
     void BuildInputList(Node::Ptr child, const std::string& token, std::deque<int> dims);
     void LabelListRoot(Node::Ptr node, std::string label, uint16_t length, bool inputLabel);
+    void CollectObservers(Node::Ptr node, std::vector<std::vector<Node::Ptr>>& observers) const;
+    void CollectForceKeep(Node::Ptr node, std::vector<Node::Ptr>& nodes) const;
     
     // Graph manipulation functions
     Node::Ptr Map(Node::Ptr node);

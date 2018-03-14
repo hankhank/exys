@@ -209,21 +209,21 @@ static size_t FindNodeOffset(const std::vector<Node::Ptr>& nodes, Node::Ptr node
 
 void Interpreter::CompleteBuild()
 {
-    auto nodeLayout = mGraph->GetLayout();
+    const auto nodeLayout = mGraph->GetLayout();
 
     // For cache niceness
     mInterPointGraph.resize(nodeLayout.size());
     mPoints.resize(nodeLayout.size());
 
     // Finish adding bulk of logic
-    for(auto node : nodeLayout)
+    for(const auto& node : nodeLayout)
     {
         size_t offset = FindNodeOffset(nodeLayout, node);
         auto& point = mInterPointGraph[offset];
 
         point.mHeight = node->mHeight;
 
-        for(auto pnode : node->mParents)
+        for(const auto& pnode : node->mParents)
         {
             auto& parent = mInterPointGraph[FindNodeOffset(nodeLayout, pnode)];
             point.mParents.push_back(&parent);
@@ -233,7 +233,6 @@ void Interpreter::CompleteBuild()
         point.mComputeFunction = LookupComputeFunction(node);
         point.mPoint = &mPoints[offset];
 
-        std::unordered_map<Node::Ptr, std::string>::iterator ob;
         if(node->mKind == Node::KIND_CONST)
         {
             *point.mPoint = std::stod(node->mToken);

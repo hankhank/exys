@@ -17,7 +17,6 @@
 )
 
 (test basic
-    (dump-inputs)
     (inject "noargs" 1)
     (inject "oneargs_1" 2)
     (inject "helloworld" 4)
