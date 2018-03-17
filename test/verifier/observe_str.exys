@@ -1,0 +1,9 @@
+(begin
+    (input in1)
+    (observe "out1" (+ in1 1))
+)
+
+(test basic
+    (inject in1 1)
+    (stabilize)
+    (expect out1 2))
