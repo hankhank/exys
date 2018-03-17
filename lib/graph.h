@@ -55,7 +55,8 @@ public:
     
     // For use in later stages
     uint64_t mHeight = 0;
-    uint64_t mOffset = 0;
+    int64_t mInputOffset = -1;
+    int64_t mObserverOffset = -1;
     double mInitValue = 0.0;
 
     bool operator<(const Node& rhs) const
@@ -125,9 +126,6 @@ private:
     void DefineNode(const std::string& token, const Cell& cell);
     void DefineNode(const std::string& token, Node::Ptr node);
 
-    template<typename T>
-    void RemoveNodes(T& nodes);
-
     Node::Ptr Build(const Cell& cell);
     ProcNodeFactoryFunc DefaultFactory(const Procedure& procedure);
     void AddProcFactory(const std::string id, ProcNodeFactoryFunc factory);
@@ -137,6 +135,7 @@ private:
     Node::Ptr BuildForProcedure(const Cell& token);
     void BuildInputList(Node::Ptr child, const std::string& token, std::deque<int> dims);
     void LabelListRoot(Node::Ptr node, std::string label, uint16_t length, bool inputLabel);
+    void CollectInputs(Node::Ptr node, std::vector<Node::Ptr>& inputs) const;
     void CollectObservers(Node::Ptr node, std::vector<std::vector<Node::Ptr>>& observers) const;
     void CollectForceKeep(Node::Ptr node, std::vector<Node::Ptr>& nodes) const;
     

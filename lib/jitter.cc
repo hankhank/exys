@@ -318,7 +318,6 @@ llvm::Value* Jitter::JitNode(llvm::Module* M, llvm::IRBuilder<>&  builder,
     llvm::Value* ret = nullptr;
     llvm::Value* valIndex   = llvm::ConstantInt::get(llvm::Type::getInt32Ty(*mLlvmContext), 0);
     llvm::Value* dirtyIndex = llvm::ConstantInt::get(llvm::Type::getInt32Ty(*mLlvmContext), 2); 
-    llvm::Value* nodeOffset = llvm::ConstantInt::get(llvm::Type::getInt32Ty(*mLlvmContext), jp.mNode->mOffset);
 
     llvm::Value* dirtyFlag = llvm::ConstantInt::get(llvm::Type::getInt8Ty(*mLlvmContext), 1);
 
@@ -332,9 +331,10 @@ llvm::Value* Jitter::JitNode(llvm::Module* M, llvm::IRBuilder<>&  builder,
             std::make_pair(mNumStatePtr, jp.mNode->mInitValue));
         ret = JitGV(M, builder);
     }
-    else if(jp.mNode->mIsInput)
+    else if(jp.mNode->mInputOffset >= 0)
     {
         std::vector<llvm::Value*> gepIndex;
+        llvm::Value* nodeOffset = llvm::ConstantInt::get(llvm::Type::getInt32Ty(*mLlvmContext), jp.mNode->mInputOffset);
         gepIndex.push_back(nodeOffset);
         gepIndex.push_back(valIndex);
         llvm::Value* point = builder.CreateGEP(inputs, gepIndex);
@@ -354,7 +354,7 @@ llvm::Value* Jitter::JitNode(llvm::Module* M, llvm::IRBuilder<>&  builder,
 
     assert(ret);
 
-    if(jp.mNode->mIsObserver)
+    if(jp.mNode->mObserverOffset >= 0)
     {
         if(ret->getType() != builder.getDoubleTy())
         {
@@ -362,6 +362,7 @@ llvm::Value* Jitter::JitNode(llvm::Module* M, llvm::IRBuilder<>&  builder,
         }
 
         std::vector<llvm::Value*> gepIndex;
+        llvm::Value* nodeOffset = llvm::ConstantInt::get(llvm::Type::getInt32Ty(*mLlvmContext), jp.mNode->mObserverOffset);
         gepIndex.push_back(nodeOffset);
         gepIndex.push_back(valIndex);
         llvm::Value* observer = builder.CreateGEP(observers, gepIndex);
@@ -464,11 +465,11 @@ std::unique_ptr<llvm::Module> Jitter::BuildModule()
     // Record inputs and outputs
     for(auto node : nodeLayout)
     {
-        if(node->mIsInput)
+        if(node->mInputOffset >= 0)
         {
             mInputs.push_back(node);
         }
-        if(node->mIsObserver)
+        if(node->mObserverOffset >= 0)
         {
             mObservers.push_back(node);
         }

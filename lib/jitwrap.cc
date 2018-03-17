@@ -82,16 +82,16 @@ void JitWrap::BuildJitEngine(std::unique_ptr<llvm::Module> module)
     // Setup memory
     const auto& inputDesc = mJitter->GetInputDesc();
     const auto& observerDesc = mJitter->GetObserverDesc();
-    mPoints.resize(inputDesc.size() + observerDesc.size() + 1);
+    mPoints.resize(inputDesc.size() + observerDesc.size());
     mState.resize(mJitter->GetStateSpaceSize());
 
     for(const auto& id : inputDesc)
     {
         for(const auto& label : id->mInputLabels)
         {
-            assert(id->mOffset < inputDesc.size());
-            mInputOffsets[label] = id->mOffset;
-            auto& ip = mPoints[id->mOffset];
+            assert(id->mInputOffset < inputDesc.size());
+            mInputOffsets[label] = id->mInputOffset;
+            auto& ip = mPoints[id->mInputOffset];
             ip.mLength = id->mLength;
         }
     }
@@ -99,10 +99,10 @@ void JitWrap::BuildJitEngine(std::unique_ptr<llvm::Module> module)
     {
         for(const auto& label : od->mObserverLabels)
         {
-            int obOffset = inputDesc.size()+1+od->mOffset;
+            int obOffset = inputDesc.size()+od->mObserverOffset;
             assert(obOffset < mPoints.size());
             mObserverOffsets[label] = obOffset;
-            auto& op = mPoints[inputDesc.size()+1+od->mOffset];
+            auto& op = mPoints[obOffset];
             op.mLength = od->mLength;
         }
     }
@@ -116,7 +116,7 @@ void JitWrap::BuildJitEngine(std::unique_ptr<llvm::Module> module)
 void JitWrap::SetPointPtrs()
 {
     mInputPtr = &mPoints.front();
-    mObserverPtr = &mPoints.front() + mInputSize + 1;
+    mObserverPtr = &mPoints.front() + mInputSize;
 }
 
 void JitWrap::CompleteBuild()

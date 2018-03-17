@@ -1,0 +1,17 @@
+(begin
+    (define make-input-output 
+        (lambda (name) 
+            (begin
+                (input-str name in)
+                (observe-str name in))))
+    (make-input-output "pair20")
+    (make-input-output "pair2")
+)
+
+(test test-1
+    (inject pair20 100)
+    (inject pair2 2)
+    (stabilize)
+    (expect pair20 100)
+    (expect pair2 2)
+)

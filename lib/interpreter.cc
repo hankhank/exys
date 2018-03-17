@@ -242,7 +242,7 @@ void Interpreter::CompleteBuild()
             *point.mPoint = node->mInitValue;
         }
 
-        if(node->mIsInput)
+        if(node->mInputOffset >= 0)
         {
             for(const auto& label : node->mInputLabels)
             {
@@ -250,7 +250,7 @@ void Interpreter::CompleteBuild()
             }
             point.mPoint->mLength = node->mLength;
         }
-        if(node->mIsObserver)
+        if(node->mObserverOffset >= 0)
         {
             for(const auto& label : node->mObserverLabels)
             {

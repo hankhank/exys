@@ -1,0 +1,60 @@
+(begin
+    (input val)
+    (input gate)
+    (define flip-flop
+        (lambda (gate var)
+            (begin
+                (defvar val 0)
+                (define ret val)
+                (set! val (? gate var ret))
+                ret)))
+    (define value-store
+        (lambda (size gate val)
+            (map 
+                (lambda (x) 
+                    (begin
+                        (set! val (flip-flop gate val))
+                        val))
+                (iota size 0 1))))
+
+    (observe minval (apply min (value-store 3 gate val)))
+    (observe maxval (apply max (value-store 3 gate val)))
+)
+
+(test test-1
+    (inject gate 1)
+    (inject val 1)
+    (stabilize)
+    (expect minval 0)
+
+    ; 1
+    (inject gate 2)
+    (stabilize)
+    (expect minval 0)
+    ; 2
+    (inject gate 3)
+    (stabilize)
+    (expect minval 0)
+    ; 3
+    (inject gate 4)
+    (stabilize)
+    (expect minval 1)
+
+    ; 4
+    (inject val 0)
+    (inject gate 5)
+    (stabilize)
+    (expect maxval 1)
+    ; 5
+    (inject gate 6)
+    (stabilize)
+    (expect maxval 1)
+    ; 6
+    (inject gate 7)
+    (stabilize)
+    (expect maxval 1)
+    ; 7
+    (inject gate 8)
+    (stabilize)
+    (expect maxval 0)
+)

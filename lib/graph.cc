@@ -916,6 +916,22 @@ void Graph::CollectForceKeep(Node::Ptr node, std::vector<Node::Ptr>& nodes) cons
     }
 }
 
+void Graph::CollectInputs(Node::Ptr node, std::vector<Node::Ptr>& inputs) const
+{
+    if(node->mKind == Node::KIND_GRAPH)
+    {
+        auto g = static_cast<Graph*>(node.get());
+        for(auto n : g->mAllNodes)
+        {
+            CollectInputs(n, inputs);
+        }
+    }
+    else if(node->mIsInput)
+    {
+        CollectListMembers(node, inputs);
+    }
+}
+
 void Graph::CollectObservers(Node::Ptr node, std::vector<std::vector<Node::Ptr>>& observers) const
 {
     if(node->mKind == Node::KIND_GRAPH)
@@ -934,6 +950,9 @@ void Graph::CollectObservers(Node::Ptr node, std::vector<std::vector<Node::Ptr>>
     }
 }
 
+// We try not to update any properties of the nodes
+// in this function but if we do it has to be repeatable 
+// re. offsets
 std::vector<Node::Ptr> Graph::GetLayout() const
 {
     std::vector<Node::Ptr> layout;
@@ -941,10 +960,12 @@ std::vector<Node::Ptr> Graph::GetLayout() const
     // Find end points of DAG - observers and forcekeeps
     std::vector<std::vector<Node::Ptr>> observers;
     std::vector<Node::Ptr> forceKeep;
+    std::vector<Node::Ptr> inputs;
     for(const auto an : mAllNodes)
     {
-        CollectObservers(an, observers);
+        CollectInputs(an, inputs);
         CollectForceKeep(an, forceKeep);
+        CollectObservers(an, observers);
     }
     
     // Find the necessary nodes - nodes connected to an observer or forcekeep
@@ -964,19 +985,12 @@ std::vector<Node::Ptr> Graph::GetLayout() const
         TraverseNodes(fk, height, necessaryNodes);
     }
 
-    // Flatten collected nodes into continous block
-    // Step 1 - Add inputs
-    std::vector<Node::Ptr> inputs;
-    for(auto an : mAllNodes)
-    {
-        if(an->mIsInput) CollectListMembers(an, inputs);
-    }
-
+    // Step 1 - Add inputs to layout
     uint64_t inputOffset = 0;
     for(auto in : inputs)
     {
         in->mIsInput = true;
-        in->mOffset = inputOffset++;
+        in->mInputOffset = inputOffset++;
         layout.push_back(in);
     }
 
@@ -992,13 +1006,12 @@ std::vector<Node::Ptr> Graph::GetLayout() const
         layout.push_back(n);
     }
 
-    // Step 4 - Add observer flag and if list add copies
+    // Step 4 - Add observer offset and if list or observing input add copies
     uint64_t observerOffset = 0;
     for(auto oi : observers)
     {
         for(auto node : oi)
         {
-            uint64_t initObserverOffset = observerOffset;
             if((oi.size() > 1) || node->mIsInput)
             {
                 auto nodeCopy = std::make_shared<Node>(Node::KIND_PROC);
@@ -1008,77 +1021,27 @@ std::vector<Node::Ptr> Graph::GetLayout() const
                 nodeCopy->mObserverLabels = node->mObserverLabels;
                 nodeCopy->mInputLabels = node->mInputLabels;
                 nodeCopy->mLength = node->mLength;
-                nodeCopy->mOffset = observerOffset++;
+                nodeCopy->mObserverOffset = observerOffset++;
                 nodeCopy->mParents.push_back(node);
                 layout.push_back(nodeCopy);
-                
-                // No longer an observer
-                //node->mIsObserver = false; 
-                node->mOffset = initObserverOffset;
-                //layout.erase(std::find(layout.begin(), layout.end(), node));
             }
             else
             {
-                node->mIsObserver = true;
-                node->mOffset = observerOffset++;
+                node->mObserverOffset = observerOffset++;
             }
         }
     }
     return layout;
 }
 
-template<typename T>
-void Graph::RemoveNodes(T& nodes)
-{
-    std::unordered_map<Node::Ptr, int> useCount;
-    for(auto n : nodes)
-    {
-        useCount[n] = 0;
-    }
-
-    for(auto n : mAllNodes)
-    {
-        for(auto np : n->mParents) 
-        {
-            auto count = useCount.find(np);
-            if(count != useCount.end()) useCount[np] += 1;
-        }
-    }
-
-    mAllNodes.erase(std::remove_if(mAllNodes.begin(), mAllNodes.end(), 
-                [&useCount] (Node::Ptr n) 
-                { 
-                    auto c = useCount.find(n);
-                    if(c == useCount.end())
-                    {
-                        return false;
-                    }
-                    return (!n->mIsInput && (c->second == 1));
-                    }), 
-            mAllNodes.end());
-}
-
-void CollectParentsNoInputs(Node::Ptr node, std::set<Node::Ptr>& nodes)
-{
-    for(auto parent : node->mParents)
-    {
-        if(!parent->mIsInput)
-        {
-            nodes.insert(parent);
-            CollectParentsNoInputs(parent, nodes);
-        }
-    }
-}
-
 std::vector<std::unique_ptr<Graph>> Graph::SplitOutBy(Node::Kind kind, const std::string& token)
 {
     std::vector<std::unique_ptr<Graph>> graphs;
-    std::set<Node::Ptr> nodes;
 
     std::vector<Node::Ptr> inputs;
     for(auto an : mAllNodes)
     {
-        if(an->mIsInput) CollectListMembers(an, inputs);
+        CollectInputs(an, inputs);
     }
 
     for(auto n : mAllNodes)
@@ -1089,17 +1052,9 @@ std::vector<std::unique_ptr<Graph>> Graph::SplitOutBy(Node::Kind kind, const std
             graphNodes.insert(graphNodes.end(), inputs.begin(), inputs.end());
             graphNodes.push_back(n);
 
-            std::set<Node::Ptr> simParents;
-            CollectParentsNoInputs(n, simParents);
-
-            graphNodes.insert(graphNodes.end(), simParents.begin(), simParents.end());
-
             graphs.emplace_back(new Graph(graphNodes));
-
-            nodes.insert(graphNodes.begin(), graphNodes.end());
         }
     }
-    RemoveNodes(nodes);
     return graphs;
 }
 
@@ -1115,14 +1070,14 @@ std::vector<Node::Ptr> Graph::GetSimApplyLayout() const
 { 
     // Flatten collected nodes into continous block
     // Step 1 - Add inputs
-    uint64_t maxOffset = 0;
-    for(auto an : mAllNodes)
+    auto nodeLayout = GetLayout();
+    int64_t maxOffset = 0;
+    for(auto an : nodeLayout)
     {
-        if(an->mIsInput) maxOffset = std::max(an->mOffset, maxOffset);
+        maxOffset = std::max(an->mInputOffset, maxOffset);
     }
 
     std::vector<Node::Ptr> simnodes;
-
     for(auto n : mAllNodes)
     {
         if((n->mKind == Node::KIND_PROC) && (n->mToken.compare("sim-apply") == 0))
@@ -1146,7 +1101,7 @@ std::vector<Node::Ptr> Graph::GetSimApplyLayout() const
         doneFlag->mHeight = 0;
         doneFlag->mToken = doneFlag->mToken;
         doneFlag->mInputLabels.push_back("sim-done");
-        doneFlag->mOffset = maxOffset+1; // Want it to be last
+        doneFlag->mObserverOffset = maxOffset+1; // Want it to be last
         expandedSimApply.push_back(doneFlag);
 
         if(target->mKind == KIND_LIST)
@@ -1167,7 +1122,7 @@ std::vector<Node::Ptr> Graph::GetSimApplyLayout() const
                 simapply->mHeight = 0;
                 simapply->mToken = "sim-apply";
                 simapply->mObserverLabels = simListNodes[i]->mInputLabels;
-                simapply->mOffset = simListNodes[i]->mOffset;
+                simapply->mObserverOffset = simListNodes[i]->mInputOffset;
                 simapply->mLength = 1;
                 simapply->mParents.push_back(overwriteNodes[i]);
                 expandedSimApply.push_back(simapply);
@@ -1179,7 +1134,7 @@ std::vector<Node::Ptr> Graph::GetSimApplyLayout() const
             n->mHeight = 0;
             n->mToken = "sim-apply";
             n->mObserverLabels = target->mInputLabels;
-            n->mOffset = target->mOffset;
+            n->mObserverOffset = target->mInputOffset;
             n->mLength = 1;
             n->mParents.clear();
             n->mParents.push_back(overwrite);
