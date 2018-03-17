@@ -702,26 +702,32 @@ Node::Ptr Graph::Build(const Cell &cell)
             }
             else if(firstElem.details.text == "input")
             {
-                ValidateListLength(cell, 2);
-
-                // Add input node
-                for(auto iter = cell.list.begin()+1;
-                    iter != cell.list.end(); iter++)
+                ValidateListLength(cell, 2, 3);
+                
+                std::string token = cell.list[1].details.text;
+                std::string label = token;
+                if(cell.list.size() == 3)
                 {
-                    auto& token = iter->details.text;
-                    // check input hasn't already been declared
-                    auto inputNode = BuildNode(KIND_BIND);
-                    inputNode->mToken = token;
-                    inputNode->mInputLabels.push_back(token);
-                    inputNode->mIsInput = true;
-                    
-                    if(mVarNodes.find(token) != mVarNodes.end())
+                    auto inputStr = Build(cell.list[1]);
+                    if(inputStr->mKind != KIND_STR)
                     {
-                        throw GraphBuildException("Input \"" + token + "\" overrides previously defined token", cell);
+                        throw GraphBuildException("input-str expects a string as the first argument", cell);
                     }
-
-                    DefineNode(token, inputNode);
+                    label = inputStr->mToken;
+                    token = cell.list[2].details.text;
                 }
+
+                auto inputNode = BuildNode(KIND_BIND);
+                inputNode->mToken = token;
+                inputNode->mInputLabels.push_back(label);
+                inputNode->mIsInput = true;
+                
+                if(mVarNodes.find(token) != mVarNodes.end())
+                {
+                    throw GraphBuildException("Input \"" + token + "\" overrides previously defined token", cell);
+                }
+
+                DefineNode(token, inputNode);
             }
             else if(firstElem.details.text == "input-list")
             {
@@ -748,29 +754,6 @@ Node::Ptr Graph::Build(const Cell &cell)
                 BuildInputList(inputList, inputToken, dims);
                 LabelListRoot(inputList, inputToken, length, true);
                 inputList->mIsInput = true;
-            }
-            else if(firstElem.details.text == "input-str")
-            {
-                ValidateListLength(cell, 3, 3);
-                
-                auto inputStr = Build(cell.list[1]);
-                auto token = cell.list[2].details.text;
-                if(inputStr->mKind != KIND_STR)
-                {
-                    throw GraphBuildException("input-str expects a string as the first argument", cell);
-                }
-
-                auto inputNode = BuildNode(KIND_BIND);
-                inputNode->mToken = token;
-                inputNode->mInputLabels.push_back(inputStr->mToken);
-                inputNode->mIsInput = true;
-                
-                if(mVarNodes.find(token) != mVarNodes.end())
-                {
-                    throw GraphBuildException("Input \"" + token + "\" overrides previously defined token", cell);
-                }
-
-                DefineNode(token, inputNode);
             }
             else if(firstElem.details.text == "observe")
             {
@@ -1161,7 +1144,7 @@ std::vector<Node::Ptr> Graph::GetSimApplyLayout() const
 }
 
 std::string Graph::GetSimApplyTarget() const
-{ 
+{
     std::vector<Node::Ptr> simnodes;
     for(auto n : mAllNodes)
     {

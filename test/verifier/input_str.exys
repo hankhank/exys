@@ -1,5 +1,5 @@
 (begin
-    (input-str "stringname" in1)
+    (input "stringname" in1)
     (observe out1 (+ in1 1))
 )
 

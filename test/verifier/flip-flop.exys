@@ -1,5 +1,6 @@
 (begin
-    (input in gate)
+    (input in)
+    (input gate)
     
     (define flip-flop
         (lambda (gate var)

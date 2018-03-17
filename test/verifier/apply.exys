@@ -1,5 +1,7 @@
 (begin
-    (input in1 in2 in3)
+    (input in1)
+    (input in2)
+    (input in3)
     (observe out1 (apply max (list 1 2 3)))
     
     (define list-select

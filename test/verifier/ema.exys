@@ -1,6 +1,7 @@
 (begin
 
-    (input in gate)
+    (input in)
+    (input gate)
        
     (define ema
         (lambda (alpha gate signal)

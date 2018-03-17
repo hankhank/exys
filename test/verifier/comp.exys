@@ -1,5 +1,6 @@
 (begin
-    (input in1 in2)
+    (input in1)
+    (input in2)
     (observe lt (< in1 in2))
     (observe le (<= in1 in2))
     (observe gt (> in1 in2))

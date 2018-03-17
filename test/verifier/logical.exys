@@ -1,5 +1,7 @@
 (begin
-    (input in1 in2 in3)
+    (input in1)
+    (input in2)
+    (input in3)
     (observe andConstTrue (&& 1 5))
     (observe andConstFalse (&& 0 10))
     (observe andOut1 (&& in1 in2))

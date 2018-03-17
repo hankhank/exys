@@ -2,7 +2,7 @@
     (define make-input-output 
         (lambda (name) 
             (begin
-                (input-str name in)
+                (input name in)
                 (observe-str name in))))
 
     (make-input-output "pair20")
