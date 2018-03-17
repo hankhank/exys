@@ -239,8 +239,8 @@ TEST(Tokenize, GeneralExample_Comments)
 
 TEST(Tokenize, StringExample)
 {   
-    std::string text = "(define teststr \"TEST\")";
-    std::vector<std::string> toks = {"(", "define", "teststr", "TEST", ")"};
+    std::string text = "(define teststr \"TEST\" \"TEST GAP\")";
+    std::vector<std::string> toks = {"(", "define", "teststr", "\"TEST\"", "\"TEST GAP\"", ")"};
 
     auto details = Tokenize(text);
     ASSERT_EQ(details.size(), toks.size());
@@ -251,11 +251,10 @@ TEST(Tokenize, StringExample)
     }
 }
 
-
 TEST(Tokenize, StringExample_EscapedChar)
 {   
     std::string text = "(define teststr \"TEST\\\"TEST\")";
-    std::vector<std::string> toks = {"(", "define", "teststr", "TEST\"TEST", ")"};
+    std::vector<std::string> toks = {"(", "define", "teststr", "\"TEST\"TEST\"", ")"};
 
     auto details = Tokenize(text);
     ASSERT_EQ(details.size(), toks.size());
@@ -383,6 +382,16 @@ TEST(ReadFromTokenDetails, Unbalanced_nested)
         {"(", 0, 0, 0, 0},
         {")", 0, 0, 0, 0},
         {")", 0, 0, 0, 0}
+    };
+    ASSERT_THROW(auto cell = ReadFromTokenDetails(toks),
+                ParseException);
+}
+
+TEST(ReadFromTokenDetails, String_NotClosed)
+{
+    std::list<TokenDetails> toks = 
+    {
+        {"\"abc", 0, 0, 0, 0}
     };
     ASSERT_THROW(auto cell = ReadFromTokenDetails(toks),
                 ParseException);
