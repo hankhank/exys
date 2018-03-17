@@ -4,14 +4,32 @@
             (begin
                 (input-str name in)
                 (observe-str name in))))
+
     (make-input-output "pair20")
     (make-input-output "pair2")
+    
+    (define make-make-input-output 
+        (lambda (prefix) 
+            (lambda (name) (make-input-output (format "%s%s" prefix name)))))
+
+    (define doublenest (make-make-input-output "prefix_"))
+
+    (doublenest "pair20")
+    (doublenest "pair2")
 )
 
-(test test-1
+(test SingleNested
     (inject pair20 100)
     (inject pair2 2)
     (stabilize)
     (expect pair20 100)
     (expect pair2 2)
+)
+
+(test DoubleNested
+    (inject prefix_pair20 100)
+    (inject prefix_pair2 2)
+    (stabilize)
+    (expect prefix_pair20 100)
+    (expect prefix_pair2 2)
 )
