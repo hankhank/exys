@@ -21,7 +21,7 @@
                 (define t_T (/ (- time gatetime)
                                 naturalhalflife))
                 (* N0 (exp (- 0 t_T))))))
-    (observe out 
+    (observe "out" 
         (half-life-decay naturalhalflife gate input time)))
 
 (test test-1

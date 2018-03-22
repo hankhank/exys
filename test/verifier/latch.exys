@@ -10,7 +10,7 @@
                 (set! val ret)
                 ret)))
 
-    (observe out (latch gate in)))
+    (observe "out" (latch gate in)))
 
 (test test-1
     (inject in 1)

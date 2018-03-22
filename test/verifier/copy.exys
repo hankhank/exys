@@ -1,7 +1,7 @@
 (begin
     (input in1)
     (define out1 (copy in1))
-    (observe out1 out1))
+    (observe out1))
 
 (test test-1
     (inject in1 1)

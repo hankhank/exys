@@ -3,12 +3,12 @@
     (input-list onedim 2)
     (input-list twodim 2 2)
     (input-list threedim 3 3 3)
-    (observe degen degen)
-    (observe onedim onedim)
-    (observe twodim twodim)
-    (observe threedim threedim)
-    (observe consts (list 99 98 97))
-    (observe maplist (map (lambda (x) (+ x 100)) (list 77 66 78))))
+    (observe degen)
+    (observe onedim)
+    (observe twodim)
+    (observe threedim)
+    (observe "consts" (list 99 98 97))
+    (observe "maplist" (map (lambda (x) (+ x 100)) (list 77 66 78))))
 
 (test Test-1
     (inject degen (1))

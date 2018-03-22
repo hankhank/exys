@@ -9,7 +9,7 @@
                 elseVal
                 condValList)))
 
-    (observe out (switch condValList 99))
+    (observe "out" (switch condValList 99))
 )
 
 (test test-1

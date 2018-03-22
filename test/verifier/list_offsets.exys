@@ -2,8 +2,8 @@
     (input-list simlist 100)
     (input-list triple 3)
     (input single)
-    (observe single single)
-    (observe tripleFirst (car triple))
+    (observe single)
+    (observe "tripleFirst" (car triple))
 )
 
 (test test-list-input

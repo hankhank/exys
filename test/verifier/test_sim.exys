@@ -1,8 +1,8 @@
 (begin
     (input single)
     (input-list simlist 5)
-    (observe single single)
-    (observe simlist simlist)
+    (observe single)
+    (observe simlist)
 
     ; sim function 0 - zero single
     (sim-apply single 0 1)

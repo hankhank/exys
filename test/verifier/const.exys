@@ -3,10 +3,10 @@
     (define one 1)
     (define negone -1)
     (define tendouble 10.0)
-    (observe zero zero)
-    (observe one one)
-    (observe negone negone)
-    (observe tendouble tendouble))
+    (observe zero)
+    (observe one)
+    (observe negone)
+    (observe tendouble))
 
 (test Test-1
     (stabilize)

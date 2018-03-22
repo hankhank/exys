@@ -13,9 +13,9 @@
     (define step1 (flip-flop gate in))
     (define step2 (flip-flop gate step1))
     (define step3 (flip-flop gate step2))
-    (observe step1 step1)
-    (observe step2 step2)
-    (observe step3 step3))
+    (observe step1)
+    (observe step2)
+    (observe step3))
 
 (test Gate-Off
     (inject in 1)

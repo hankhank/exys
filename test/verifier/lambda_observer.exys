@@ -7,7 +7,7 @@
         (lambda (input-list)
             (map (lambda (x) x) input-list)))
 
-    (observe output-list (gen-list-to-observe input-list))
+    (observe "output-list" (gen-list-to-observe input-list))
 
     (define gen-value-to-observe
         (lambda (input-list)
@@ -28,7 +28,7 @@
                 (list-sum-1 input-list weight-func-2) 
                 (list-mul-1 input-list)))))
 
-    (observe output-value (gen-value-to-observe input-list))
+    (observe "output-value" (gen-value-to-observe input-list))
 
     (define gen-value-to-observe-muldim
         (lambda (input-list)
@@ -45,7 +45,7 @@
             (+ (list-sum-1 input-list weight-func-1) 
                 (list-sum-1 input-list weight-func-2)))))
 
-    (observe output-value-muldim (gen-value-to-observe-muldim input-muldim-list))
+    (observe "output-value-muldim" (gen-value-to-observe-muldim input-muldim-list))
 )
 
 (test test-1

@@ -1,7 +1,7 @@
 (begin
     (define out 0)
     (for-each (lambda (x) (set! out (+ out x))) (list 1 2 3 4))
-    (observe out out))
+    (observe out))
 
 (test Test-1
     (stabilize)

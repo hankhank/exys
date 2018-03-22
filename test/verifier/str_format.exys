@@ -10,10 +10,10 @@
     (input (concat "hello" "world") helloworld)
     (input (join "start_" (map (lambda (x) (format "%.0f" x)) (iota 5 1 1))) start_12345)
 
-    (observe noargsOut (+ noargs 1))
-    (observe oneargsOut (+ oneargs 1))
-    (observe helloworld (+ helloworld 1))
-    (observe start_12345 (+ start_12345 1))
+    (observe "noargsOut" (+ noargs 1))
+    (observe "oneargsOut" (+ oneargs 1))
+    (observe "helloworld" (+ helloworld 1))
+    (observe "start_12345" (+ start_12345 1))
 )
 
 (test basic

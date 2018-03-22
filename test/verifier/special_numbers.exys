@@ -1,23 +1,23 @@
 (begin
     (input in1)
-    (observe nanCheck (!= in1 in1))
-    (observe infCheck (== in1 (/ 1 0)))
+    (observe "nanCheck" (!= in1 in1))
+    (observe "infCheck" (== in1 (/ 1 0)))
 
-    (observe nanAndZero (&& NAN 0))
-    (observe nanAndOne (&& NAN 1))
+    (observe "nanAndZero" (&& NAN 0))
+    (observe "nanAndOne" (&& NAN 1))
 
-    (observe nanOrZero (|| NAN 0))
-    (observe nanOrOne (|| NAN 1))
+    (observe "nanOrZero" (|| NAN 0))
+    (observe "nanOrOne" (|| NAN 1))
 
-    (observe nanGt (> NAN 1))
-    (observe nanGte (>= NAN 1))
-    (observe nanLt (< NAN 1))
-    (observe nanLte (<= NAN 1))
+    (observe "nanGt" (> NAN 1))
+    (observe "nanGte" (>= NAN 1))
+    (observe "nanLt" (< NAN 1))
+    (observe "nanLte" (<= NAN 1))
 
-    (observe infGt (> INF 1))
-    (observe infGte (>= INF 1))
-    (observe infLt (< INF 1))
-    (observe infLte (<= INF 1))
+    (observe "infGt" (> INF 1))
+    (observe "infGte" (>= INF 1))
+    (observe "infLt" (< INF 1))
+    (observe "infLte" (<= INF 1))
 )
 
 (test nanCheckTest

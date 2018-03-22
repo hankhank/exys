@@ -2,7 +2,7 @@
     (input in1)
     (input in2)
     (define out (+ in1 in2))
-    (observe out out))
+    (observe out))
 
 ; Test cases
 (test Zero

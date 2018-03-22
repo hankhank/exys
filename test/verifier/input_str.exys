@@ -1,6 +1,6 @@
 (begin
     (input "stringname" in1)
-    (observe out1 (+ in1 1))
+    (observe "out1" (+ in1 1))
 )
 
 (test basic

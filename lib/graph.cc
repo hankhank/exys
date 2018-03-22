@@ -757,44 +757,45 @@ Node::Ptr Graph::Build(const Cell &cell)
             }
             else if(firstElem.details.text == "observe")
             {
-                ValidateListLength(cell, 3);
+                ValidateListLength(cell, 2, 3);
 
                 // Add check that token already exists
                 // Add check that we aren't already ouputing to this observer
-                auto& varToken = cell.list[2];
-                auto& outputToken = cell.list[1].details.text;
+                auto varNode = Build(cell.list[1]);
+                std::string token = cell.list[1].details.text;
+                switch (varNode->mKind)
+                {
+                    case KIND_UNKNOWN:
+                    case KIND_PROC_FACTORY:
+                    case KIND_GRAPH:
+                        throw GraphBuildException("Anonymous node isn't observerable", cell);
+                    case KIND_PROC:
+                    case KIND_CONST:
+                    case KIND_BIND:
+                    case KIND_VAR:
+                    case KIND_STR:
+                    case KIND_LIST:
+                        break;
+                }
 
-                // Register Observer
-                auto varNode = Build(varToken);
+                if(cell.list.size() == 3)
+                {
+                    if(varNode->mKind != KIND_STR)
+                    {
+                        throw GraphBuildException("First arg must be string", cell);
+                    }
+                    token = varNode->mToken;
+                    varNode = Build(cell.list[2]);
+                }
+
                 if(!varNode)
                 {
                     throw GraphBuildException("Node isn't observerable", cell);
                 }
-                LabelObserver(varNode, outputToken);
-                LabelListRoot(varNode, outputToken, GetListLength(varNode), false);
-                varNode->mIsObserver = true;
-            }
-            else if(firstElem.details.text == "observe-str")
-            {
-                ValidateListLength(cell, 3);
-
-                // Add check that token already exists
-                // Add check that we aren't already ouputing to this observer
-                auto& varToken = cell.list[2];
-                auto outputStr = Build(cell.list[1]);
-                if(outputStr->mKind != KIND_STR)
-                {
-                    throw GraphBuildException("observe-str expects a string as the first argument", cell);
-                }
 
                 // Register Observer
-                auto varNode = Build(varToken);
-                if(!varNode)
-                {
-                    throw GraphBuildException("Node isn't observerable", cell);
-                }
-                LabelObserver(varNode, outputStr->mToken);
-                LabelListRoot(varNode, outputStr->mToken, GetListLength(varNode), false);
+                LabelObserver(varNode, token);
+                LabelListRoot(varNode, token, GetListLength(varNode), false);
                 varNode->mIsObserver = true;
             }
             else // procedure call

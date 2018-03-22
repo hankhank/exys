@@ -1,12 +1,12 @@
 (begin
     (input in1)
     (input in2)
-    (observe lt (< in1 in2))
-    (observe le (<= in1 in2))
-    (observe gt (> in1 in2))
-    (observe ge (>= in1 in2))
-    (observe eq (== in1 in2))
-    (observe ne (!= in1 in2)))
+    (observe "lt" (< in1 in2))
+    (observe "le" (<= in1 in2))
+    (observe "gt" (> in1 in2))
+    (observe "ge" (>= in1 in2))
+    (observe "eq" (== in1 in2))
+    (observe "ne" (!= in1 in2)))
 
 (test Test-1
     (inject in1 0)

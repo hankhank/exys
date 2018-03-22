@@ -1,7 +1,7 @@
 (begin
     (input in1)
     (define out (fold + in1 (list 0 1 2 3)))
-    (observe out out))
+    (observe out))
 
 (test Test-1
     (inject in1 0)

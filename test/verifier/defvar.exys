@@ -3,14 +3,14 @@
     (defvar xvar 0)
     (define laggingXvar xvar)
     (set! xvar (+ laggingXvar alpha))
-    (observe x xvar)
-    (observe lx laggingXvar)
+    (observe "x" xvar)
+    (observe "lx" laggingXvar)
 
     (defvar initvalue1 101)
-    (observe initvalueout1 initvalue1)
+    (observe "initvalueout1" initvalue1)
 
     (defvar initvalue2 nan)
-    (observe initvalueout2 initvalue2)
+    (observe "initvalueout2" initvalue2)
 )
 
 (test test-1

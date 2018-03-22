@@ -7,9 +7,9 @@
     (input single)
     (input-list simlist 5)
     (input-list multdimlist 2 2 2)
-    (observe single single)
-    (observe simlist simlist)
-    (observe multdimlist multdimlist)
+    (observe single)
+    (observe simlist)
+    (observe multdimlist)
 
     ; sim function 0 - zero single
     (sim-apply single 0 5)

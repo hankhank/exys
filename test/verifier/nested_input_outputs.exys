@@ -3,7 +3,7 @@
         (lambda (name) 
             (begin
                 (input name in)
-                (observe-str name in))))
+                (observe name in))))
 
     (make-input-output "pair20")
     (make-input-output "pair2")

@@ -3,12 +3,12 @@
     (input-list onedim 2)
     (input-list twodim 2 2)
     (input-list threedim 3 3 3)
-    (observe degen (car degen))
-    (observe onedim (fold + 0 onedim))
+    (observe "degen" (car degen))
+    (observe "onedim" (fold + 0 onedim))
     (define sum-fold (lambda (x) (fold + 0 x)))
     (define map-sum-fold (lambda (x) (map sum-fold x)))
-    (observe twodim (sum-fold (map sum-fold twodim)))
-    (observe threedim (sum-fold (map sum-fold (map map-sum-fold threedim)))))
+    (observe "twodim" (sum-fold (map sum-fold twodim)))
+    (observe "threedim" (sum-fold (map sum-fold (map map-sum-fold threedim)))))
 
 (test Test-1
     (inject degen (1))

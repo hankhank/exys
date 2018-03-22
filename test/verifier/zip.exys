@@ -1,5 +1,5 @@
 (begin
-    (observe out1 (zip (list 1 3 5) (list 2 4 6)))
+    (observe "out1" (zip (list 1 3 5) (list 2 4 6)))
     
     (define bids (list
                     (list 50 2)
@@ -7,7 +7,7 @@
                     (list 48 2)
                     (list 47 2)
                     (list 46 2)))
-    (observe idLevels (zip (iota 5 0 1) bids))
+    (observe "idLevels" (zip (iota 5 0 1) bids))
 )
     
 (test test-1

@@ -1,6 +1,6 @@
 (begin
     (input in)
-    (observe out (exp in)))
+    (observe "out" (exp in)))
 
 (test test-1
     (inject in 1)
