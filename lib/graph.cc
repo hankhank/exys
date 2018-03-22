@@ -856,7 +856,6 @@ std::string Graph::GetDOTGraph() const
 
     ret += "}";
     
-    std::cout << ret;
     return ret;
 }
 
