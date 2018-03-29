@@ -39,6 +39,11 @@ int main(int argc, char* argv[])
     {
         std::cout << "Testing " << argv[i] << " - ";
         std::ifstream t(argv[i]);
+        if(!t.good())
+        {
+            std::cout << "Failed to open file\n";
+            return -1;
+        }
         std::stringstream buffer;
         buffer << t.rdbuf();
         
@@ -66,10 +71,12 @@ int main(int argc, char* argv[])
         catch (const Exys::ParseException& e)
         {
             std::cout << e.GetErrorMessage(buffer.str());
+            ret = -1;
         }
         catch (const Exys::GraphBuildException& e)
         {
             std::cout << e.GetErrorMessage(buffer.str());
+            ret = -1;
         }
 
     }

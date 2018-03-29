@@ -1,12 +1,18 @@
 
 #include <cassert>
+#include <iostream>
+#include <fstream>
 #include <sstream>
 #include <set>
 #include <algorithm>
-#include <iostream>
 
 #include "graph.h"
 #include "helpers.h"
+
+namespace
+{
+    constexpr char EXYS_REQUIRE_PATH[] = "EXYS_REQUIRE_PATH";
+}
 
 namespace Exys
 {
@@ -50,6 +56,26 @@ void ValidateMinListLength(const Node::Ptr node)
         std::stringstream err;
         err << "Not enough items in list."
             " Expected at least " << N << " Got " << argsize;
+        throw GraphBuildException(err.str(), Cell());
+    }
+}
+
+template <int N>
+void ValidateListLength(const Node::Ptr node)
+{
+    size_t argsize = node->mParents.size();
+    if(argsize > N)
+    {
+        std::stringstream err;
+        err << "Too many arguments."
+            " Expected " << N << " Got " << argsize;
+        throw GraphBuildException(err.str(), Cell());
+    }
+    else if(argsize < N)
+    {
+        std::stringstream err;
+        err << "Too few arguments."
+            " Expected " << N << " Got " << argsize;
         throw GraphBuildException(err.str(), Cell());
     }
 }
@@ -356,6 +382,61 @@ Node::Ptr Graph::Format(Node::Ptr node)
     return fstr;
 }
 
+std::ifstream SearchForFile(const std::string& name)
+{
+    std::ifstream t(name);
+    if(t.good())
+    {
+        return t;
+    }
+
+    char* searchPath = getenv(EXYS_REQUIRE_PATH);
+    std::stringstream ss(searchPath);
+    std::string path;
+    while(searchPath && std::getline(ss, path, ':'))
+    {
+        std::ifstream t(path+"/"+name);
+        if(t.good())
+        {
+            return t;
+        }
+    }
+    return t;
+}
+
+Node::Ptr Graph::Require(Node::Ptr node)
+{
+    ValidateFunctionArgs("require", node, {KIND_STR});
+    const auto& fname = node->mParents[0]->mToken;
+    std::ifstream t = SearchForFile(fname);
+    if(!t.good())
+    {
+        std::stringstream err;
+        err << "Cannot open required file to load " << 
+            node->mParents[0]->mToken << ". Check EXYS_REQUIRE_PATH variable";
+        throw GraphBuildException(err.str(), Cell());
+    }
+
+    std::stringstream buffer;
+    buffer << t.rdbuf();
+    auto loadedGraph = BuildNode<Graph>(this);
+    try
+    {
+        loadedGraph->Construct(Parse(buffer.str()));
+    }
+    catch (Exys::GraphBuildException e)
+    {
+        e.mError = "From required file \"" + fname + "\" - "+ e.mError;
+        throw e;
+    }
+    for(auto pcell : loadedGraph->mProvidedNodes)
+    {
+        auto pnode = loadedGraph->LookupSymbol(pcell);
+        DefineNode(pcell.details.text, pnode);
+    }
+    return nullptr;
+}
+
 #define WRAP(__FUNC) \
     [this](Node::Ptr ptr) -> Node::Ptr{return this->__FUNC(ptr);}
 
@@ -377,6 +458,7 @@ Graph::Graph(Graph* parent)
     AddProcFactory("append",    WRAP(Append));
     AddProcFactory("nth",       WRAP(Nth));
     AddProcFactory("format",    WRAP(Format));
+    AddProcFactory("require",   WRAP(Require));
 }
 
 Graph::Graph(std::vector<Node::Ptr> nodes)
@@ -797,6 +879,11 @@ Node::Ptr Graph::Build(const Cell &cell)
                 LabelObserver(varNode, token);
                 LabelListRoot(varNode, token, GetListLength(varNode), false);
                 varNode->mIsObserver = true;
+            }
+            else if(firstElem.details.text == "provide")
+            {
+                ValidateListLength(cell, 2, 2);
+                mProvidedNodes.push_back(cell.list[1]);
             }
             else // procedure call
             {

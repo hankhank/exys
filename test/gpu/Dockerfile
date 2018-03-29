@@ -33,3 +33,11 @@ RUN curl -fsSLO "http://www.graphviz.org/pub/graphviz/stable/redhat/el7/x86_64/o
     curl -fsSLO "http://www.graphviz.org/pub/graphviz/stable/redhat/el7/x86_64/os/graphviz-devel-2.38.0-1.el7.x86_64.rpm" && \
     yum install -y "graphviz-devel-2.38.0-1.el7.x86_64.rpm" && \
     rm *.rpm
+
+RUN yum install -y wget 
+
+RUN mkdir mxe_tmp && cd mxe_tmp && \
+    wget -r -np -k http://pkg.mxe.cc/repos/tar/mxe-x86-64-w64-mingw32.static/
+
+RUN for i in $(ls *.tar.xz); do tar -xf $i -C /; done
+    

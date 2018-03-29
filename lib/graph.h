@@ -153,12 +153,14 @@ private:
     Node::Ptr Append(Node::Ptr node);
     Node::Ptr Nth(Node::Ptr node);
     Node::Ptr Format(Node::Ptr node);
+    Node::Ptr Require(Node::Ptr node);
 
     template<typename T=Node, typename... Args>
     std::shared_ptr<T> BuildNode(Args... as);
 
     std::vector<Node::Ptr> mAllNodes;
     std::unordered_map<std::string, Node::Ptr> mVarNodes;
+    std::vector<Cell> mProvidedNodes;
 
     Graph* mParent;
     Cell mCurrentCell;

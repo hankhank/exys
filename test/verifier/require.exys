@@ -1,0 +1,10 @@
+(begin
+    (require "provide.exys")
+    (observe "const" provide-const-one)
+    (observe "function" (provide-add-one 5))
+)
+
+(test basic
+    (stabilize)
+    (expect const 1)
+    (expect function 6))

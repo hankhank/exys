@@ -1,0 +1,6 @@
+(begin
+    (define provide-add-one (lambda (x) (+ x 1)))
+    (define provide-const-one 1)
+    (provide provide-add-one)
+    (provide provide-const-one)
+)
