@@ -1,0 +1,14 @@
+(begin
+
+    (provide std-concat)
+    (provide std-join)
+
+    (define std-concat (lambda (str1 str2) (format "%s%s" str1 str2)))
+
+    (define std-join 
+        (lambda (init strList) 
+            (fold 
+                (lambda (str1 str2) 
+                    (format "%s%s" str1 str2)) 
+                init strList)))
+)

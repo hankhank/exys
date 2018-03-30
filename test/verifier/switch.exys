@@ -1,15 +1,8 @@
 (begin
+    (require "logic.exys")
 
     (input-list condValList 3 2)
-
-    (define switch 
-        (lambda (condValList elseVal)
-            (fold
-                (lambda (prev condVal) (? (car condVal) (car (cdr condVal)) prev))
-                elseVal
-                condValList)))
-
-    (observe "out" (switch condValList 99))
+    (observe "out" (std-switch condValList 99))
 )
 
 (test test-1

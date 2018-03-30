@@ -8,6 +8,7 @@
 
 #include "graph.h"
 #include "helpers.h"
+#include "std/stdlib.h"
 
 namespace
 {
@@ -382,34 +383,42 @@ Node::Ptr Graph::Format(Node::Ptr node)
     return fstr;
 }
 
-std::ifstream SearchForFile(const std::string& name)
+bool SearchForFile(const std::string& name, std::string& out)
 {
+    std::stringstream buffer;
+    char* searchPath = getenv(EXYS_REQUIRE_PATH);
+    std::stringstream ss(searchPath ? searchPath : "");
+    std::string path;
     std::ifstream t(name);
-    if(t.good())
+    while(!t.good() && searchPath && std::getline(ss, path, ':'))
     {
-        return t;
+        t = std::ifstream(path+"/"+name);
     }
 
-    char* searchPath = getenv(EXYS_REQUIRE_PATH);
-    std::stringstream ss(searchPath);
-    std::string path;
-    while(searchPath && std::getline(ss, path, ':'))
+    if(t.good())
     {
-        std::ifstream t(path+"/"+name);
-        if(t.good())
+        buffer << t.rdbuf();
+        out = buffer.str();
+        return true;
+    }
+
+    for(int i = 0; i < sizeof(StdLibEntries) / sizeof(StdLibEntries[0]); ++i)
+    {
+        if(StdLibEntries[i].name == name)
         {
-            return t;
+            out = std::string((char*)StdLibEntries[i].data, StdLibEntries[i].len);
+            return true;
         }
     }
-    return t;
+    return false;
 }
 
 Node::Ptr Graph::Require(Node::Ptr node)
 {
     ValidateFunctionArgs("require", node, {KIND_STR});
     const auto& fname = node->mParents[0]->mToken;
-    std::ifstream t = SearchForFile(fname);
-    if(!t.good())
+    std::string buffer;
+    if(!SearchForFile(fname, buffer))
     {
         std::stringstream err;
         err << "Cannot open required file to load " << 
@@ -417,12 +426,10 @@ Node::Ptr Graph::Require(Node::Ptr node)
         throw GraphBuildException(err.str(), Cell());
     }
 
-    std::stringstream buffer;
-    buffer << t.rdbuf();
     auto loadedGraph = BuildNode<Graph>(this);
     try
     {
-        loadedGraph->Construct(Parse(buffer.str()));
+        loadedGraph->Construct(Parse(buffer));
     }
     catch (Exys::GraphBuildException e)
     {

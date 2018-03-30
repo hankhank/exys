@@ -1,28 +1,13 @@
 (begin
+    (require "signals.exys")
+
     (input naturalhalflife)
     (input gate)
     (input input)
     (input time)
 
-    (define latch
-        (lambda (gate in)
-            (begin
-                (defvar val 0)
-                (define ret (? gate in val))
-                (set! val ret)
-                ret)))
-
-    ; N0 * e ^ - t/T
-    (define half-life-decay
-        (lambda (naturalhalflife gate input time)
-            (begin
-                (define gatetime (latch gate time))
-                (define N0 (latch gate input))
-                (define t_T (/ (- time gatetime)
-                                naturalhalflife))
-                (* N0 (exp (- 0 t_T))))))
     (observe "out" 
-        (half-life-decay naturalhalflife gate input time)))
+        (std-half-life-decay naturalhalflife gate input time)))
 
 (test test-1
     (inject naturalhalflife 5)

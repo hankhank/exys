@@ -1,0 +1,31 @@
+(begin
+    (provide std-latch)
+    (provide std-flip-flop)
+    (provide std-value-store)
+
+    (define std-latch
+        (lambda (gate in)
+            (begin
+                (defvar val 0)
+                (define ret (? gate in val))
+                (set! val ret)
+                ret)))
+
+    (define std-flip-flop
+        (lambda (gate var)
+            (begin
+                (defvar val 0)
+                (define ret val)
+                (set! val (? gate var ret))
+                ret)))
+
+    (define std-value-store
+        (lambda (size gate val)
+            (map 
+                (lambda (x) 
+                    (begin
+                        (set! val (std-flip-flop gate val))
+                        val))
+                (iota size 0 1))))
+
+)

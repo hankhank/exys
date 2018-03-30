@@ -1,16 +1,10 @@
 (begin
+    (require "signals.exys")
 
     (input in)
     (input gate)
        
-    (define ema
-        (lambda (alpha gate signal)
-            (begin
-                (defvar oldma 0)
-                (define newma (? (== oldma 0) signal (+ (* alpha signal) (* (- 1 alpha) oldma))))
-                (set! oldma (? gate newma oldma)))))
-
-    (observe "emaOut" (ema 0.5 gate in)))
+    (observe "emaOut" (std-ema 0.5 gate in)))
 
 (test Gate-Off
     (inject in 1)

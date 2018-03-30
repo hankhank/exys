@@ -1,14 +1,11 @@
 (begin
+    (require "logic.exys")
+
     (input in1)
     (input in2)
     (input in3)
     (observe "out1" (apply max (list 1 2 3)))
-    
-    (define list-select
-        (lambda (flag list1 list2)
-            (map (lambda (x) (? flag (car x) (car (cdr x)))) (zip list1 list2))))
-
-    (observe "out2" (apply max (list-select in1 (list 100 in2) (list 500 in3)))))
+    (observe "out2" (apply max (std-list-select in1 (list 100 in2) (list 500 in3)))))
 
 (test test-1
     (stabilize)

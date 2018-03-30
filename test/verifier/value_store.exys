@@ -1,24 +1,11 @@
 (begin
+    (require "memory.exys")
+
     (input val)
     (input gate)
-    (define flip-flop
-        (lambda (gate var)
-            (begin
-                (defvar val 0)
-                (define ret val)
-                (set! val (? gate var ret))
-                ret)))
-    (define value-store
-        (lambda (size gate val)
-            (map 
-                (lambda (x) 
-                    (begin
-                        (set! val (flip-flop gate val))
-                        val))
-                (iota size 0 1))))
 
-    (observe "minval" (apply min (value-store 3 gate val)))
-    (observe "maxval" (apply max (value-store 3 gate val)))
+    (observe "minval" (apply min (std-value-store 3 gate val)))
+    (observe "maxval" (apply max (std-value-store 3 gate val)))
 )
 
 (test test-1

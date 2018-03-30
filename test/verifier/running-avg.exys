@@ -1,13 +1,7 @@
 (begin
+    (require "memory.exys")
     (input incomingval)
     (input gate)
-    (define flip-flop
-        (lambda (gate var)
-            (begin
-                (defvar val 0)
-                (define ret val)
-                (set! val (? gate var ret))
-                ret)))
 
     (define running-avg
         (lambda (size gate incomingval)
@@ -17,7 +11,7 @@
                     (lambda (last new) 
                         (begin
                             (set! avg (+ avg last))
-                            (flip-flop gate last)))
+                            (std-flip-flop gate last)))
                 incomingval (iota size 0 1))
             (/ avg size))))
     (observe "out" (running-avg 10 gate incomingval)))

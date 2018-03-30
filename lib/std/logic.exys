@@ -1,0 +1,16 @@
+(begin
+    (provide std-switch)
+    (provide std-list-select)
+
+    (define std-switch 
+        (lambda (condValList elseVal)
+            (fold
+                (lambda (prev condVal) (? (car condVal) (car (cdr condVal)) prev))
+                elseVal
+                condValList)))
+
+    (define std-list-select
+        (lambda (flag list1 list2)
+            (map (lambda (x) (? flag (car x) (car (cdr x)))) (zip list1 list2))))
+
+)

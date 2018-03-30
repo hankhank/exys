@@ -1,18 +1,11 @@
 (begin
+    (require "memory.exys")
     (input in)
     (input gate)
     
-    (define flip-flop
-        (lambda (gate var)
-            (begin
-                (defvar val 0)
-                (define ret val)
-                (set! val (? gate var ret))
-                ret)))
-
-    (define step1 (flip-flop gate in))
-    (define step2 (flip-flop gate step1))
-    (define step3 (flip-flop gate step2))
+    (define step1 (std-flip-flop gate in))
+    (define step2 (std-flip-flop gate step1))
+    (define step3 (std-flip-flop gate step2))
     (observe step1)
     (observe step2)
     (observe step3))

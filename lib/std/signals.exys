@@ -1,0 +1,24 @@
+(begin
+    (require "memory.exys")
+
+    (provide std-half-life-decay)
+    (provide std-ema)
+
+    ; N0 * e ^ - t/T
+    (define std-half-life-decay
+        (lambda (naturalhalflife gate input time)
+            (begin
+                (define gatetime (std-latch gate time))
+                (define N0 (std-latch gate input))
+                (define t_T (/ (- time gatetime)
+                                naturalhalflife))
+                (* N0 (exp (- 0 t_T))))))
+
+    (define std-ema
+        (lambda (alpha gate signal)
+            (begin
+                (defvar oldma 0)
+                (define newma (? (== oldma 0) signal (+ (* alpha signal) (* (- 1 alpha) oldma))))
+                (set! oldma (? gate newma oldma)))))
+
+)
