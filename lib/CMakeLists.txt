@@ -13,7 +13,7 @@ FOREACH(INPUT_FILE ${COMPILED_STD_LIB})
     LIST(APPEND COMPILED_STD_LIB ${CMAKE_CURRENT_BINARY_DIR}/${OUTPUT_FILE})
 ENDFOREACH()
 
-add_library(exys STATIC interpreter.cc graph.cc parser.cc ${COMPILED_STD_LIB} std/stdlib.cc)
+add_library(exys STATIC interpreter.cc graph.cc parser.cc ${COMPILED_STD_LIB})
 
 target_include_directories (exys PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} )
 
