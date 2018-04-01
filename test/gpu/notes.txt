@@ -1,0 +1,1 @@
+if you encounter a weird cuda error use the gpuprinter to generate some ptx. Then use ptxas to try and compile the assembly.
