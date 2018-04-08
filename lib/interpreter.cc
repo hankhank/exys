@@ -92,6 +92,7 @@ FUNCTOR_TWO_ARG(MaxFunc, double, std::max);
 FUNCTOR_TWO_ARG(ModFunc, double, std::fmod);
 FUNCTOR(ExpFunc, double, std::exp);
 FUNCTOR(LogFunc, double, std::log);
+FUNCTOR(TruncFunc, double, std::trunc);
 
 template<typename Op> 
 void LoopOperator(InterPoint& ipoint)
@@ -155,6 +156,7 @@ static InterPointProcessor AVAILABLE_PROCS[] =
     {{"max",        MinCountValueValidator<2>},  Wrap(LoopOperator<MaxFunc>)},
     {{"exp",        CountValueValidator<1,1>},   Wrap(UnaryOperator<ExpFunc>)},
     {{"ln",         CountValueValidator<1,1>},   Wrap(UnaryOperator<LogFunc>)},
+    {{"trunc",      CountValueValidator<1,1>},   Wrap(UnaryOperator<TruncFunc>)},
     {{"not",        CountValueValidator<1,1>},   Wrap(UnaryOperator<std::logical_not<double>>)},
     {{"tick",       MinCountValueValidator<0>},  Tick},
     {{"copy",       MinCountValueValidator<1>},  Wrap(Copy)},
@@ -392,10 +394,12 @@ int Interpreter::GetNumSimulationFunctions() const
 
 void Interpreter::CaptureState()
 {
+    mCapturedState = mPoints;
 }
 
 void Interpreter::ResetState()
 {
+    mPoints = mCapturedState;
 }
 
 bool Interpreter::RunSimulationId(int simId)

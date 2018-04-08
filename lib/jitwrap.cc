@@ -230,18 +230,14 @@ int JitWrap::GetNumSimulationFunctions() const
 
 void JitWrap::CaptureState()
 {
-    std::copy(mState.begin(), mState.end(),
-        std::back_inserter(mStateCapture));
-    std::copy(mPoints.begin(), mPoints.end(),
-        std::back_inserter(mPointsCapture));
+    mPointsCapture = mPoints;
+    mStateCapture = mState;
 }
 
 void JitWrap::ResetState()
 {
-    std::copy(mStateCapture.begin(), mStateCapture.end(),
-        std::back_inserter(mState));
-    std::copy(mPointsCapture.begin(), mPointsCapture.end(),
-        std::back_inserter(mPoints));
+    mPoints = mPointsCapture;
+    mState = mStateCapture;
 }
 
 bool JitWrap::RunSimulationId(int simId)

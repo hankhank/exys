@@ -16,11 +16,13 @@ template <typename T>
 void BM_ExecuteGraph_DeepSum(benchmark::State& state)
 {
     std::string varins;
+    std::string justnames;
     for(int i = 0; i < state.range(0); i++)
     {
-        varins += "in" + std::to_string(i) + " ";
+        varins += "(input in" + std::to_string(i) + ") ";
+        justnames += " in"+std::to_string(i);
     }
-    std::string graph = "(begin (input double " + varins + ") (observe out (fold + 0 (list " + varins + "))))";
+    std::string graph = "(begin " + varins + " (observe \"out\" (fold + 0 (list " + justnames + "))))";
     auto engine = T::Build(graph);
     
     // get inputs
@@ -78,11 +80,14 @@ template <typename T>
 void BM_ExecuteGraph_FatSum(benchmark::State& state)
 {
     std::string varins;
+    std::string justnames;
     for(int i = 0; i < state.range(0); i++)
     {
-        varins += "in" + std::to_string(i) + " ";
+        varins += "(input in" + std::to_string(i) + ") ";
+        justnames += " in"+std::to_string(i);
+
     }
-    std::string graph = "(begin (input double " + varins + ") (observe out (+ " + varins + ")))";
+    std::string graph = "(begin " + varins + " (observe \"out\" (+ " + justnames + ")))";
     auto engine = T::Build(graph);
 
     // get inputs

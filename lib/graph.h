@@ -154,6 +154,7 @@ private:
     Node::Ptr Nth(Node::Ptr node);
     Node::Ptr Format(Node::Ptr node);
     Node::Ptr Require(Node::Ptr node);
+    Node::Ptr PrintLib(Node::Ptr node);
 
     template<typename T=Node, typename... Args>
     std::shared_ptr<T> BuildNode(Args... as);

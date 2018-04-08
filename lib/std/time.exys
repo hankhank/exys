@@ -1,0 +1,18 @@
+(begin
+
+    (provide NANOS_SECOND)
+    (provide NANOS_MIN)
+    (provide NANOS_HOUR)
+    (provide NANOS_DAY)
+
+    (provide std-nanos-today)
+
+    (define NANOS_SECOND 1e9)
+    (define NANOS_MIN (* 60 NANOS_SECOND))
+    (define NANOS_HOUR (* 60 NANOS_MIN))
+    (define NANOS_DAY (* 24 NANOS_HOUR))
+
+    (define std-nanos-today
+        (lambda (ts) (% ts NANOS_DAY)))
+
+)

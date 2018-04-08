@@ -12,6 +12,9 @@ extern unsigned int std_memory_exys_len;
 extern unsigned char std_logic_exys;
 extern unsigned int std_logic_exys_len;
 
+extern unsigned char std_time_exys;
+extern unsigned int std_time_exys_len;
+
 namespace Exys
 {
 
@@ -27,7 +30,8 @@ StdLibEntry StdLibEntries[] =
     {"string.exys", &::std_string_exys, ::std_string_exys_len},
     {"signals.exys", &::std_signals_exys, ::std_signals_exys_len},
     {"memory.exys", &::std_memory_exys, ::std_memory_exys_len},
-    {"logic.exys", &::std_logic_exys, ::std_logic_exys_len}
+    {"logic.exys", &::std_logic_exys, ::std_logic_exys_len},
+    {"time.exys", &::std_time_exys, ::std_time_exys_len}
 };
 
 }

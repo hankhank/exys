@@ -79,6 +79,7 @@ private:
 
     std::vector<InterPoint> mInterPointGraph;
     std::vector<Point> mPoints;
+    std::vector<Point> mCapturedState;
     std::vector<InterPoint*> mDirtyStores;
 
     struct HeightPtrPair

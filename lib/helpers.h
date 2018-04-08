@@ -32,6 +32,7 @@ inline void CheckKindForPrimitive(Node::Ptr point)
     int i = 0;
     for(const auto p : point->mParents)
     {
+        assert(p && "Attempting to check null parent");
         switch(p->mKind)
         {
             case Node::KIND_CONST: 

@@ -342,7 +342,7 @@ Node::Ptr Graph::Format(Node::Ptr node)
             {
                 std::stringstream err;
                 err << "Incorrect argument " << i << " type for 'Format'."
-                    " Got " << arg->mKind << ". Constant or String";
+                    " Got " << arg->mKind << ". Expected Constant or String";
                 throw GraphBuildException(err.str(), Cell());
             }
 
@@ -387,7 +387,8 @@ bool SearchForFile(const std::string& name, std::string& out)
 {
     std::stringstream buffer;
     char* searchPath = getenv(EXYS_REQUIRE_PATH);
-    std::stringstream ss(searchPath ? searchPath : "");
+    std::string sp = searchPath != nullptr ? std::string(searchPath) : std::string();
+    std::stringstream ss(sp);
     std::string path;
     std::ifstream t(name);
     while(!t.good() && searchPath && std::getline(ss, path, ':'))
@@ -444,6 +445,24 @@ Node::Ptr Graph::Require(Node::Ptr node)
     return nullptr;
 }
 
+Node::Ptr Graph::PrintLib(Node::Ptr node)
+{
+    ValidateFunctionArgs("print-lib", node, {KIND_STR});
+    const auto& fname = node->mParents[0]->mToken;
+    std::string buffer;
+    if(!SearchForFile(fname, buffer))
+    {
+        std::stringstream err;
+        err << "Cannot open required file to load " << 
+            node->mParents[0]->mToken << ". Check EXYS_REQUIRE_PATH variable";
+        throw GraphBuildException(err.str(), Cell());
+    }
+
+    std::cout << buffer;
+
+    return nullptr;
+}
+
 #define WRAP(__FUNC) \
     [this](Node::Ptr ptr) -> Node::Ptr{return this->__FUNC(ptr);}
 
@@ -466,6 +485,7 @@ Graph::Graph(Graph* parent)
     AddProcFactory("nth",       WRAP(Nth));
     AddProcFactory("format",    WRAP(Format));
     AddProcFactory("require",   WRAP(Require));
+    AddProcFactory("print-lib", WRAP(PrintLib));
 }
 
 Graph::Graph(std::vector<Node::Ptr> nodes)
@@ -492,6 +512,7 @@ ProcNodeFactoryFunc Graph::DefaultFactory(const Procedure& procedure)
 {
     return [this, procedure](Node::Ptr node) -> Node::Ptr
     {
+        ValidateArgsNotNull(node);
         procedure.validate(node);
         auto mn = BuildNode(KIND_PROC);
         mn->mToken = procedure.id;
@@ -506,11 +527,13 @@ ProcNodeFactoryFunc Graph::DefaultFactory(const Procedure& procedure)
 void Graph::AddProcFactory(const std::string id, ProcNodeFactoryFunc factory)
 {
     auto pnode = BuildNode<ProcNodeFactory>(factory);
+    assert(pnode && "Building factory returns null");
     mVarNodes[id] = pnode;
 }
 
 void Graph::SetSymbol(const Cell& cell, Node::Ptr node)
 {
+    assert(node);
     auto niter = mVarNodes.find(cell.details.text);
     if (niter != mVarNodes.end())
     {
@@ -561,11 +584,13 @@ ProcNodeFactoryFunc Graph::LookupProcedure(const Cell& cell)
 void Graph::DefineNode(const std::string& token, const Cell& exp)
 {
     auto parent = Build(exp);
+    assert(parent);
     mVarNodes[token] = parent;
 }
 
 void Graph::DefineNode(const std::string& token, Node::Ptr node)
 {
+    assert(node);
     mVarNodes[token] = node;
 }
 
@@ -766,7 +791,7 @@ Node::Ptr Graph::Build(const Cell &cell)
             }
             else if(firstElem.details.text == "lambda")
             {
-                ValidateListLength(cell, 3);
+                ValidateListLength(cell, 3, 3);
                 // Add check for list length
                 // Add check whether token in list send warn
                 auto params = cell.list[1].list;

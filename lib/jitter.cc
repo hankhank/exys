@@ -123,6 +123,7 @@ llvm::Value* __FUNCNAME(llvm::Module *M, llvm::IRBuilder<>& builder, const JitPo
 
 DEFINE_INTRINSICS_UNARY_OPERATOR(JitDoubleExp, exp);
 DEFINE_INTRINSICS_UNARY_OPERATOR(JitDoubleLn, log);
+DEFINE_INTRINSICS_UNARY_OPERATOR(JitDoubleTrunc, trunc);
 
 #define DEFINE_INTRINSICS_LOOP_OPERATOR(__FUNCNAME, __INFUNC) \
 llvm::Value* __FUNCNAME(llvm::Module *M, llvm::IRBuilder<>& builder, const JitPoint& point) \
@@ -280,6 +281,7 @@ static JitPointProcessor AVAILABLE_PROCS[] =
     {{"||",        MinCountValueValidator<2>},  JitDoubleOr},
     {{"min",       MinCountValueValidator<2>},  JitDoubleMin},
     {{"max",       MinCountValueValidator<2>},  JitDoubleMax},
+    {{"trunc",     CountValueValidator<1,1>},   JitDoubleTrunc},
     {{"exp",       CountValueValidator<1,1>},   JitDoubleExp},
     {{"ln",        CountValueValidator<1,1>},   JitDoubleLn},
     {{"not",       CountValueValidator<1,1>},   JitDoubleNot},

@@ -61,7 +61,7 @@ inline std::tuple<bool, std::string, std::string> RunTest(IEngine& exysInstance,
     bool ret = true;
     std::string testname = test.list[1].details.text;
     std::string resultStr;
-    assert(test.list.size() > 2);
+    assert(test.list.size() > 2 && "Not enough args for test case");
     
     for(auto l = test.list.begin()+2; l != test.list.end(); ++l)
     {
@@ -248,7 +248,9 @@ inline std::tuple<bool, std::string, GraphState> Execute(IEngine& exysInstance, 
         bool success = false;
         std::string testname;
         std::string details;
+        exysInstance.CaptureState();
         std::tie(success, testname, details) = RunTest(exysInstance, test, state);
+        exysInstance.ResetState();
         if(!success)
         {
             ret = false;
