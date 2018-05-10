@@ -323,7 +323,7 @@ Node::Ptr Graph::Format(Node::Ptr node)
 
     auto formatstr = formatargs[0]->mToken;
     std::string str;
-    int i = 1;
+    size_t i = 1;
 
     for(auto s = formatstr.begin(); s != formatstr.end(); ++s)
     {
@@ -390,20 +390,20 @@ bool SearchForFile(const std::string& name, std::string& out)
     std::string sp = searchPath != nullptr ? std::string(searchPath) : std::string();
     std::stringstream ss(sp);
     std::string path;
-    std::ifstream t(name);
-    while(!t.good() && searchPath && std::getline(ss, path, ':'))
+    auto t = std::unique_ptr<std::ifstream>(new std::ifstream(name));
+    while(!t->good() && searchPath && std::getline(ss, path, ':'))
     {
-        t = std::ifstream(path+"/"+name);
+        auto t = std::unique_ptr<std::ifstream>(new std::ifstream(path+"/"+name));
     }
 
-    if(t.good())
+    if(t->good())
     {
-        buffer << t.rdbuf();
+        buffer << t->rdbuf();
         out = buffer.str();
         return true;
     }
 
-    for(int i = 0; i < sizeof(StdLibEntries) / sizeof(StdLibEntries[0]); ++i)
+    for(size_t i = 0; i < sizeof(StdLibEntries) / sizeof(StdLibEntries[0]); ++i)
     {
         if(StdLibEntries[i].name == name)
         {
@@ -825,7 +825,7 @@ Node::Ptr Graph::Build(const Cell &cell)
                     auto inputStr = Build(cell.list[1]);
                     if(inputStr->mKind != KIND_STR)
                     {
-                        throw GraphBuildException("input-str expects a string as the first argument", cell);
+                        throw GraphBuildException("input expected a string as the first argument", cell);
                     }
                     label = inputStr->mToken;
                     token = cell.list[2].details.text;
@@ -1217,7 +1217,7 @@ std::vector<Node::Ptr> Graph::GetSimApplyLayout() const
             assert(simListNodes.size() == overwriteNodes.size() && 
                 "Sim output to list doesn't match target");
 
-            for(int i = 0; i < simListNodes.size(); ++i)
+            for(size_t i = 0; i < simListNodes.size(); ++i)
             {
                 auto simapply = std::make_shared<Node>(Node::KIND_PROC);
                 simapply->mIsObserver = true;

@@ -79,6 +79,7 @@ inline std::ostream& operator<<(std::ostream& os, Node::Kind kind)
         case Node::Kind::KIND_PROC:         os << "procedure";         break;
         case Node::Kind::KIND_PROC_FACTORY: os << "procedure Factory"; break;
         case Node::Kind::KIND_GRAPH:        os << "graph";             break;
+        case Node::Kind::KIND_STR:          os << "string";            break;
     }
     return os;
 }

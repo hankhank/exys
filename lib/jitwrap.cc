@@ -89,7 +89,7 @@ void JitWrap::BuildJitEngine(std::unique_ptr<llvm::Module> module)
     {
         for(const auto& label : id->mInputLabels)
         {
-            assert(id->mInputOffset < inputDesc.size());
+            assert(id->mInputOffset < (int)inputDesc.size());
             mInputOffsets[label] = id->mInputOffset;
             auto& ip = mPoints[id->mInputOffset];
             ip.mLength = id->mLength;
@@ -100,7 +100,7 @@ void JitWrap::BuildJitEngine(std::unique_ptr<llvm::Module> module)
         for(const auto& label : od->mObserverLabels)
         {
             int obOffset = inputDesc.size()+od->mObserverOffset;
-            assert(obOffset < mPoints.size());
+            assert(obOffset < (int)mPoints.size());
             mObserverOffsets[label] = obOffset;
             auto& op = mPoints[obOffset];
             op.mLength = od->mLength;
@@ -250,8 +250,8 @@ bool JitWrap::RunSimulationId(int simId)
 
 std::string JitWrap::GetNumSimulationTarget(int simId) const
 {
-    assert(simId >= mSimFuncTargets.size() && "simid index out of range");
-    if(simId < mSimFuncTargets.size())
+    assert(simId >= (int)mSimFuncTargets.size() && "simid index out of range");
+    if(simId < (int)mSimFuncTargets.size())
     {
         return mSimFuncTargets[simId];
     }
